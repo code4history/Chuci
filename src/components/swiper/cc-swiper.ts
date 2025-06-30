@@ -188,18 +188,25 @@ export class CcSwiper extends ChuciElement {
     `
     
     const slidesHtml = this.slides.map((slide, index) => {
-      const s = slide as any
+      const thumbnailUrl = slide.getAttribute('thumbnail-url') || ''
+      const imageUrl = slide.getAttribute('image-url') || ''
+      const imageType = slide.getAttribute('image-type') || 'image'
+      const caption = slide.getAttribute('caption') || ''
+      
       return `
         <div class='swiper-slide'>
-          <img src="${s.thumbnailUrl}" onclick="this.getRootNode().host.openViewer('${s.imageUrl}', '${s.imageType}', ${index})" class="viewer${s.caption !== "" ? ` w-caption` : ""}">
-          ${s.caption !== "" ? `<p class="slider-caption">${s.caption}</p>` : ""}
+          <img src="${thumbnailUrl}" onclick="this.getRootNode().host.openViewer('${imageUrl}', '${imageType}', ${index})" class="viewer${caption !== "" ? ` w-caption` : ""}">
+          ${caption !== "" ? `<p class="slider-caption">${caption}</p>` : ""}
         </div>
       `
     }).join('')
     
-    const galleryHtml = this.slides.map((_, index) => `
-      <div class='swiper-slide gallery-thumb' data-index="${index}"></div>
-    `).join('')
+    const galleryHtml = this.slides.map((slide, index) => {
+      const thumbnailUrl = slide.getAttribute('thumbnail-url') || ''
+      return `
+        <div class='swiper-slide gallery-thumb' data-index="${index}" style="background-image: url('${thumbnailUrl}')"></div>
+      `
+    }).join('')
     
     const html = `
       ${styles}
