@@ -94,7 +94,7 @@ export class CcSwiper extends ChuciElement {
         --swiper-navigation-color: var(--cc-slider-navigation-color, #007aff);
         --swiper-gallery-height: 0px;
         --swiper-slider-margin-bottom: 0px;
-        --swiper-navigation-size: 30px;
+        --swiper-navigation-size: 44px;
       }
 
       :host([has-thumb]) {
@@ -167,6 +167,8 @@ export class CcSwiper extends ChuciElement {
       .swiper-button-next {
         color: var(--swiper-navigation-color);
         font-size: 0; /* Hide text */
+        width: var(--swiper-navigation-size);
+        height: var(--swiper-navigation-size);
       }
 
       .swiper-button-prev:after {
