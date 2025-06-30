@@ -13,9 +13,11 @@ export abstract class ChuciElement extends HTMLElement {
   connectedCallback() {
     if (!this._connected) {
       this._connected = true
+      this.render()
       this.firstUpdated()
+    } else {
+      this.render()
     }
-    this.render()
   }
   
   disconnectedCallback() {

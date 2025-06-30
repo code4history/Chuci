@@ -75,43 +75,7 @@ export class CcSwiper extends ChuciElement {
   }
   
   protected firstUpdated() {
-    this.divContainer = this.query('#divContainer') ?? undefined
-    this.divSlides = this.query('#divSlides') ?? undefined
-    this.divGallery = this.query('#divGallery') ?? undefined
-    this.divPagination = this.query('#divPagination') ?? undefined
-    this.divPrevious = this.query('#divPrevious') ?? undefined
-    this.divNext = this.query('#divNext') ?? undefined
-    
-    // Core library features at https://swiperjs.com/api/#custom-build
-    const slidesLoop = this.slides.length >= 2
-    if (!this.divContainer) return
-    this.slider = new Swiper(this.divContainer, {
-      modules: [Navigation, Pagination, Scrollbar, Autoplay, Thumbs, Keyboard],
-      navigation: {
-        prevEl: this.divPrevious,
-        nextEl: this.divNext,
-      },
-      pagination: this.hasThumb ? {} : {
-        el: this.divPagination
-      },
-      autoplay: this.autoplay ? {
-        delay: 5000,
-        disableOnInteraction: false,
-        reverseDirection: false,
-        stopOnLastSlide: false,
-        waitForTransition: true,
-      } : false,
-      thumbs: this.hasThumb && this.divGallery ? {
-        swiper: new Swiper(this.divGallery, {
-          spaceBetween: 10,
-          slidesPerView: Math.min(Math.max(4, this.slides.length), 8),
-          watchSlidesProgress: true,
-        }),
-      } : {},
-      preventClicks: false,
-      preventClicksPropagation: true,
-      loop: slidesLoop
-    })
+    // Initialization is now done in render method after DOM update
   }
   
   protected render() {
@@ -229,12 +193,61 @@ export class CcSwiper extends ChuciElement {
     
     this.updateShadowRoot(html)
     
-    // Add click handlers for gallery thumbs after render
+    // Initialize Swiper after DOM update
     setTimeout(() => {
+      this.initializeSwiper()
+      
+      // Add click handlers for gallery thumbs
       this.queryAll('.gallery-thumb').forEach((thumb, index) => {
         thumb.addEventListener('click', () => this.slider?.slideTo(index))
       })
     }, 0)
+  }
+  
+  private initializeSwiper() {
+    this.divContainer = this.query('#divContainer') ?? undefined
+    this.divSlides = this.query('#divSlides') ?? undefined
+    this.divGallery = this.query('#divGallery') ?? undefined
+    this.divPagination = this.query('#divPagination') ?? undefined
+    this.divPrevious = this.query('#divPrevious') ?? undefined
+    this.divNext = this.query('#divNext') ?? undefined
+    
+    // Core library features at https://swiperjs.com/api/#custom-build
+    const slidesLoop = this.slides.length >= 2
+    if (!this.divContainer) return
+    
+    // Destroy existing slider if any
+    if (this.slider) {
+      this.slider.destroy()
+    }
+    
+    this.slider = new Swiper(this.divContainer, {
+      modules: [Navigation, Pagination, Scrollbar, Autoplay, Thumbs, Keyboard],
+      navigation: {
+        prevEl: this.divPrevious,
+        nextEl: this.divNext,
+      },
+      pagination: this.hasThumb ? {} : {
+        el: this.divPagination
+      },
+      autoplay: this.autoplay ? {
+        delay: 5000,
+        disableOnInteraction: false,
+        reverseDirection: false,
+        stopOnLastSlide: false,
+        waitForTransition: true,
+      } : false,
+      thumbs: this.hasThumb && this.divGallery ? {
+        swiper: new Swiper(this.divGallery, {
+          spaceBetween: 10,
+          slidesPerView: Math.min(Math.max(4, this.slides.length), 8),
+          watchSlidesProgress: true,
+        }),
+      } : {},
+      preventClicks: false,
+      preventClicksPropagation: true,
+      loop: slidesLoop
+    })
   }
 }
 
