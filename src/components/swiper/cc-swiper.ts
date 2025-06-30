@@ -1,10 +1,11 @@
 import { ChuciElement } from '@/utils/base-element'
 import Swiper from 'swiper'
 import { Navigation, Pagination, Scrollbar, Autoplay, Thumbs, Keyboard } from 'swiper/modules'
-import 'swiper/css'
-import 'swiper/css/navigation'
-import 'swiper/css/pagination'
-import 'swiper/css/scrollbar'
+
+// Import Swiper styles as strings to inject into shadow DOM
+import swiperCoreStyles from 'swiper/swiper.min.css?raw'
+import swiperNavigationStyles from 'swiper/modules/navigation.min.css?raw'
+import swiperPaginationStyles from 'swiper/modules/pagination.min.css?raw'
 
 export class CcSwiper extends ChuciElement {
   private slider?: Swiper
@@ -79,6 +80,15 @@ export class CcSwiper extends ChuciElement {
   }
   
   protected render() {
+    // Combine Swiper core styles with custom styles
+    const swiperStyles = `
+      <style>
+        ${swiperCoreStyles}
+        ${swiperNavigationStyles}
+        ${swiperPaginationStyles}
+      </style>
+    `
+    
     const styles = this.css`
       :host {
         display: block;
@@ -173,8 +183,9 @@ export class CcSwiper extends ChuciElement {
     }).join('')
     
     const html = `
+      ${swiperStyles}
       ${styles}
-      <div id='divContainer' class='swiper-container gallery-top'>
+      <div id='divContainer' class='swiper gallery-top'>
         <div id='divSlides' class='swiper-wrapper'>
           ${slidesHtml}
         </div>
@@ -183,7 +194,7 @@ export class CcSwiper extends ChuciElement {
         <div id='divPrevious' class='swiper-button-prev'></div>
         <div id='divNext' class='swiper-button-next'></div>
       </div>
-      <div id='divGallery' class='swiper-container gallery-thumbs'>
+      <div id='divGallery' class='swiper gallery-thumbs'>
         <div class='swiper-wrapper'>
           ${galleryHtml}
         </div>
