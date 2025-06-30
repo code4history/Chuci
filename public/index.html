@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Chuci Demo</title>
+  <style>
+    body {
+      margin: 0;
+      padding: 20px;
+      font-family: Arial, sans-serif;
+      background: #f5f5f5;
+    }
+    .demo-container {
+      max-width: 800px;
+      margin: 0 auto;
+      background: white;
+      padding: 20px;
+      border-radius: 8px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+    h1 {
+      color: #333;
+      text-align: center;
+    }
+    .swiper-demo {
+      height: 400px;
+      margin: 20px 0;
+    }
+    .section {
+      margin: 40px 0;
+    }
+    h2 {
+      color: #555;
+      border-bottom: 2px solid #eee;
+      padding-bottom: 10px;
+    }
+  </style>
+</head>
+<body>
+  <div class="demo-container">
+    <h1>Chuci (楚辞) Demo</h1>
+    
+    <div class="section">
+      <h2>Basic Swiper</h2>
+      <div class="swiper-demo">
+        <cc-swiper>
+          <cc-swiper-slide 
+            thumbnail-url="https://via.placeholder.com/300x200/FF6B6B/FFFFFF?text=Slide+1" 
+            image-url="https://via.placeholder.com/800x600/FF6B6B/FFFFFF?text=Full+Image+1" 
+            image-type="image"
+            caption="First slide caption">
+          </cc-swiper-slide>
+          <cc-swiper-slide 
+            thumbnail-url="https://via.placeholder.com/300x200/4ECDC4/FFFFFF?text=Slide+2" 
+            image-url="https://via.placeholder.com/800x600/4ECDC4/FFFFFF?text=Full+Image+2" 
+            image-type="image"
+            caption="Second slide caption">
+          </cc-swiper-slide>
+          <cc-swiper-slide 
+            thumbnail-url="https://via.placeholder.com/300x200/45B7D1/FFFFFF?text=Slide+3" 
+            image-url="https://via.placeholder.com/800x600/45B7D1/FFFFFF?text=Full+Image+3" 
+            image-type="image"
+            caption="Third slide caption">
+          </cc-swiper-slide>
+        </cc-swiper>
+      </div>
+    </div>
+
+    <div class="section">
+      <h2>Swiper with Thumbnails</h2>
+      <div class="swiper-demo">
+        <cc-swiper has-thumb>
+          <cc-swiper-slide 
+            thumbnail-url="https://via.placeholder.com/300x200/F7DC6F/000000?text=Thumb+1" 
+            image-url="https://via.placeholder.com/800x600/F7DC6F/000000?text=Gallery+1" 
+            image-type="image">
+          </cc-swiper-slide>
+          <cc-swiper-slide 
+            thumbnail-url="https://via.placeholder.com/300x200/BB8FCE/000000?text=Thumb+2" 
+            image-url="https://via.placeholder.com/800x600/BB8FCE/000000?text=Gallery+2" 
+            image-type="image">
+          </cc-swiper-slide>
+          <cc-swiper-slide 
+            thumbnail-url="https://via.placeholder.com/300x200/85C1E2/000000?text=Thumb+3" 
+            image-url="https://via.placeholder.com/800x600/85C1E2/000000?text=Gallery+3" 
+            image-type="image">
+          </cc-swiper-slide>
+          <cc-swiper-slide 
+            thumbnail-url="https://via.placeholder.com/300x200/73C6B6/000000?text=Thumb+4" 
+            image-url="https://via.placeholder.com/800x600/73C6B6/000000?text=Gallery+4" 
+            image-type="image">
+          </cc-swiper-slide>
+        </cc-swiper>
+      </div>
+    </div>
+
+    <div class="section">
+      <h2>Autoplay Swiper</h2>
+      <div class="swiper-demo">
+        <cc-swiper autoplay>
+          <cc-swiper-slide 
+            thumbnail-url="https://via.placeholder.com/300x200/E74C3C/FFFFFF?text=Auto+1" 
+            image-url="https://via.placeholder.com/800x600/E74C3C/FFFFFF?text=Autoplay+1" 
+            image-type="image">
+          </cc-swiper-slide>
+          <cc-swiper-slide 
+            thumbnail-url="https://via.placeholder.com/300x200/8E44AD/FFFFFF?text=Auto+2" 
+            image-url="https://via.placeholder.com/800x600/8E44AD/FFFFFF?text=Autoplay+2" 
+            image-type="image">
+          </cc-swiper-slide>
+          <cc-swiper-slide 
+            thumbnail-url="https://via.placeholder.com/300x200/3498DB/FFFFFF?text=Auto+3" 
+            image-url="https://via.placeholder.com/800x600/3498DB/FFFFFF?text=Autoplay+3" 
+            image-type="image">
+          </cc-swiper-slide>
+        </cc-swiper>
+      </div>
+    </div>
+  </div>
+
+  <script type="module" src="/src/index.ts"></script>
+</body>
+</html>
