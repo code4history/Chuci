@@ -24,6 +24,11 @@ export class CcViewer extends ChuciElement {
   private currentSlideIndex = 0
   private currentType = ''
   
+  protected firstUpdated() {
+    // Dispatch load event when the component is ready
+    this.dispatch('load')
+  }
+  
   open(imgUrl: string, type: string, attributes?: Record<string, any>) {
     this.currentType = type
     const targetTag = typeHashes[type]

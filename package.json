@@ -21,7 +21,7 @@
     "README.md"
   ],
   "scripts": {
-    "dev": "vite",
+    "dev": "vite --host='0.0.0.0'",
     "build": "npm run typecheck && cross-env BUILD_MODE=package vite build",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
