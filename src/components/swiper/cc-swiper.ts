@@ -155,6 +155,25 @@ export class CcSwiper extends ChuciElement {
         font-size: 0.6rem;
         font-weight: 700;
       }
+
+      /* Fix navigation button icons */
+      .swiper-button-prev:after,
+      .swiper-button-next:after {
+        font-family: swiper-icons;
+        font-size: var(--swiper-navigation-size);
+        text-transform: none !important;
+        letter-spacing: 0;
+        font-variant: initial;
+        line-height: 1;
+      }
+
+      .swiper-button-prev:after {
+        content: 'prev';
+      }
+      
+      .swiper-button-next:after {
+        content: 'next';
+      }
     `
     
     const slidesHtml = this.slides.map((slide, index) => {
