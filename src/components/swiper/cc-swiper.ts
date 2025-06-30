@@ -3,9 +3,7 @@ import Swiper from 'swiper'
 import { Navigation, Pagination, Scrollbar, Autoplay, Thumbs, Keyboard } from 'swiper/modules'
 
 // Import Swiper styles as strings to inject into shadow DOM
-import swiperCoreStyles from 'swiper/swiper.min.css?raw'
-import swiperNavigationStyles from 'swiper/modules/navigation.min.css?raw'
-import swiperPaginationStyles from 'swiper/modules/pagination.min.css?raw'
+import swiperCoreStyles from 'swiper/swiper-bundle.min.css?raw'
 
 export class CcSwiper extends ChuciElement {
   private slider?: Swiper
@@ -84,8 +82,6 @@ export class CcSwiper extends ChuciElement {
     const swiperStyles = `
       <style>
         ${swiperCoreStyles}
-        ${swiperNavigationStyles}
-        ${swiperPaginationStyles}
       </style>
     `
     
