@@ -162,23 +162,33 @@ export class CcSwiper extends ChuciElement {
         font-weight: 700;
       }
 
-      /* Fix navigation button icons */
-      .swiper-button-prev:after,
-      .swiper-button-next:after {
-        font-family: swiper-icons;
-        font-size: var(--swiper-navigation-size);
-        text-transform: none !important;
-        letter-spacing: 0;
-        font-variant: initial;
-        line-height: 1;
+      /* Navigation button styles with SVG icons */
+      .swiper-button-prev,
+      .swiper-button-next {
+        color: var(--swiper-navigation-color);
+        font-size: 0; /* Hide text */
       }
 
       .swiper-button-prev:after {
-        content: 'prev';
+        content: '';
+        display: block;
+        width: var(--swiper-navigation-size);
+        height: var(--swiper-navigation-size);
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23007aff'%3E%3Cpath d='M15.41 7.41L14 6l-6 6 6 6 1.41-1.41L10.83 12z'/%3E%3C/svg%3E");
+        background-size: contain;
+        background-repeat: no-repeat;
+        background-position: center;
       }
       
       .swiper-button-next:after {
-        content: 'next';
+        content: '';
+        display: block;
+        width: var(--swiper-navigation-size);
+        height: var(--swiper-navigation-size);
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23007aff'%3E%3Cpath d='M8.59 16.59L10 18l6-6-6-6-1.41 1.41L13.17 12z'/%3E%3C/svg%3E");
+        background-size: contain;
+        background-repeat: no-repeat;
+        background-position: center;
       }
     `
     
