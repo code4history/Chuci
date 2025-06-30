@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Generate Test Images</title>
+</head>
+<body>
+    <h1>Test Image Generator</h1>
+    <p>Save these canvases as images for testing:</p>
+    
+    <div id="images"></div>
+    
+    <script>
+        const colors = [
+            { bg: '#FF6B6B', name: 'Red' },
+            { bg: '#4ECDC4', name: 'Green' },
+            { bg: '#45B7D1', name: 'Blue' },
+            { bg: '#F7DC6F', name: 'Yellow' },
+            { bg: '#BB8FCE', name: 'Purple' },
+            { bg: '#85C1E2', name: 'Light Blue' }
+        ];
+        
+        const container = document.getElementById('images');
+        
+        colors.forEach((color, index) => {
+            // Thumbnail
+            const thumbCanvas = document.createElement('canvas');
+            thumbCanvas.width = 300;
+            thumbCanvas.height = 200;
+            const thumbCtx = thumbCanvas.getContext('2d');
+            thumbCtx.fillStyle = color.bg;
+            thumbCtx.fillRect(0, 0, 300, 200);
+            thumbCtx.fillStyle = '#FFF';
+            thumbCtx.font = '24px Arial';
+            thumbCtx.textAlign = 'center';
+            thumbCtx.fillText(`Thumb ${index + 1}`, 150, 100);
+            
+            // Full size
+            const fullCanvas = document.createElement('canvas');
+            fullCanvas.width = 800;
+            fullCanvas.height = 600;
+            const fullCtx = fullCanvas.getContext('2d');
+            fullCtx.fillStyle = color.bg;
+            fullCtx.fillRect(0, 0, 800, 600);
+            fullCtx.fillStyle = '#FFF';
+            fullCtx.font = '48px Arial';
+            fullCtx.textAlign = 'center';
+            fullCtx.fillText(`Full Image ${index + 1}`, 400, 300);
+            
+            const div = document.createElement('div');
+            div.innerHTML = `
+                <h3>${color.name} (${index + 1})</h3>
+                <p>Thumbnail (300x200):</p>
+                ${thumbCanvas.outerHTML}
+                <p>Full (800x600):</p>
+                ${fullCanvas.outerHTML}
+                <hr>
+            `;
+            container.appendChild(div);
+        });
+    </script>
+</body>
+</html>
