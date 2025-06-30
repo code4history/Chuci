@@ -88,6 +88,8 @@ export class CcSwiper extends ChuciElement {
     const styles = this.css`
       :host {
         display: block;
+        height: 100%;
+        width: 100%;
         --swiper-theme-color: var(--cc-slider-theme-color, #007aff);
         --swiper-navigation-color: var(--cc-slider-navigation-color, #007aff);
         --swiper-gallery-height: 0px;
@@ -101,8 +103,12 @@ export class CcSwiper extends ChuciElement {
       }
 
       #divContainer {
-        height: calc(100% - calc(var(--swiper-gallery-height)) - var(--swiper-slider-margin-bottom));
+        height: calc(100% - var(--swiper-gallery-height) - var(--swiper-slider-margin-bottom));
         margin-bottom: var(--swiper-slider-margin-bottom);
+      }
+      
+      .swiper {
+        height: 100%;
       }
 
       #divGallery {
@@ -132,7 +138,7 @@ export class CcSwiper extends ChuciElement {
 
       .swiper-slide {
         background-color: white;
-        height: 200px;
+        height: 100%;
       }
 
       img.viewer {
