@@ -1,5 +1,9 @@
 # Chuci (楚辞)
 
+[![CI](https://github.com/code4history/Chuci/actions/workflows/ci.yml/badge.svg)](https://github.com/code4history/Chuci/actions/workflows/ci.yml)
+[![npm version](https://badge.fury.io/js/@c4h%2Fchuci.svg)](https://www.npmjs.com/package/@c4h/chuci)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+
 A standalone multimedia swiper and viewer web components library extracted from [Quyuan](https://github.com/code4history/Quyuan). Provides touch-enabled carousel and multimedia viewers without any framework dependencies.
 
 ## Features
