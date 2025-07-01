@@ -20,6 +20,8 @@ const typeHashes = {
 } as HashKeyTag
 
 export class CcViewer extends ChuciElement {
+  // Swiper instance from cc-swiper component, no TypeScript types available
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   private swiper: any
   private currentSlideIndex = 0
   private currentType = ''
@@ -27,6 +29,7 @@ export class CcViewer extends ChuciElement {
   private boundHandleNavigateNext?: (e: Event) => void
   
   
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   open(imgUrl: string, type: string, attributes?: Record<string, any>) {
     const previousType = this.currentType
     this.currentType = type
@@ -35,7 +38,9 @@ export class CcViewer extends ChuciElement {
     if (previousType && previousType !== type) {
       const previousTag = typeHashes[previousType]
       const previousHandler = this.query(previousTag)
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       if (previousHandler && (previousHandler as any).close) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         (previousHandler as any).close()
       }
     }
@@ -71,6 +76,7 @@ export class CcViewer extends ChuciElement {
       this.updateNavigationButtons()
       
       if (handler) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         ;(handler as any).open(imgUrl)
       }
     }, 0)
@@ -97,7 +103,7 @@ export class CcViewer extends ChuciElement {
     this.addEventListener('navigate-next', this.boundHandleNavigateNext)
   }
   
-  private handleNavigatePrev(e?: Event) {
+  private handleNavigatePrev(_e?: Event) {
     if (!this.swiper) return
     
     const totalSlides = this.swiper.slides.length
@@ -119,7 +125,7 @@ export class CcViewer extends ChuciElement {
     this.navigateToSlide(this.currentSlideIndex)
   }
   
-  private handleNavigateNext(e?: Event) {
+  private handleNavigateNext(_e?: Event) {
     if (!this.swiper) return
     
     const totalSlides = this.swiper.slides.length
@@ -153,10 +159,12 @@ export class CcViewer extends ChuciElement {
     const currentTag = typeHashes[this.currentType]
     const currentHandler = this.query(currentTag)
     if (currentHandler) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       (currentHandler as any).close()
     }
     
     // Gather viewer-specific attributes
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const attributes: Record<string, any> = {}
     if (slide.hasAttribute('fit-to-container')) {
       attributes.fitToContainer = true
@@ -223,6 +231,7 @@ export class CcViewer extends ChuciElement {
     
     viewers.forEach(viewer => {
       if (viewer) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const v = viewer as any
         v.showPrevButton = showPrev
         v.showNextButton = showNext
@@ -231,6 +240,7 @@ export class CcViewer extends ChuciElement {
   }
   
   // Public method to set swiper reference
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   setSwiper(swiper: any) {
     this.swiper = swiper
   }

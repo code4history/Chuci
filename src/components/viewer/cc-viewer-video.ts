@@ -87,8 +87,7 @@ export class CcViewerVideo extends CcViewerBase {
     }
   }
   
-  private handleVideoError(e: Event) {
-    const video = e.target as HTMLVideoElement
+  private handleVideoError(_e: Event) {
     const container = this.query('.video-container')
     if (container) {
       container.innerHTML = `

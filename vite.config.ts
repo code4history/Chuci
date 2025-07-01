@@ -40,12 +40,13 @@ export default defineConfig({
     dts({
       outDir: 'dist',
       exclude: ['tests', 'node_modules'],
-      rollupTypes: false,
+      rollupTypes: true,
       skipDiagnostics: true,
       tsconfigPath: './tsconfig.json',
       logLevel: 'silent',
       insertTypesEntry: true,
-      staticImport: true
+      staticImport: true,
+      copyDtsFiles: true
     })
   ],
   test: {

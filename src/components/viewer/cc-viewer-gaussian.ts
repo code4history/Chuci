@@ -6,12 +6,18 @@ export class CcViewerGaussian extends CcViewerBase {
   private cameraPosition = '3,3,3'
   private _cameraTarget = '0,0,0' // TODO: Implement camera target functionality
   
+  // gsplat.js library types are not available, using any for external library objects
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   private scene?: any
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   private camera?: any
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   private renderer?: any
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   private controls?: any
   private animationId?: number
   private canvas?: HTMLCanvasElement
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   private swiper?: any
   
   static get observedAttributes() {
@@ -213,7 +219,7 @@ ${this.getTargetDebugInfo()}
     const pos = this.camera.position
     try {
       return `X: ${pos.x.toFixed(3)}, Y: ${pos.y.toFixed(3)}, Z: ${pos.z.toFixed(3)}`
-    } catch (error) {
+    } catch (_error) {
       return `Position: ${JSON.stringify(pos)}`
     }
   }
@@ -224,7 +230,7 @@ ${this.getTargetDebugInfo()}
     // Return available control info instead
     try {
       return `Controls active (no target property in gsplat.js)`
-    } catch (error) {
+    } catch (_error) {
       return `Target: ${JSON.stringify(this.controls)}`
     }
   }
@@ -317,7 +323,7 @@ ${this.getTargetDebugInfo()}
         
         try {
           this.renderer.render(this.scene, this.camera)
-        } catch (e) {
+        } catch (_e) {
         }
         
         // Log first frame only

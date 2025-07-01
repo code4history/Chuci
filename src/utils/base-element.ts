@@ -36,12 +36,16 @@ export abstract class ChuciElement extends HTMLElement {
   
   protected abstract render(): void
   
+  // Template literal values can be any type that can be converted to string
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   protected html(strings: TemplateStringsArray, ...values: any[]): string {
     return strings.reduce((result, str, i) => {
       return result + str + (values[i] || '')
     }, '')
   }
   
+  // Template literal values can be any type that can be converted to string
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   protected css(strings: TemplateStringsArray, ...values: any[]): string {
     const cssText = strings.reduce((result, str, i) => {
       return result + str + (values[i] || '')
@@ -61,6 +65,8 @@ export abstract class ChuciElement extends HTMLElement {
     return this._shadowRoot.querySelectorAll<T>(selector)
   }
   
+  // Custom event detail can be any type
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   protected dispatch(eventName: string, detail?: any) {
     this.dispatchEvent(new CustomEvent(eventName, {
       detail,

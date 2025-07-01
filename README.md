@@ -42,6 +42,23 @@ npm install @c4h/chuci
 </script>
 ```
 
+### Programmatic Usage
+
+```javascript
+import '@c4h/chuci';
+
+// Get swiper element
+const swiper = document.querySelector('cc-swiper');
+
+// Open viewer programmatically
+swiper.openViewer('path/to/image.jpg', 'image', 0);
+
+// Listen to slide changes
+swiper.addEventListener('slidechange', (e) => {
+  console.log('Current slide:', e.detail.activeIndex);
+});
+```
+
 ### With Thumbnails Gallery
 
 ```html
@@ -78,6 +95,12 @@ Main carousel component.
 - `has-thumb`: Show thumbnail gallery
 - `autoplay`: Enable autoplay
 
+**Methods:**
+- `openViewer(imageUrl: string, imageType: string, slideIndex?: number)`: Programmatically open viewer
+
+**Events:**
+- `slidechange`: Fired when slide changes
+
 ### `<cc-swiper-slide>`
 
 Individual slide component.
@@ -88,14 +111,53 @@ Individual slide component.
 - `image-type`: Media type (see supported types above)
 - `caption`: Optional caption text
 
-### Viewer-specific Attributes
+### Viewer Components
 
-For 3D models and Gaussian splats:
-- `fit-to-container`: Fit model to container size
-- `debug-mode`: Show debug information
-- `camera-position`: Set initial camera position (e.g., "0,0,5")
-- `camera-target`: Set camera target (e.g., "0,0,0")
-- `show-texture`: Show/hide textures (for 3D models)
+All viewer components inherit from `CcViewerBase` and support:
+
+**Methods:**
+- `open(url: string)`: Open viewer with media
+- `close()`: Close viewer
+
+**Properties:**
+- `showPrevButton`: Show/hide previous button
+- `showNextButton`: Show/hide next button
+
+### Media-specific Examples
+
+#### 3D Model Viewer
+```html
+<cc-swiper-slide 
+  thumbnail-url="thumb.jpg"
+  image-url="model.obj"
+  image-type="3dmodel"
+  material-url="model.mtl"
+  debug-mode="true"
+  camera-position="0,1,5"
+  camera-target="0,0,0"
+  show-texture="true">
+</cc-swiper-slide>
+```
+
+#### Gaussian Splatting Viewer
+```html
+<cc-swiper-slide
+  thumbnail-url="thumb.jpg"
+  image-url="scene.splat"
+  image-type="gaussian"
+  debug-mode="true"
+  camera-position="0,0,10">
+</cc-swiper-slide>
+```
+
+#### YouTube Video
+```html
+<cc-swiper-slide
+  thumbnail-url="thumb.jpg"
+  image-url="https://www.youtube.com/watch?v=VIDEO_ID"
+  image-type="youtube">
+</cc-swiper-slide>
+```
 
 ## Styling
 
@@ -138,6 +200,21 @@ pnpm run build
 ## License
 
 MIT License - see LICENSE file for details.
+
+## Migration from Quyuan
+
+If you're migrating from the original Quyuan implementation:
+
+1. Change imports from `quyuan` to `@c4h/chuci`
+2. Component names remain the same (`cc-swiper`, `cc-swiper-slide`, etc.)
+3. 3D model URLs no longer use pipe-separated format:
+   ```html
+   <!-- Old -->
+   <cc-swiper-slide image-url="model.obj|model.mtl" ...>
+   
+   <!-- New -->
+   <cc-swiper-slide image-url="model.obj" material-url="model.mtl" ...>
+   ```
 
 ## Credits
 

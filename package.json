@@ -11,14 +11,19 @@
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
+      "browser": "./dist/chuci.umd.js",
       "import": "./dist/chuci.js",
       "require": "./dist/chuci.cjs"
-    }
+    },
+    "./package.json": "./package.json",
+    "./dist/*": "./dist/*"
   },
   "files": [
     "dist",
     "src",
-    "README.md"
+    "README.md",
+    "CHANGELOG.md",
+    "LICENSE"
   ],
   "scripts": {
     "dev": "vite --host='0.0.0.0'",
@@ -28,6 +33,7 @@
     "test:watch": "vitest",
     "coverage": "vitest run --coverage",
     "lint": "eslint src tests",
+    "lint:fix": "eslint src tests --fix",
     "prepublishOnly": "npm run typecheck && npm run build"
   },
   "dependencies": {

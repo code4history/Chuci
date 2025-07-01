@@ -51,11 +51,14 @@ export class CcSwiper extends ChuciElement {
     }
     
     // Store current swiper reference and slide index in viewer
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     (ccView as any).setSwiper(this);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     (ccView as any).setCurrentSlideIndex(slideIndex ?? this.slider?.activeIndex ?? 0);
     
     // Get the slide element to extract attributes
     const slide = this.slides[slideIndex ?? this.slider?.activeIndex ?? 0];
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const attributes: Record<string, any> = {};
     
     // Check for viewer-specific attributes
@@ -80,6 +83,7 @@ export class CcSwiper extends ChuciElement {
       attributes.materialUrl = slide.getAttribute('material-url');
     }
     
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     ;(ccView as any).open(imageUrl, imageType, attributes)
   }
   

@@ -47,7 +47,7 @@ export abstract class CcViewerBase extends ChuciElement {
     openPromise.then(() => {
       this.isLoading = false
       this.render()
-    }).catch(error => {
+    }).catch(_error => {
       this.isLoading = false
       this.render()
     })
