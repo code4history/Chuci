@@ -1,12 +1,16 @@
 import { CcViewerBase } from './cc-viewer-base'
 import Viewer from 'viewerjs'
-import 'viewerjs/dist/viewer.css'
+import viewerStyles from 'viewerjs/dist/viewer.css?inline'
 
 export class CcViewerImage extends CcViewerBase {
   private viewer?: Viewer
   private container?: HTMLDivElement
+  private imageUrl = ''
+  private isShow = false
   
   open(url: string) {
+    this.imageUrl = url
+    this.isShow = true
     this.render()
     
     setTimeout(() => {
@@ -14,15 +18,15 @@ export class CcViewerImage extends CcViewerBase {
       if (!this.container) return
       
       const img = document.createElement('img')
-      img.src = url
-      img.style.maxWidth = '100%'
-      img.style.maxHeight = '100%'
-      img.style.objectFit = 'contain'
+      img.src = this.imageUrl
+      img.style.display = 'none'  // 元の画像を非表示に
       
       this.container.appendChild(img)
       
+      // ViewerJSをインラインモードで使用して、独自のコンテナ内で表示
       this.viewer = new Viewer(img, {
-        inline: false,
+        inline: true,  // インラインモードに変更
+        container: this.container,  // コンテナを指定
         toolbar: {
           zoomIn: true,
           zoomOut: true,
@@ -39,20 +43,20 @@ export class CcViewerImage extends CcViewerBase {
         navbar: false,
         title: false,
         keyboard: true,
-        backdrop: true,
-        button: true,
+        backdrop: false,  // インラインモードでは背景を無効化
+        button: false,    // 閉じるボタンを無効化
         movable: true,
         zoomable: true,
         rotatable: true,
         scalable: true,
         transition: true,
-        fullscreen: true,
+        fullscreen: false,
         ready: () => {
           this.addNavigationListeners()
         }
       })
       
-      this.viewer.show()
+      // show()を呼ばない - インラインモードでは自動的に表示される
     }, 0)
   }
   
@@ -61,13 +65,17 @@ export class CcViewerImage extends CcViewerBase {
       this.viewer.destroy()
       this.viewer = undefined
     }
-    this.updateShadowRoot('')
+    this.imageUrl = ''
+    this.isShow = false
+    this.render()
   }
   
   protected render() {
     const styles = this.css`
+      ${viewerStyles}
+      
       :host {
-        display: none;
+        --cc-viewer-z-index-each: 1000;
       }
       
       #imageContainer {
@@ -77,6 +85,33 @@ export class CcViewerImage extends CcViewerBase {
         width: 100%;
         height: 100%;
         z-index: var(--cc-viewer-z-index-each, 1000);
+        background: rgba(0, 0, 0, 0.9);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+      
+      /* ViewerJS inline mode adjustments */
+      .viewer-container {
+        width: 100% !important;
+        height: 100% !important;
+        position: relative !important;
+      }
+      
+      .viewer-canvas {
+        width: 100% !important;
+        height: 100% !important;
+      }
+      
+      /* Hide the original image */
+      #imageContainer > img {
+        display: none !important;
+      }
+      
+      /* Ensure viewer takes full space */
+      .viewer-container.viewer-inline {
+        width: 100% !important;
+        height: 100% !important;
       }
       
       ${this.getNavigationStyles()}
@@ -87,12 +122,12 @@ export class CcViewerImage extends CcViewerBase {
       }
     `
     
-    const html = `
+    const html = this.isShow ? `
       ${styles}
       <div id="imageContainer">
         ${this.getNavigationButtons()}
       </div>
-    `
+    ` : ''
     
     this.updateShadowRoot(html)
   }

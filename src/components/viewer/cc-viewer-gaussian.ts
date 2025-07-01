@@ -14,6 +14,7 @@ export class CcViewerGaussian extends CcViewerBase {
   private controls?: any
   private animationId?: number
   private canvas?: HTMLCanvasElement
+  private swiper?: any
   
   static get observedAttributes() {
     return ['show', 'debug-mode', 'camera-position', 'camera-target']
@@ -41,11 +42,14 @@ export class CcViewerGaussian extends CcViewerBase {
     // Wait for render to complete before initializing
     setTimeout(() => {
       this.initializeViewer()
-      this.addNavigationListeners()
     }, 0)
   }
   
   close() {
+    // Hide canvas before cleanup
+    if (this.canvas) {
+      this.canvas.style.display = 'none'
+    }
     this.cleanup()
     this.splatUrl = ''
     this.isShow = false
@@ -62,10 +66,19 @@ export class CcViewerGaussian extends CcViewerBase {
       this.renderer.dispose()
     }
     
+    // Remove all gaussian canvases from document.body
+    const existingCanvases = document.querySelectorAll('canvas[id^="gaussian-canvas-"]')
+    existingCanvases.forEach(canvas => {
+      if (canvas.parentNode === document.body) {
+        document.body.removeChild(canvas)
+      }
+    })
+    
     this.scene = undefined
     this.camera = undefined
     this.renderer = undefined
     this.controls = undefined
+    this.canvas = undefined
   }
   
   private getCameraDebugInfo(): string {
@@ -111,8 +124,40 @@ ${this.getTargetDebugInfo()}
   }
   
   private async initializeViewer() {
-    this.canvas = this.query('canvas') as HTMLCanvasElement
-    if (!this.canvas) return
+    // Create a unique ID for this instance
+    const canvasId = `gaussian-canvas-${Date.now()}`
+    
+    // Get the viewer container dimensions
+    const viewerEl = this.query('.viewer') as HTMLElement
+    if (!viewerEl) return
+    
+    const rect = viewerEl.getBoundingClientRect()
+    
+    // Check if canvas already exists in normal DOM
+    let normalCanvas = document.getElementById(canvasId) as HTMLCanvasElement
+    if (!normalCanvas) {
+      normalCanvas = document.createElement('canvas')
+      normalCanvas.id = canvasId
+      normalCanvas.style.position = 'fixed'
+      normalCanvas.style.top = `${rect.top}px`
+      normalCanvas.style.left = `${rect.left}px`
+      normalCanvas.style.width = `${rect.width}px`
+      normalCanvas.style.height = `${rect.height}px`
+      normalCanvas.style.zIndex = '1001'  // Above backdrop but below buttons
+      normalCanvas.style.pointerEvents = 'auto'  // Keep mouse events for 3D controls
+      normalCanvas.style.display = 'block'
+      normalCanvas.style.background = 'transparent'
+      document.body.appendChild(normalCanvas)
+    }
+    
+    // Update canvas position in case viewer moved
+    normalCanvas.style.top = `${rect.top}px`
+    normalCanvas.style.left = `${rect.left}px`
+    normalCanvas.style.width = `${rect.width}px`
+    normalCanvas.style.height = `${rect.height}px`
+    
+    this.canvas = normalCanvas
+    console.log('Using canvas in normal DOM with id:', canvasId, 'at position:', rect)
     
     try {
       const container = this.query('.gaussian-container') as HTMLDivElement
@@ -121,51 +166,52 @@ ${this.getTargetDebugInfo()}
       // Import gsplat using the proven API approach
       const SPLAT = await import('gsplat')
       
-      // Setup GSplat components using the working approach from 3dViewer
+      // Setup GSplat components exactly like the React example
       this.scene = new SPLAT.Scene()
       this.camera = new SPLAT.Camera()
       this.renderer = new SPLAT.WebGLRenderer(this.canvas)
       this.controls = new SPLAT.OrbitControls(this.camera, this.canvas)
       
-      // Debug camera and controls object structure
-      console.log('Camera object:', this.camera)
-      console.log('Camera position:', this.camera.position)
-      console.log('Controls object:', this.controls)
-      console.log('All controls properties:', Object.keys(this.controls))
-      
-      // Set camera position using the actual API structure
-      if (!this.cameraPosition) {
-        this.camera.position.x = 3
-        this.camera.position.y = 3
-        this.camera.position.z = 3
-      } else {
-        const [x, y, z] = this.cameraPosition.split(',').map(Number)
-        if (!isNaN(x) && !isNaN(y) && !isNaN(z)) {
-          this.camera.position.x = x
-          this.camera.position.y = y
-          this.camera.position.z = z
-        } else {
-          this.camera.position.x = 3
-          this.camera.position.y = 3
-          this.camera.position.z = 3
-        }
-      }
-      
-      // gsplat.js OrbitControls may not have a target property like Three.js
-      // Skip target setting for now until we understand the API
-      console.log('Camera position set to:', this.camera.position)
-      
-      // Update controls to apply initial position and target
-      this.controls.update()
-      
       // Load the splat file
+      console.log('Loading splat file:', this.splatUrl)
       await SPLAT.Loader.LoadAsync(this.splatUrl, this.scene)
+      console.log('Splat loaded successfully')
+      
       
       // Start render loop
+      let frameCount = 0
       const animate = () => {
         this.animationId = requestAnimationFrame(animate)
         this.controls.update()
-        this.renderer.render(this.scene, this.camera)
+        
+        try {
+          this.renderer.render(this.scene, this.camera)
+        } catch (e) {
+          console.error('Render error:', e)
+        }
+        
+        // Log first frame only
+        if (frameCount === 0) {
+          console.log('First frame rendered')
+          // Check if WebGL context is active
+          const gl = this.canvas.getContext('webgl') || this.canvas.getContext('webgl2')
+          console.log('WebGL context exists:', !!gl)
+          if (gl) {
+            console.log('Canvas size:', this.canvas.width, 'x', this.canvas.height)
+            console.log('Viewport:', gl.getParameter(gl.VIEWPORT))
+            
+            // Check if anything is being drawn
+            const pixels = new Uint8Array(4)
+            gl.readPixels(this.canvas.width / 2, this.canvas.height / 2, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, pixels)
+            console.log('Center pixel color:', pixels)
+            
+            // Check renderer state
+            console.log('Renderer:', this.renderer)
+            console.log('Renderer canvas:', (this.renderer as any).canvas)
+            console.log('Same canvas?', (this.renderer as any).canvas === this.canvas)
+          }
+          frameCount++
+        }
         
         if (this.debugMode) {
           this.updateDebugInfo()
@@ -210,6 +256,39 @@ ${this.getTargetDebugInfo()}
     }
   }
   
+  
+  protected firstUpdated() {
+    // Navigation is handled in render() method after each render
+  }
+  
+  private handleNavigatePrev() {
+    console.log('handleNavigatePrev called in gaussian viewer')
+    // Prevent duplicate events
+    if (this.hasAttribute('navigating')) return
+    this.setAttribute('navigating', 'true')
+    
+    this.dispatch('navigate-prev')
+    
+    // Reset flag after a short delay
+    setTimeout(() => {
+      this.removeAttribute('navigating')
+    }, 100)
+  }
+  
+  private handleNavigateNext() {
+    console.log('handleNavigateNext called in gaussian viewer')
+    // Prevent duplicate events
+    if (this.hasAttribute('navigating')) return
+    this.setAttribute('navigating', 'true')
+    
+    this.dispatch('navigate-next')
+    
+    // Reset flag after a short delay
+    setTimeout(() => {
+      this.removeAttribute('navigating')
+    }, 100)
+  }
+  
   protected render() {
     const styles = this.css`
       :host {
@@ -227,15 +306,15 @@ ${this.getTargetDebugInfo()}
         width: 100%;
         height: 100%;
         background-color: rgba(0, 0, 0, 0.9);
-        z-index: var(--cc-viewer-z-index-each);
+        z-index: 1000;
       }
       
       .close {
-        position: absolute;
+        position: fixed;
         right: 20px;
         top: 20px;
         cursor: pointer;
-        z-index: 10;
+        z-index: 1002;
         width: 40px;
         height: 40px;
         display: flex;
@@ -244,6 +323,7 @@ ${this.getTargetDebugInfo()}
         background-color: rgba(0, 0, 0, 0.5);
         border-radius: 50%;
         transition: background-color 0.3s ease;
+        pointer-events: auto;
       }
       
       .close:hover {
@@ -271,6 +351,12 @@ ${this.getTargetDebugInfo()}
         height: 100%;
         position: relative;
         background: #000;
+      }
+      
+      .gaussian-container canvas {
+        width: 100% !important;
+        height: 100% !important;
+        display: block;
       }
       
       .loading {
@@ -314,15 +400,14 @@ ${this.getTargetDebugInfo()}
         pointer-events: none;
         white-space: pre-line;
         min-width: 200px;
+        z-index: 1003;
       }
       
       ${this.getNavigationStyles()}
     `
     
-    const gaussianContent = !this.splatUrl ? 
-      '<div class="error">No splat URL provided</div>' :
-      `
-        <canvas></canvas>
+    const gaussianContent = `
+        <canvas style="display: none;"></canvas>
         ${this.isLoading ? '<div class="loading">Loading...</div>' : ''}
         ${!this.isLoading && this.debugMode ? `
           <div class="debug-info">
@@ -351,22 +436,48 @@ ${this.getTargetDebugInfo()}
             <line x1="6" y1="6" x2="18" y2="18"></line>
           </svg>
         </div>
-        ${this.getNavigationButtons()}
-        <div class="viewer">
+          <div class="viewer">
           <div class="gaussian-container">
             ${gaussianContent}
           </div>
         </div>
+        ${this.getNavigationButtons()}
       </div>
     `
     
     this.updateShadowRoot(html)
     
-    // Add close button listener after render
+    // Add navigation listeners after render
     setTimeout(() => {
       const closeBtn = this.query('.close')
-      if (closeBtn) {
-        closeBtn.addEventListener('click', () => this.close())
+      const prevBtn = this.query('.nav-prev')
+      const nextBtn = this.query('.nav-next')
+      
+      if (closeBtn && !closeBtn.hasAttribute('data-listener-attached')) {
+        closeBtn.setAttribute('data-listener-attached', 'true')
+        closeBtn.addEventListener('click', (e) => {
+          e.stopPropagation()
+          console.log('Close button clicked')
+          this.close()
+        })
+      }
+      
+      if (prevBtn && !prevBtn.hasAttribute('data-listener-attached')) {
+        prevBtn.setAttribute('data-listener-attached', 'true')
+        prevBtn.addEventListener('click', (e) => {
+          e.stopPropagation()
+          console.log('Previous button clicked')
+          this.handleNavigatePrev()
+        })
+      }
+      
+      if (nextBtn && !nextBtn.hasAttribute('data-listener-attached')) {
+        nextBtn.setAttribute('data-listener-attached', 'true')
+        nextBtn.addEventListener('click', (e) => {
+          e.stopPropagation()
+          console.log('Next button clicked')
+          this.handleNavigateNext()
+        })
       }
     }, 0)
   }

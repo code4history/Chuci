@@ -23,6 +23,8 @@ export class CcViewer extends ChuciElement {
   private swiper: any
   private currentSlideIndex = 0
   private currentType = ''
+  private boundHandleNavigatePrev?: (e: Event) => void
+  private boundHandleNavigateNext?: (e: Event) => void
   
   
   open(imgUrl: string, type: string, attributes?: Record<string, any>) {
@@ -47,12 +49,26 @@ export class CcViewer extends ChuciElement {
     // Dispatch load event when the component is ready
     this.dispatch('load')
     
+    // Remove existing listeners if any
+    if (this.boundHandleNavigatePrev) {
+      this.removeEventListener('navigate-prev', this.boundHandleNavigatePrev)
+    }
+    if (this.boundHandleNavigateNext) {
+      this.removeEventListener('navigate-next', this.boundHandleNavigateNext)
+    }
+    
+    // Create bound functions once
+    this.boundHandleNavigatePrev = this.handleNavigatePrev.bind(this)
+    this.boundHandleNavigateNext = this.handleNavigateNext.bind(this)
+    
     // Listen for navigation events
-    this.addEventListener('navigate-prev', this.handleNavigatePrev.bind(this))
-    this.addEventListener('navigate-next', this.handleNavigateNext.bind(this))
+    this.addEventListener('navigate-prev', this.boundHandleNavigatePrev)
+    this.addEventListener('navigate-next', this.boundHandleNavigateNext)
   }
   
-  private handleNavigatePrev() {
+  private handleNavigatePrev(e?: Event) {
+    console.log('handleNavigatePrev in cc-viewer, event from:', e?.target)
+    console.log('Current index before:', this.currentSlideIndex)
     if (!this.swiper) return
     
     const totalSlides = this.swiper.slides.length
@@ -74,7 +90,9 @@ export class CcViewer extends ChuciElement {
     this.navigateToSlide(this.currentSlideIndex)
   }
   
-  private handleNavigateNext() {
+  private handleNavigateNext(e?: Event) {
+    console.log('handleNavigateNext in cc-viewer, event from:', e?.target)
+    console.log('Current index before:', this.currentSlideIndex)
     if (!this.swiper) return
     
     const totalSlides = this.swiper.slides.length
@@ -97,19 +115,21 @@ export class CcViewer extends ChuciElement {
   }
   
   private navigateToSlide(index: number) {
+    console.log('navigateToSlide called with index:', index, 'current type:', this.currentType)
     if (!this.swiper || !this.swiper.slides[index]) return
     
     // Close current viewer
     const currentTag = typeHashes[this.currentType]
     const currentHandler = this.query(currentTag)
     if (currentHandler) {
+      console.log('Closing viewer:', currentTag)
       (currentHandler as any).close()
     }
     
     // Open new viewer
     const slide = this.swiper.slides[index]
-    const imageUrl = slide.imageUrl
-    const imageType = slide.imageType
+    const imageUrl = slide.getAttribute('image-url') || ''
+    const imageType = slide.getAttribute('image-type') || 'image'
     
     // Gather viewer-specific attributes
     const attributes: Record<string, any> = {}
@@ -129,6 +149,7 @@ export class CcViewer extends ChuciElement {
       attributes.showTexture = slide.getAttribute('show-texture') === 'true'
     }
     
+    console.log('Opening new viewer - type:', imageType, 'url:', imageUrl)
     this.currentSlideIndex = index
     this.open(imageUrl, imageType, attributes)
     

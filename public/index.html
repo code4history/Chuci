@@ -119,27 +119,106 @@
     </div>
 
     <div class="section">
-      <h2>Mixed Media Types Example</h2>
-      <p>Note: YouTube videos require actual video IDs to work properly.</p>
+      <h2>All Media Types Demo</h2>
+      <p>Demonstrates all supported media types: Image, Panorama, YouTube, Video, 3D Model, and Gaussian Splatting</p>
       <div class="swiper-demo">
-        <cc-swiper has-thumb>
+        <cc-swiper>
+          <!-- Regular Image -->
           <cc-swiper-slide 
-            thumbnail-url="https://picsum.photos/300/200?random=11" 
-            image-url="https://picsum.photos/800/600?random=11" 
+            thumbnail-url="https://images.unsplash.com/photo-1542281286-9e0a16bb7366?w=400" 
+            image-url="https://images.unsplash.com/photo-1542281286-9e0a16bb7366?w=1600" 
             image-type="image"
             caption="Regular Image">
           </cc-swiper-slide>
+          
+          <!-- 360° Panorama -->
           <cc-swiper-slide 
-            thumbnail-url="https://picsum.photos/300/200?random=12" 
+            thumbnail-url="./assets/azumaya_panorama1.png" 
+            image-url="./assets/azumaya_panorama1.png" 
+            image-type="panorama"
+            caption="360° Panorama Image">
+          </cc-swiper-slide>
+          
+          <!-- YouTube Video -->
+          <cc-swiper-slide 
+            thumbnail-url="https://img.youtube.com/vi/dQw4w9WgXcQ/mqdefault.jpg" 
             image-url="https://www.youtube.com/watch?v=dQw4w9WgXcQ" 
             image-type="youtube"
-            caption="YouTube Video (example)">
+            caption="YouTube Video">
           </cc-swiper-slide>
+          
+          <!-- MP4 Video -->
           <cc-swiper-slide 
-            thumbnail-url="https://picsum.photos/300/200?random=13" 
-            image-url="https://picsum.photos/800/600?random=13" 
+            thumbnail-url="https://images.unsplash.com/photo-1536240478700-b869070f9279?w=400" 
+            image-url="https://www.w3schools.com/html/mov_bbb.mp4" 
+            image-type="video"
+            caption="MP4 Video File">
+          </cc-swiper-slide>
+          
+          <!-- MP4 Video with fit-to-container -->
+          <cc-swiper-slide 
+            thumbnail-url="https://images.unsplash.com/photo-1574375927938-d5a98e8ffe85?w=400" 
+            image-url="https://test-videos.co.uk/vids/bigbuckbunny/mp4/h264/360/Big_Buck_Bunny_360_10s_1MB.mp4" 
+            image-type="video"
+            caption="MP4 Video (fit-to-container)"
+            fit-to-container>
+          </cc-swiper-slide>
+          
+          <!-- 3D Model (OBJ/MTL) -->
+          <cc-swiper-slide 
+            thumbnail-url="https://images.unsplash.com/photo-1559827260-dc66d52bef19?w=400" 
+            image-url="https://t.tilemap.jp/3ddata/okuman.obj|https://t.tilemap.jp/3ddata/okuman.mtl" 
+            image-type="3dmodel"
+            caption="3D OBJ/MTL Model (Debug Mode)"
+            debug-mode
+            camera-position="5,5,5"
+            camera-target="0,0,0">
+          </cc-swiper-slide>
+          
+          <!-- 3D Gaussian Splatting -->
+          <cc-swiper-slide 
+            thumbnail-url="https://images.unsplash.com/photo-1633613286991-611fe299c4be?w=400" 
+            image-url="https://t.tilemap.jp/3ddata/okuman.splat" 
+            image-type="gaussian"
+            caption="Gaussian Splatting Model"
+            debug-mode>
+          </cc-swiper-slide>
+        </cc-swiper>
+      </div>
+    </div>
+    
+    <div class="section">
+      <h2>Media Types with Thumbnails Navigation</h2>
+      <div class="swiper-demo">
+        <cc-swiper has-thumb>
+          <cc-swiper-slide 
+            thumbnail-url="https://images.unsplash.com/photo-1542281286-9e0a16bb7366?w=400" 
+            image-url="https://images.unsplash.com/photo-1542281286-9e0a16bb7366?w=1600" 
+            image-type="image"
+            caption="Image with Thumbnail">
+          </cc-swiper-slide>
+          
+          <cc-swiper-slide 
+            thumbnail-url="./assets/azumaya_panorama1.png" 
+            image-url="./assets/azumaya_panorama1.png" 
             image-type="panorama"
-            caption="360° Panorama (example)">
+            caption="Panorama with Thumbnail">
+          </cc-swiper-slide>
+          
+          <cc-swiper-slide 
+            thumbnail-url="https://img.youtube.com/vi/dQw4w9WgXcQ/mqdefault.jpg" 
+            image-url="https://www.youtube.com/watch?v=dQw4w9WgXcQ" 
+            image-type="youtube"
+            caption="YouTube with Thumbnail">
+          </cc-swiper-slide>
+          
+          <cc-swiper-slide 
+            thumbnail-url="https://images.unsplash.com/photo-1633613286991-611fe299c4be?w=400" 
+            image-url="https://t.tilemap.jp/3ddata/okuman.splat" 
+            image-type="gaussian"
+            caption="3DGS with Thumbnail"
+            camera-position="500,500,500"
+            camera-target="0,0,0">
           </cc-swiper-slide>
         </cc-swiper>
       </div>

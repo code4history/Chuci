@@ -34,20 +34,28 @@ export class CcSwiper extends ChuciElement {
   }
   
   async openViewer(imageUrl: string, imageType: string, slideIndex?: number) {
+    console.log('openViewer called', { imageUrl, imageType, slideIndex })
     let ccView = document.querySelector("cc-viewer")
     if (!ccView) {
+      console.log('Creating new cc-viewer element')
       const viewerElement = document.createElement("cc-viewer")
       document.body.appendChild(viewerElement)
+      
+      // Wait for custom element to be defined and connected
+      await customElements.whenDefined('cc-viewer')
+      
+      // Use a small timeout to ensure the element is fully initialized
       ccView = await new Promise((res) => {
-        viewerElement.addEventListener("load", () => {
+        setTimeout(() => {
+          console.log('cc-viewer should be ready')
           res(document.querySelector("cc-viewer"))
-        })
+        }, 100)
       })
     }
     
     // Store current swiper reference and slide index in viewer
-    (ccView as any).swiper = this;
-    (ccView as any).currentSlideIndex = slideIndex ?? this.slider?.activeIndex ?? 0;
+    (ccView as any).setSwiper(this);
+    (ccView as any).setCurrentSlideIndex(slideIndex ?? this.slider?.activeIndex ?? 0);
     
     // Get the slide element to extract attributes
     const slide = this.slides[slideIndex ?? this.slider?.activeIndex ?? 0];
@@ -70,7 +78,8 @@ export class CcSwiper extends ChuciElement {
       attributes.showTexture = slide.getAttribute('show-texture') === 'true';
     }
     
-    (ccView as any).open(imageUrl, imageType, attributes)
+    console.log('Calling cc-viewer.open', { imageUrl, imageType, attributes })
+    ;(ccView as any).open(imageUrl, imageType, attributes)
   }
   
   protected firstUpdated() {
@@ -146,6 +155,8 @@ export class CcSwiper extends ChuciElement {
         height: 100%;
         width: 100%;
         cursor: pointer;
+        pointer-events: auto !important;
+        user-select: none;
       }
 
       img.viewer.w-caption {
@@ -160,6 +171,21 @@ export class CcSwiper extends ChuciElement {
         color: #ffffff;
         font-size: 0.6rem;
         font-weight: 700;
+        position: absolute;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        z-index: 10;
+      }
+
+      /* Adjust pagination position when caption exists */
+      .swiper-pagination {
+        bottom: 10px !important;
+      }
+
+      /* When captions exist, move pagination up */
+      #divContainer.has-captions .swiper-pagination {
+        bottom: calc(1.5rem + 20px) !important;
       }
 
       /* Navigation button styles with SVG icons */
@@ -202,7 +228,7 @@ export class CcSwiper extends ChuciElement {
       
       return `
         <div class='swiper-slide'>
-          <img src="${thumbnailUrl}" onclick="this.getRootNode().host.openViewer('${imageUrl}', '${imageType}', ${index})" class="viewer${caption !== "" ? ` w-caption` : ""}">
+          <img src="${thumbnailUrl}" data-image-url="${imageUrl}" data-image-type="${imageType}" data-index="${index}" class="viewer${caption !== "" ? ` w-caption` : ""}">
           ${caption !== "" ? `<p class="slider-caption">${caption}</p>` : ""}
         </div>
       `
@@ -232,7 +258,6 @@ export class CcSwiper extends ChuciElement {
           ${galleryHtml}
         </div>
       </div>
-      <cc-viewer id="ccViewer"></cc-viewer>
     `
     
     this.updateShadowRoot(html)
@@ -245,6 +270,24 @@ export class CcSwiper extends ChuciElement {
       this.queryAll('.gallery-thumb').forEach((thumb, index) => {
         thumb.addEventListener('click', () => this.slider?.slideTo(index))
       })
+      
+      // Add click handlers for viewer images
+      this.queryAll('img.viewer').forEach((img) => {
+        // Prevent default image behavior
+        img.addEventListener('dragstart', (e) => e.preventDefault())
+        
+        img.addEventListener('click', (e) => {
+          e.preventDefault()
+          e.stopPropagation()
+          e.stopImmediatePropagation()
+          const target = e.target as HTMLImageElement
+          const imageUrl = target.getAttribute('data-image-url') || ''
+          const imageType = target.getAttribute('data-image-type') || 'image'
+          const index = parseInt(target.getAttribute('data-index') || '0', 10)
+          this.openViewer(imageUrl, imageType, index)
+          return false
+        }, true)
+      })
     }, 0)
   }
   
@@ -255,6 +298,12 @@ export class CcSwiper extends ChuciElement {
     this.divPagination = this.query('#divPagination') ?? undefined
     this.divPrevious = this.query('#divPrevious') ?? undefined
     this.divNext = this.query('#divNext') ?? undefined
+    
+    // Check if any slides have captions
+    const hasCaptions = this.slides.some(slide => slide.getAttribute('caption'))
+    if (hasCaptions && this.divContainer) {
+      this.divContainer.classList.add('has-captions')
+    }
     
     // Core library features at https://swiperjs.com/api/#custom-build
     const slidesLoop = this.slides.length >= 2
@@ -289,7 +338,9 @@ export class CcSwiper extends ChuciElement {
         }),
       } : {},
       preventClicks: false,
-      preventClicksPropagation: true,
+      preventClicksPropagation: false,
+      simulateTouch: true,
+      allowTouchMove: true,
       loop: slidesLoop
     })
   }
