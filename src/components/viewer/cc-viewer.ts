@@ -122,7 +122,7 @@ export class CcViewer extends ChuciElement {
     const currentTag = typeHashes[this.currentType]
     const currentHandler = this.query(currentTag)
     if (currentHandler) {
-      console.log('Closing viewer:', currentTag)
+      console.log('Closing viewer:', currentTag);
       (currentHandler as any).close()
     }
     

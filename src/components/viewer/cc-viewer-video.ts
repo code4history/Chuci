@@ -72,32 +72,6 @@ export class CcViewerVideo extends CcViewerBase {
         z-index: var(--cc-viewer-z-index-each);
       }
       
-      .close {
-        position: absolute;
-        right: 20px;
-        top: 20px;
-        cursor: pointer;
-        z-index: 10;
-        width: 40px;
-        height: 40px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        background-color: rgba(0, 0, 0, 0.5);
-        border-radius: 50%;
-        transition: background-color 0.3s ease;
-      }
-      
-      .close:hover {
-        background-color: rgba(0, 0, 0, 0.8);
-      }
-      
-      .close svg {
-        width: 24px;
-        height: 24px;
-        color: #fff;
-      }
-      
       .viewer {
         position: absolute;
         width: 90%;
@@ -154,12 +128,6 @@ export class CcViewerVideo extends CcViewerBase {
     const html = `
       ${styles}
       <div class="backdrop" style="${this.isShow ? 'visibility: visible' : 'visibility: hidden'}">
-        <div class="close">
-          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <line x1="18" y1="6" x2="6" y2="18"></line>
-            <line x1="6" y1="6" x2="18" y2="18"></line>
-          </svg>
-        </div>
         ${this.getNavigationButtons()}
         <div class="viewer">
           <div class="video-container">
@@ -173,11 +141,6 @@ export class CcViewerVideo extends CcViewerBase {
     
     // Add listeners after render
     setTimeout(() => {
-      const closeBtn = this.query('.close')
-      if (closeBtn) {
-        closeBtn.addEventListener('click', () => this.close())
-      }
-      
       const video = this.query('video')
       if (video) {
         video.addEventListener('error', (e) => this.handleVideoError(e))

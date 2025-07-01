@@ -45,16 +45,6 @@ export class CcViewerGaussian extends CcViewerBase {
     }, 0)
   }
   
-  close() {
-    // Hide canvas before cleanup
-    if (this.canvas) {
-      this.canvas.style.display = 'none'
-    }
-    this.cleanup()
-    this.splatUrl = ''
-    this.isShow = false
-    this.render()
-  }
   
   private cleanup() {
     if (this.animationId) {
@@ -181,8 +171,17 @@ ${this.getTargetDebugInfo()}
       // Start render loop
       let frameCount = 0
       const animate = () => {
+        // Check if renderer still exists before continuing
+        if (!this.renderer || !this.scene || !this.camera) {
+          console.log('Animation stopped - renderer disposed')
+          return
+        }
+        
         this.animationId = requestAnimationFrame(animate)
-        this.controls.update()
+        
+        if (this.controls) {
+          this.controls.update()
+        }
         
         try {
           this.renderer.render(this.scene, this.camera)
@@ -261,33 +260,20 @@ ${this.getTargetDebugInfo()}
     // Navigation is handled in render() method after each render
   }
   
-  private handleNavigatePrev() {
-    console.log('handleNavigatePrev called in gaussian viewer')
-    // Prevent duplicate events
-    if (this.hasAttribute('navigating')) return
-    this.setAttribute('navigating', 'true')
+  close() {
+    console.log('close() called in gaussian viewer')
     
-    this.dispatch('navigate-prev')
+    // Clean up resources first
+    this.cleanup()
     
-    // Reset flag after a short delay
-    setTimeout(() => {
-      this.removeAttribute('navigating')
-    }, 100)
+    // Then hide the component
+    this.isShow = false
+    this.render()
+    
+    // Dispatch close event
+    this.dispatch('close')
   }
   
-  private handleNavigateNext() {
-    console.log('handleNavigateNext called in gaussian viewer')
-    // Prevent duplicate events
-    if (this.hasAttribute('navigating')) return
-    this.setAttribute('navigating', 'true')
-    
-    this.dispatch('navigate-next')
-    
-    // Reset flag after a short delay
-    setTimeout(() => {
-      this.removeAttribute('navigating')
-    }, 100)
-  }
   
   protected render() {
     const styles = this.css`
@@ -309,32 +295,6 @@ ${this.getTargetDebugInfo()}
         z-index: 1000;
       }
       
-      .close {
-        position: fixed;
-        right: 20px;
-        top: 20px;
-        cursor: pointer;
-        z-index: 1002;
-        width: 40px;
-        height: 40px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        background-color: rgba(0, 0, 0, 0.5);
-        border-radius: 50%;
-        transition: background-color 0.3s ease;
-        pointer-events: auto;
-      }
-      
-      .close:hover {
-        background-color: rgba(0, 0, 0, 0.8);
-      }
-      
-      .close svg {
-        width: 24px;
-        height: 24px;
-        color: #fff;
-      }
       
       .viewer {
         position: absolute;
@@ -430,13 +390,7 @@ ${this.getTargetDebugInfo()}
     const html = `
       ${styles}
       <div class="backdrop" style="${this.isShow ? 'visibility: visible' : 'visibility: hidden'}">
-        <div class="close">
-          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <line x1="18" y1="6" x2="6" y2="18"></line>
-            <line x1="6" y1="6" x2="18" y2="18"></line>
-          </svg>
-        </div>
-          <div class="viewer">
+        <div class="viewer">
           <div class="gaussian-container">
             ${gaussianContent}
           </div>
@@ -449,36 +403,7 @@ ${this.getTargetDebugInfo()}
     
     // Add navigation listeners after render
     setTimeout(() => {
-      const closeBtn = this.query('.close')
-      const prevBtn = this.query('.nav-prev')
-      const nextBtn = this.query('.nav-next')
-      
-      if (closeBtn && !closeBtn.hasAttribute('data-listener-attached')) {
-        closeBtn.setAttribute('data-listener-attached', 'true')
-        closeBtn.addEventListener('click', (e) => {
-          e.stopPropagation()
-          console.log('Close button clicked')
-          this.close()
-        })
-      }
-      
-      if (prevBtn && !prevBtn.hasAttribute('data-listener-attached')) {
-        prevBtn.setAttribute('data-listener-attached', 'true')
-        prevBtn.addEventListener('click', (e) => {
-          e.stopPropagation()
-          console.log('Previous button clicked')
-          this.handleNavigatePrev()
-        })
-      }
-      
-      if (nextBtn && !nextBtn.hasAttribute('data-listener-attached')) {
-        nextBtn.setAttribute('data-listener-attached', 'true')
-        nextBtn.addEventListener('click', (e) => {
-          e.stopPropagation()
-          console.log('Next button clicked')
-          this.handleNavigateNext()
-        })
-      }
+      this.addNavigationListeners()
     }, 0)
   }
 }
