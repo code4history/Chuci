@@ -2,7 +2,6 @@ import { CcViewerBase } from './cc-viewer-base'
 
 export class CcViewerYoutube extends CcViewerBase {
   private videoUrl = ''
-  private isShow = false
   
   static get observedAttributes() {
     return ['show']
@@ -15,81 +14,54 @@ export class CcViewerYoutube extends CcViewerBase {
     super.attributeChangedCallback(name, oldValue, newValue)
   }
   
-  open(videoUrl: string) {
-    this.videoUrl = videoUrl
-    this.isShow = true
-    this.render()
-    
-    setTimeout(() => {
-      const iframeEl = this.query('.iframe') as HTMLIFrameElement
-      if (iframeEl) {
-        iframeEl.src = this.videoUrl
-      }
-      this.addNavigationListeners()
-    }, 0)
+  protected doOpen(videoUrl: string): void {
+    // Convert YouTube URL to embed format
+    const videoId = this.extractYouTubeId(videoUrl)
+    if (videoId) {
+      this.videoUrl = `https://www.youtube.com/embed/${videoId}`
+    } else {
+      this.videoUrl = videoUrl
+    }
   }
   
-  close() {
+  private extractYouTubeId(url: string): string | null {
+    // Handle various YouTube URL formats
+    const patterns = [
+      /(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([^&\n?#]+)/,
+      /youtube\.com\/watch\?.*v=([^&\n?#]+)/
+    ]
+    
+    for (const pattern of patterns) {
+      const match = url.match(pattern)
+      if (match) {
+        return match[1]
+      }
+    }
+    
+    return null
+  }
+  
+  protected doClose(): void {
     const iframeEl = this.query('.iframe') as HTMLIFrameElement
     if (iframeEl) {
       iframeEl.src = ''
     }
     this.videoUrl = ''
-    this.isShow = false
-    this.render()
   }
   
-  protected render() {
-    const styles = this.css`
-      :host {
-        --cc-viewer-z-index-each: 1000;
-      }
-      
-      .backdrop {
-        justify-content: center;
-        align-items: center;
-        position: fixed;
-        left: 0;
-        right: 0;
-        top: 0;
-        bottom: 0;
-        width: 100%;
-        height: 100%;
-        background-color: rgba(0, 0, 0, 0.9);
-        z-index: var(--cc-viewer-z-index-each);
-      }
-      
-      .viewer {
-        position: absolute;
-        width: 90%;
-        height: 85%;
-        inset: 0px;
-        margin: auto;
-        align-self: center;
-        background-color: #000;
-      }
-      
+  protected getViewerContent(): string {
+    return `<iframe class="iframe" src="${this.videoUrl}" allowfullscreen></iframe>`
+  }
+  
+  protected getCustomStyles(): string {
+    return `
       .iframe {
         position: relative;
         width: 100%;
         height: 100%;
         border: 0;
       }
-      
-      ${this.getNavigationStyles()}
     `
-    
-    const html = `
-      ${styles}
-      <div class="backdrop" style="${this.isShow ? 'visibility: visible' : 'visibility: hidden'}">
-        ${this.getNavigationButtons()}
-        <div class="viewer">
-          <iframe class="iframe" allowfullscreen></iframe>
-        </div>
-      </div>
-    `
-    
-    this.updateShadowRoot(html)
   }
 }
 

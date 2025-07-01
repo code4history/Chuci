@@ -6,12 +6,9 @@ export class CcViewerImage extends CcViewerBase {
   private viewer?: Viewer
   private container?: HTMLDivElement
   private imageUrl = ''
-  private isShow = false
   
-  open(url: string) {
+  protected doOpen(url: string): void {
     this.imageUrl = url
-    this.isShow = true
-    this.render()
     
     setTimeout(() => {
       this.container = this.query('#imageContainer') ?? undefined
@@ -60,17 +57,23 @@ export class CcViewerImage extends CcViewerBase {
     }, 0)
   }
   
-  close() {
+  protected doClose(): void {
     if (this.viewer) {
       this.viewer.destroy()
       this.viewer = undefined
     }
     this.imageUrl = ''
-    this.isShow = false
-    this.render()
   }
   
-  protected render() {
+  protected getViewerContent(): string {
+    return `
+      <div id="imageContainer">
+        ${this.isLoading ? '<div class="loading">Loading...</div>' : ''}
+      </div>
+    `
+  }
+  
+  protected getCustomStyles(): string {
     const styles = this.css`
       ${viewerStyles}
       
@@ -122,14 +125,57 @@ export class CcViewerImage extends CcViewerBase {
       }
     `
     
-    const html = this.isShow ? `
-      ${styles}
-      <div id="imageContainer">
-        ${this.getNavigationButtons()}
-      </div>
-    ` : ''
+    return styles
+  }
+  
+  // Override to do setup after render
+  protected onAfterRender(): void {
+    if (!this.isShow || !this.imageUrl) return
     
-    this.updateShadowRoot(html)
+    // Avoid duplicate initialization
+    if (this.viewer) return
+    
+    this.container = this.query('#imageContainer') as HTMLDivElement
+    if (!this.container) return
+    
+    const img = document.createElement('img')
+    img.src = this.imageUrl
+    img.style.display = 'none'  // 元の画像を非表示に
+    
+    this.container.appendChild(img)
+    
+    // ViewerJSをインラインモードで使用して、独自のコンテナ内で表示
+    this.viewer = new Viewer(img, {
+      inline: true,  // インラインモードに変更
+      container: this.container,  // コンテナを指定
+      toolbar: {
+        zoomIn: true,
+        zoomOut: true,
+        oneToOne: true,
+        reset: true,
+        prev: false,
+        play: false,
+        next: false,
+        rotateLeft: true,
+        rotateRight: true,
+        flipHorizontal: true,
+        flipVertical: true,
+      },
+      navbar: false,
+      title: false,
+      keyboard: true,
+      backdrop: false,  // インラインモードでは背景を無効化
+      button: false,    // 閉じるボタンを無効化
+      movable: true,
+      zoomable: true,
+      rotatable: true,
+      scalable: true,
+      transition: true,
+      fullscreen: false,
+      ready: () => {
+        this.isLoading = false
+      }
+    })
   }
 }
 

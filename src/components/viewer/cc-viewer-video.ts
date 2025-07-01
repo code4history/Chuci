@@ -2,7 +2,6 @@ import { CcViewerBase } from './cc-viewer-base'
 
 export class CcViewerVideo extends CcViewerBase {
   private videoUrl = ''
-  private isShow = false
   private fitToContainer = false
   
   static get observedAttributes() {
@@ -18,70 +17,38 @@ export class CcViewerVideo extends CcViewerBase {
     super.attributeChangedCallback(name, oldValue, newValue)
   }
   
-  open(url: string) {
+  protected doOpen(url: string): void {
     this.videoUrl = url
-    this.isShow = true
-    this.render()
-    
-    setTimeout(() => {
-      this.addNavigationListeners()
-    }, 0)
   }
   
-  close() {
+  protected doClose(): void {
     // Pause video before closing
     const video = this.query('video')
     if (video && 'pause' in video) {
       (video as HTMLVideoElement).pause()
     }
     this.videoUrl = ''
-    this.isShow = false
-    this.render()
   }
   
-  private handleVideoError(e: Event) {
-    const video = e.target as HTMLVideoElement
-    console.error('Video loading error:', video.error)
-    const container = this.query('.video-container')
-    if (container) {
-      container.innerHTML = `
-        <div class="video-error">
-          Failed to load video: ${this.videoUrl}
-        </div>
-      `
-    }
+  protected getViewerContent(): string {
+    return `
+      <div class="video-container">
+        ${this.videoUrl ? `
+          <video
+            src="${this.videoUrl}"
+            controls
+            controlsList="nodownload"
+            class="${this.fitToContainer ? 'fit-to-container' : ''}"
+          >
+            Your browser does not support the video tag.
+          </video>
+        ` : '<div class="video-error">No video URL provided</div>'}
+      </div>
+    `
   }
   
-  protected render() {
-    const styles = this.css`
-      :host {
-        --cc-viewer-z-index-each: 1000;
-      }
-      
-      .backdrop {
-        justify-content: center;
-        align-items: center;
-        position: fixed;
-        left: 0;
-        right: 0;
-        top: 0;
-        bottom: 0;
-        width: 100%;
-        height: 100%;
-        background-color: rgba(0, 0, 0, 0.9);
-        z-index: var(--cc-viewer-z-index-each);
-      }
-      
-      .viewer {
-        position: absolute;
-        width: 90%;
-        height: 85%;
-        inset: 0px;
-        margin: auto;
-        align-self: center;
-        background-color: #000;
-      }
-      
+  protected getCustomStyles(): string {
+    return `
       .video-container {
         display: flex;
         justify-content: center;
@@ -110,42 +77,26 @@ export class CcViewerVideo extends CcViewerBase {
         text-align: center;
         padding: 20px;
       }
-      
-      ${this.getNavigationStyles()}
     `
-    
-    const videoContent = this.videoUrl ? `
-      <video
-        src="${this.videoUrl}"
-        controls
-        controlsList="nodownload"
-        class="${this.fitToContainer ? 'fit-to-container' : ''}"
-      >
-        Your browser does not support the video tag.
-      </video>
-    ` : '<div class="video-error">No video URL provided</div>'
-    
-    const html = `
-      ${styles}
-      <div class="backdrop" style="${this.isShow ? 'visibility: visible' : 'visibility: hidden'}">
-        ${this.getNavigationButtons()}
-        <div class="viewer">
-          <div class="video-container">
-            ${videoContent}
-          </div>
+  }
+  
+  protected onAfterRender(): void {
+    const video = this.query('video')
+    if (video) {
+      video.addEventListener('error', (e) => this.handleVideoError(e))
+    }
+  }
+  
+  private handleVideoError(e: Event) {
+    const video = e.target as HTMLVideoElement
+    const container = this.query('.video-container')
+    if (container) {
+      container.innerHTML = `
+        <div class="video-error">
+          Failed to load video: ${this.videoUrl}
         </div>
-      </div>
-    `
-    
-    this.updateShadowRoot(html)
-    
-    // Add listeners after render
-    setTimeout(() => {
-      const video = this.query('video')
-      if (video) {
-        video.addEventListener('error', (e) => this.handleVideoError(e))
-      }
-    }, 0)
+      `
+    }
   }
 }
 

@@ -167,11 +167,22 @@
           <!-- 3D Model (OBJ/MTL) -->
           <cc-swiper-slide 
             thumbnail-url="https://images.unsplash.com/photo-1559827260-dc66d52bef19?w=400" 
-            image-url="https://t.tilemap.jp/3ddata/okuman.obj|https://t.tilemap.jp/3ddata/okuman.mtl" 
+            image-url="https://t.tilemap.jp/3ddata/okuman.obj" 
+            material-url="https://t.tilemap.jp/3ddata/okuman.mtl"
             image-type="3dmodel"
             caption="3D OBJ/MTL Model (Debug Mode)"
             debug-mode
             camera-position="5,5,5"
+            camera-target="0,0,0">
+          </cc-swiper-slide>
+          
+          <!-- Simple 3D Model (OBJ only, no material) -->
+          <cc-swiper-slide 
+            thumbnail-url="https://images.unsplash.com/photo-1609205807490-b15b9d5d5a28?w=400" 
+            image-url="https://raw.githubusercontent.com/mrdoob/three.js/dev/examples/models/obj/walt/WaltHead.obj" 
+            image-type="3dmodel"
+            caption="Simple 3D Model (OBJ only)"
+            camera-position="0,0,100"
             camera-target="0,0,0">
           </cc-swiper-slide>
           

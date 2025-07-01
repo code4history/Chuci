@@ -28,21 +28,52 @@ export class CcViewer extends ChuciElement {
   
   
   open(imgUrl: string, type: string, attributes?: Record<string, any>) {
+    const previousType = this.currentType
     this.currentType = type
-    const targetTag = typeHashes[type]
-    const handler = this.query(targetTag)
     
-    // Pass attributes to the viewer if available
-    if (handler && attributes) {
-      Object.entries(attributes).forEach(([key, value]) => {
-        (handler as any)[key] = value
-      })
+    // Close previous viewer if type changed
+    if (previousType && previousType !== type) {
+      const previousTag = typeHashes[previousType]
+      const previousHandler = this.query(previousTag)
+      if (previousHandler && (previousHandler as any).close) {
+        (previousHandler as any).close()
+      }
     }
     
-    // Update navigation button visibility
-    this.updateNavigationButtons()
+    // Re-render if type changed
+    if (previousType !== type) {
+      this.render()
+    }
     
-    ;(handler as any).open(imgUrl)
+    // Wait for render to complete
+    setTimeout(() => {
+      const targetTag = typeHashes[type]
+      const handler = this.query(targetTag)
+      
+      // Pass attributes to the viewer if available
+      if (handler && attributes) {
+        Object.entries(attributes).forEach(([key, value]) => {
+          // Convert camelCase to kebab-case for attributes
+          const attrName = key.replace(/([A-Z])/g, '-$1').toLowerCase()
+          if (typeof value === 'boolean') {
+            if (value) {
+              handler.setAttribute(attrName, '')
+            } else {
+              handler.removeAttribute(attrName)
+            }
+          } else {
+            handler.setAttribute(attrName, String(value))
+          }
+        })
+      }
+      
+      // Update navigation button visibility
+      this.updateNavigationButtons()
+      
+      if (handler) {
+        ;(handler as any).open(imgUrl)
+      }
+    }, 0)
   }
   
   protected firstUpdated() {
@@ -67,8 +98,6 @@ export class CcViewer extends ChuciElement {
   }
   
   private handleNavigatePrev(e?: Event) {
-    console.log('handleNavigatePrev in cc-viewer, event from:', e?.target)
-    console.log('Current index before:', this.currentSlideIndex)
     if (!this.swiper) return
     
     const totalSlides = this.swiper.slides.length
@@ -91,8 +120,6 @@ export class CcViewer extends ChuciElement {
   }
   
   private handleNavigateNext(e?: Event) {
-    console.log('handleNavigateNext in cc-viewer, event from:', e?.target)
-    console.log('Current index before:', this.currentSlideIndex)
     if (!this.swiper) return
     
     const totalSlides = this.swiper.slides.length
@@ -115,21 +142,19 @@ export class CcViewer extends ChuciElement {
   }
   
   private navigateToSlide(index: number) {
-    console.log('navigateToSlide called with index:', index, 'current type:', this.currentType)
     if (!this.swiper || !this.swiper.slides[index]) return
+    
+    // Get new slide info first
+    const slide = this.swiper.slides[index]
+    const imageUrl = slide.getAttribute('image-url') || ''
+    const imageType = slide.getAttribute('image-type') || 'image'
     
     // Close current viewer
     const currentTag = typeHashes[this.currentType]
     const currentHandler = this.query(currentTag)
     if (currentHandler) {
-      console.log('Closing viewer:', currentTag);
       (currentHandler as any).close()
     }
-    
-    // Open new viewer
-    const slide = this.swiper.slides[index]
-    const imageUrl = slide.getAttribute('image-url') || ''
-    const imageType = slide.getAttribute('image-type') || 'image'
     
     // Gather viewer-specific attributes
     const attributes: Record<string, any> = {}
@@ -148,8 +173,10 @@ export class CcViewer extends ChuciElement {
     if (slide.hasAttribute('show-texture')) {
       attributes.showTexture = slide.getAttribute('show-texture') === 'true'
     }
+    if (slide.hasAttribute('material-url')) {
+      attributes.materialUrl = slide.getAttribute('material-url')
+    }
     
-    console.log('Opening new viewer - type:', imageType, 'url:', imageUrl)
     this.currentSlideIndex = index
     this.open(imageUrl, imageType, attributes)
     
@@ -225,14 +252,18 @@ export class CcViewer extends ChuciElement {
       }
     `
     
+    // Only render the current viewer type
+    let viewerHtml = ''
+    if (this.currentType) {
+      const tag = typeHashes[this.currentType]
+      if (tag) {
+        viewerHtml = `<${tag}></${tag}>`
+      }
+    }
+    
     const html = `
       ${styles}
-      <cc-viewer-image></cc-viewer-image>
-      <cc-viewer-youtube></cc-viewer-youtube>
-      <cc-viewer-panorama></cc-viewer-panorama>
-      <cc-viewer-video></cc-viewer-video>
-      <cc-viewer-3dmodel></cc-viewer-3dmodel>
-      <cc-viewer-gaussian></cc-viewer-gaussian>
+      ${viewerHtml}
     `
     
     this.updateShadowRoot(html)

@@ -34,10 +34,8 @@ export class CcSwiper extends ChuciElement {
   }
   
   async openViewer(imageUrl: string, imageType: string, slideIndex?: number) {
-    console.log('openViewer called', { imageUrl, imageType, slideIndex })
     let ccView = document.querySelector("cc-viewer")
     if (!ccView) {
-      console.log('Creating new cc-viewer element')
       const viewerElement = document.createElement("cc-viewer")
       document.body.appendChild(viewerElement)
       
@@ -47,7 +45,6 @@ export class CcSwiper extends ChuciElement {
       // Use a small timeout to ensure the element is fully initialized
       ccView = await new Promise((res) => {
         setTimeout(() => {
-          console.log('cc-viewer should be ready')
           res(document.querySelector("cc-viewer"))
         }, 100)
       })
@@ -78,7 +75,11 @@ export class CcSwiper extends ChuciElement {
       attributes.showTexture = slide.getAttribute('show-texture') === 'true';
     }
     
-    console.log('Calling cc-viewer.open', { imageUrl, imageType, attributes })
+    // For 3D models, pass material-url as attribute
+    if (imageType === '3dmodel' && slide?.hasAttribute('material-url')) {
+      attributes.materialUrl = slide.getAttribute('material-url');
+    }
+    
     ;(ccView as any).open(imageUrl, imageType, attributes)
   }
   

@@ -2,8 +2,6 @@ import { CcViewerBase } from './cc-viewer-base'
 
 export class CcViewerGaussian extends CcViewerBase {
   private splatUrl = ''
-  private isShow = false
-  private isLoading = true
   private debugMode = false
   private cameraPosition = '3,3,3'
   private _cameraTarget = '0,0,0' // TODO: Implement camera target functionality
@@ -33,249 +31,28 @@ export class CcViewerGaussian extends CcViewerBase {
     super.attributeChangedCallback(name, oldValue, newValue)
   }
   
-  open(url: string) {
+  // Implementation of abstract methods from base class
+  protected async doOpen(url: string): Promise<void> {
     this.splatUrl = url
-    this.isLoading = true
-    this.isShow = true
-    this.render()
-    
-    // Wait for render to complete before initializing
-    setTimeout(() => {
-      this.initializeViewer()
-    }, 0)
+    await this.initializeViewer()
   }
   
-  
-  private cleanup() {
-    if (this.animationId) {
-      cancelAnimationFrame(this.animationId)
-      this.animationId = undefined
-    }
-    
-    if (this.renderer && typeof this.renderer.dispose === 'function') {
-      this.renderer.dispose()
-    }
-    
-    // Remove all gaussian canvases from document.body
-    const existingCanvases = document.querySelectorAll('canvas[id^="gaussian-canvas-"]')
-    existingCanvases.forEach(canvas => {
-      if (canvas.parentNode === document.body) {
-        document.body.removeChild(canvas)
-      }
-    })
-    
-    this.scene = undefined
-    this.camera = undefined
-    this.renderer = undefined
-    this.controls = undefined
-    this.canvas = undefined
-  }
-  
-  private getCameraDebugInfo(): string {
-    if (!this.camera || !this.camera.position) return 'Position: unavailable'
-    const pos = this.camera.position
-    try {
-      return `X: ${pos.x.toFixed(3)}, Y: ${pos.y.toFixed(3)}, Z: ${pos.z.toFixed(3)}`
-    } catch (error) {
-      return `Position: ${JSON.stringify(pos)}`
-    }
-  }
-  
-  private getTargetDebugInfo(): string {
-    if (!this.controls) return 'Target: controls unavailable'
-    // gsplat.js OrbitControls might not have a target property
-    // Return available control info instead
-    try {
-      return `Controls active (no target property in gsplat.js)`
-    } catch (error) {
-      return `Target: ${JSON.stringify(this.controls)}`
-    }
-  }
-  
-  private updateDebugInfo() {
-    // Update debug display
-    const debugEl = this.query('.debug-info')
-    if (debugEl) {
-      debugEl.innerHTML = `
-📍 Camera Position:
-${this.getCameraDebugInfo()}
-
-🎯 Camera Target:
-${this.getTargetDebugInfo()}
-
-🎮 Controls:
-• Rotate: Left-drag
-• Zoom: Scroll wheel
-• Pan: Right-drag or Shift+Left-drag
-
-📊 Status: ${this.scene ? 'Splat loaded' : 'Loading...'}
-      `
-    }
-  }
-  
-  private async initializeViewer() {
-    // Create a unique ID for this instance
-    const canvasId = `gaussian-canvas-${Date.now()}`
-    
-    // Get the viewer container dimensions
-    const viewerEl = this.query('.viewer') as HTMLElement
-    if (!viewerEl) return
-    
-    const rect = viewerEl.getBoundingClientRect()
-    
-    // Check if canvas already exists in normal DOM
-    let normalCanvas = document.getElementById(canvasId) as HTMLCanvasElement
-    if (!normalCanvas) {
-      normalCanvas = document.createElement('canvas')
-      normalCanvas.id = canvasId
-      normalCanvas.style.position = 'fixed'
-      normalCanvas.style.top = `${rect.top}px`
-      normalCanvas.style.left = `${rect.left}px`
-      normalCanvas.style.width = `${rect.width}px`
-      normalCanvas.style.height = `${rect.height}px`
-      normalCanvas.style.zIndex = '1001'  // Above backdrop but below buttons
-      normalCanvas.style.pointerEvents = 'auto'  // Keep mouse events for 3D controls
-      normalCanvas.style.display = 'block'
-      normalCanvas.style.background = 'transparent'
-      document.body.appendChild(normalCanvas)
-    }
-    
-    // Update canvas position in case viewer moved
-    normalCanvas.style.top = `${rect.top}px`
-    normalCanvas.style.left = `${rect.left}px`
-    normalCanvas.style.width = `${rect.width}px`
-    normalCanvas.style.height = `${rect.height}px`
-    
-    this.canvas = normalCanvas
-    console.log('Using canvas in normal DOM with id:', canvasId, 'at position:', rect)
-    
-    try {
-      const container = this.query('.gaussian-container') as HTMLDivElement
-      if (!container) return
-      
-      // Import gsplat using the proven API approach
-      const SPLAT = await import('gsplat')
-      
-      // Setup GSplat components exactly like the React example
-      this.scene = new SPLAT.Scene()
-      this.camera = new SPLAT.Camera()
-      this.renderer = new SPLAT.WebGLRenderer(this.canvas)
-      this.controls = new SPLAT.OrbitControls(this.camera, this.canvas)
-      
-      // Load the splat file
-      console.log('Loading splat file:', this.splatUrl)
-      await SPLAT.Loader.LoadAsync(this.splatUrl, this.scene)
-      console.log('Splat loaded successfully')
-      
-      
-      // Start render loop
-      let frameCount = 0
-      const animate = () => {
-        // Check if renderer still exists before continuing
-        if (!this.renderer || !this.scene || !this.camera) {
-          console.log('Animation stopped - renderer disposed')
-          return
-        }
-        
-        this.animationId = requestAnimationFrame(animate)
-        
-        if (this.controls) {
-          this.controls.update()
-        }
-        
-        try {
-          this.renderer.render(this.scene, this.camera)
-        } catch (e) {
-          console.error('Render error:', e)
-        }
-        
-        // Log first frame only
-        if (frameCount === 0) {
-          console.log('First frame rendered')
-          // Check if WebGL context is active
-          const gl = this.canvas.getContext('webgl') || this.canvas.getContext('webgl2')
-          console.log('WebGL context exists:', !!gl)
-          if (gl) {
-            console.log('Canvas size:', this.canvas.width, 'x', this.canvas.height)
-            console.log('Viewport:', gl.getParameter(gl.VIEWPORT))
-            
-            // Check if anything is being drawn
-            const pixels = new Uint8Array(4)
-            gl.readPixels(this.canvas.width / 2, this.canvas.height / 2, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, pixels)
-            console.log('Center pixel color:', pixels)
-            
-            // Check renderer state
-            console.log('Renderer:', this.renderer)
-            console.log('Renderer canvas:', (this.renderer as any).canvas)
-            console.log('Same canvas?', (this.renderer as any).canvas === this.canvas)
-          }
-          frameCount++
-        }
-        
-        if (this.debugMode) {
-          this.updateDebugInfo()
-        }
-      }
-      animate()
-      
-      // Setup resize handler
-      const resizeObserver = new ResizeObserver(() => {
-        this.handleResize()
-      })
-      resizeObserver.observe(container)
-      
-      this.isLoading = false
-      this.render()
-      
-    } catch (error) {
-      console.error('Failed to load Gaussian Splatting model:', error)
-      this.isLoading = false
-      this.render()
-    }
-  }
-  
-  private handleResize() {
-    const container = this.query('.gaussian-container') as HTMLDivElement
-    if (!container || !this.renderer || !this.camera) return
-    
-    const width = container.clientWidth
-    const height = container.clientHeight
-    
-    // Update renderer size
-    if (typeof this.renderer.setSize === 'function') {
-      this.renderer.setSize(width, height)
-    }
-    
-    // Update camera aspect ratio
-    if (typeof this.camera.aspect !== 'undefined') {
-      this.camera.aspect = width / height
-      if (typeof this.camera.updateProjectionMatrix === 'function') {
-        this.camera.updateProjectionMatrix()
-      }
-    }
-  }
-  
-  
-  protected firstUpdated() {
-    // Navigation is handled in render() method after each render
-  }
-  
-  close() {
-    console.log('close() called in gaussian viewer')
-    
-    // Clean up resources first
+  protected doClose(): void {
     this.cleanup()
-    
-    // Then hide the component
-    this.isShow = false
-    this.render()
-    
-    // Dispatch close event
-    this.dispatch('close')
   }
   
+  protected getViewerContent(): string {
+    // This won't be used since we override render, but required by abstract class
+    return ''
+  }
   
-  protected render() {
+  // Override to use custom rendering due to special canvas handling
+  protected shouldUseCustomRender(): boolean {
+    return true
+  }
+  
+  // Custom render implementation
+  protected customRender(): void {
     const styles = this.css`
       :host {
         --cc-viewer-z-index-each: 1000;
@@ -294,7 +71,6 @@ ${this.getTargetDebugInfo()}
         background-color: rgba(0, 0, 0, 0.9);
         z-index: 1000;
       }
-      
       
       .viewer {
         position: absolute;
@@ -405,6 +181,186 @@ ${this.getTargetDebugInfo()}
     setTimeout(() => {
       this.addNavigationListeners()
     }, 0)
+  }
+  
+  private cleanup() {
+    if (this.animationId) {
+      cancelAnimationFrame(this.animationId)
+      this.animationId = undefined
+    }
+    
+    if (this.renderer && typeof this.renderer.dispose === 'function') {
+      this.renderer.dispose()
+    }
+    
+    // Remove all gaussian canvases from document.body
+    const existingCanvases = document.querySelectorAll('canvas[id^="gaussian-canvas-"]')
+    existingCanvases.forEach(canvas => {
+      if (canvas.parentNode === document.body) {
+        document.body.removeChild(canvas)
+      }
+    })
+    
+    this.scene = undefined
+    this.camera = undefined
+    this.renderer = undefined
+    this.controls = undefined
+    this.canvas = undefined
+  }
+  
+  private getCameraDebugInfo(): string {
+    if (!this.camera || !this.camera.position) return 'Position: unavailable'
+    const pos = this.camera.position
+    try {
+      return `X: ${pos.x.toFixed(3)}, Y: ${pos.y.toFixed(3)}, Z: ${pos.z.toFixed(3)}`
+    } catch (error) {
+      return `Position: ${JSON.stringify(pos)}`
+    }
+  }
+  
+  private getTargetDebugInfo(): string {
+    if (!this.controls) return 'Target: controls unavailable'
+    // gsplat.js OrbitControls might not have a target property
+    // Return available control info instead
+    try {
+      return `Controls active (no target property in gsplat.js)`
+    } catch (error) {
+      return `Target: ${JSON.stringify(this.controls)}`
+    }
+  }
+  
+  private updateDebugInfo() {
+    // Update debug display
+    const debugEl = this.query('.debug-info')
+    if (debugEl) {
+      debugEl.innerHTML = `
+📍 Camera Position:
+${this.getCameraDebugInfo()}
+
+🎯 Camera Target:
+${this.getTargetDebugInfo()}
+
+🎮 Controls:
+• Rotate: Left-drag
+• Zoom: Scroll wheel
+• Pan: Right-drag or Shift+Left-drag
+
+📊 Status: ${this.scene ? 'Splat loaded' : 'Loading...'}
+      `
+    }
+  }
+  
+  private async initializeViewer() {
+    // Create a unique ID for this instance
+    const canvasId = `gaussian-canvas-${Date.now()}`
+    
+    // Get the viewer container dimensions
+    const viewerEl = this.query('.viewer') as HTMLElement
+    if (!viewerEl) return
+    
+    const rect = viewerEl.getBoundingClientRect()
+    
+    // Check if canvas already exists in normal DOM
+    let normalCanvas = document.getElementById(canvasId) as HTMLCanvasElement
+    if (!normalCanvas) {
+      normalCanvas = document.createElement('canvas')
+      normalCanvas.id = canvasId
+      normalCanvas.style.position = 'fixed'
+      normalCanvas.style.top = `${rect.top}px`
+      normalCanvas.style.left = `${rect.left}px`
+      normalCanvas.style.width = `${rect.width}px`
+      normalCanvas.style.height = `${rect.height}px`
+      normalCanvas.style.zIndex = '1001'  // Above backdrop but below buttons
+      normalCanvas.style.pointerEvents = 'auto'  // Keep mouse events for 3D controls
+      normalCanvas.style.display = 'block'
+      normalCanvas.style.background = 'transparent'
+      document.body.appendChild(normalCanvas)
+    }
+    
+    // Update canvas position in case viewer moved
+    normalCanvas.style.top = `${rect.top}px`
+    normalCanvas.style.left = `${rect.left}px`
+    normalCanvas.style.width = `${rect.width}px`
+    normalCanvas.style.height = `${rect.height}px`
+    
+    this.canvas = normalCanvas
+    
+    try {
+      const container = this.query('.gaussian-container') as HTMLDivElement
+      if (!container) return
+      
+      // Import gsplat using the proven API approach
+      const SPLAT = await import('gsplat')
+      
+      // Setup GSplat components exactly like the React example
+      this.scene = new SPLAT.Scene()
+      this.camera = new SPLAT.Camera()
+      this.renderer = new SPLAT.WebGLRenderer(this.canvas)
+      this.controls = new SPLAT.OrbitControls(this.camera, this.canvas)
+      
+      // Load the splat file
+      await SPLAT.Loader.LoadAsync(this.splatUrl, this.scene)
+      
+      // Start render loop
+      let frameCount = 0
+      const animate = () => {
+        // Check if renderer still exists before continuing
+        if (!this.renderer || !this.scene || !this.camera) {
+          return
+        }
+        
+        this.animationId = requestAnimationFrame(animate)
+        
+        if (this.controls) {
+          this.controls.update()
+        }
+        
+        try {
+          this.renderer.render(this.scene, this.camera)
+        } catch (e) {
+        }
+        
+        // Log first frame only
+        if (frameCount === 0 && this.canvas) {
+          frameCount++
+        }
+        
+        if (this.debugMode) {
+          this.updateDebugInfo()
+        }
+      }
+      animate()
+      
+      // Setup resize handler
+      const resizeObserver = new ResizeObserver(() => {
+        this.handleResize()
+      })
+      resizeObserver.observe(container)
+      
+    } catch (error) {
+      throw error
+    }
+  }
+  
+  private handleResize() {
+    const container = this.query('.gaussian-container') as HTMLDivElement
+    if (!container || !this.renderer || !this.camera) return
+    
+    const width = container.clientWidth
+    const height = container.clientHeight
+    
+    // Update renderer size
+    if (typeof this.renderer.setSize === 'function') {
+      this.renderer.setSize(width, height)
+    }
+    
+    // Update camera aspect ratio
+    if (typeof this.camera.aspect !== 'undefined') {
+      this.camera.aspect = width / height
+      if (typeof this.camera.updateProjectionMatrix === 'function') {
+        this.camera.updateProjectionMatrix()
+      }
+    }
   }
 }
 
