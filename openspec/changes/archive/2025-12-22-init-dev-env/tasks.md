@@ -1,0 +1,8 @@
+- [x] Install Husky and lint-staged `pnpm add -D husky lint-staged` <!-- id: 0 -->
+- [x] Initialize Husky `npx husky init` <!-- id: 1 -->
+- [x] Configure `lint-staged` in `package.json` to run `eslint --fix` and `prettier --write` <!-- id: 2 -->
+- [x] Create `.editorconfig` with standard rules (indent_style = space, etc.) <!-- id: 3 -->
+- [x] Create `.vscode/extensions.json` recommending ESLint, Prettier, etc. <!-- id: 4 -->
+- [x] Create `.vscode/settings.json` enabling format on save <!-- id: 5 -->
+- [x] Verify `pnpm lint` passes <!-- id: 6 -->
+- [x] Verify `pnpm test` passes <!-- id: 7 -->
