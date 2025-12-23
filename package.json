@@ -34,8 +34,7 @@
     "coverage": "vitest run --coverage",
     "lint": "eslint src tests",
     "lint:fix": "eslint src tests --fix",
-    "prepublishOnly": "npm run typecheck && npm run build",
-    "prepare": "husky"
+    "prepublishOnly": "npm run typecheck && npm run build"
   },
   "dependencies": {
     "@photo-sphere-viewer/core": "^5.14.0",
@@ -57,9 +56,7 @@
     "cross-env": "^7.0.3",
     "eslint": "^9.39.2",
     "eslint-config-prettier": "^9.1.2",
-    "husky": "^9.1.7",
     "jsdom": "^25.0.1",
-    "lint-staged": "^16.2.7",
     "prettier": "^3.7.4",
     "typescript": "^5.9.3",
     "vite": "^6.4.1",
@@ -87,14 +84,6 @@
   "bugs": {
     "url": "https://github.com/code4history/Chuci/issues"
   },
-  "homepage": "https://github.com/code4history/Chuci#readme",
-  "lint-staged": {
-    "*.{js,ts,tsx}": [
-      "eslint --fix",
-      "prettier --write"
-    ],
-    "*.{json,md,yml,yaml}": [
-      "prettier --write"
-    ]
-  }
+  "homepage": "https://github.com/code4history/Chuci#readme"
+
 }
