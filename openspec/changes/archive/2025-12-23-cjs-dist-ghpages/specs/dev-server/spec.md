@@ -1,7 +1,7 @@
 
 ## ADDED Requirements
 
-### Requirement: Root Access
+### Requirement: Dev Server Root URL Access
 The development server MUST serve `index.html` when accessed at the root URL (`http://localhost:5173/`).
 
 #### Scenario: Verify Root URL

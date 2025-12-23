@@ -1,5 +1,5 @@
 
-## ADDED Requirements
+## MODIFIED Requirements
 
 ### Requirement: GitHub Pages Deployment
 The project MUST include a GitHub Actions workflow to deploy the demo website to GitHub Pages.

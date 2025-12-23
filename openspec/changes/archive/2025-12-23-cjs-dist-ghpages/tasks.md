@@ -10,7 +10,4 @@
 - [x] Refine build config to remove hashed chunks from `dist` <!-- id: 14 -->
 - [x] Update `deploy.yml` to trigger on `main` branch <!-- id: 15 -->
 - [x] Ensure CI (Test, Lint, TypeCheck) runs on all branches <!-- id: 16 -->
-- [x] Archive `cjs-dist-ghpages` <!-- id: 17 -->
-- [ ] Git commit (excluding logs) <!-- id: 18 -->
-- [ ] Migrate `master` to `main` and set as default <!-- id: 19 -->
-- [ ] Close related Issue <!-- id: 20 -->
+

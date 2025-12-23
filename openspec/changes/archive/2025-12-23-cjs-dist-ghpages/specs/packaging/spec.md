@@ -1,7 +1,7 @@
 
 ## ADDED Requirements
 
-### Requirement: Pure ESM and UMD Distribution
+### Requirement: Modern Packaging (ESM/UMD)
 The project SHALL NOT output CommonJS (CJS) files. The distribution MUST contain ESM modules and UMD bundles (for browser compatibility), along with TypeScript declaration files (`.d.ts`).
 
 #### Scenario: Verify Build Output
@@ -11,14 +11,14 @@ The project SHALL NOT output CommonJS (CJS) files. The distribution MUST contain
 - **And** it should NOT contain `.cjs` files
 - **And** it should contain `.d.ts` files
 
-### Requirement: Dist in Git
+### Requirement: Commit Dist Folder
 The `dist` directory MUST be committed to the git repository to allow direct installation from git.
 
 #### Scenario: Verify Gitignore
 - **Given** I inspect `.gitignore`
 - **Then** `dist` or `dist/` should NOT be present
 
-### Requirement: Clean Dist
+### Requirement: Clean Dist Output
 The `dist` directory MUST NOT contain demo website files (e.g., `index.html`, `index.css` related to the demo). It SHOULD only contain library assets.
 
 #### Scenario: Verify Dist Config
