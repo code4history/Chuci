@@ -36,6 +36,9 @@
     "lint:fix": "eslint src tests --fix",
     "prepublishOnly": "npm run typecheck && npm run build"
   },
+  "engines": {
+    "pnpm": ">=9.0.0"
+  },
   "dependencies": {
     "@photo-sphere-viewer/core": "^5.14.0",
     "gsplat": "^1.2.9",
