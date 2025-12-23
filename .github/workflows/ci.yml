@@ -2,45 +2,40 @@ name: CI
 
 on:
   push:
-    branches: [ main, master ]
+    branches: ["**"]
   pull_request:
-    branches: [ main, master ]
+    branches: ["**"]
 
 jobs:
-  test-node:
+  build:
     runs-on: ubuntu-latest
     strategy:
       matrix:
         node-version: [18, 20, 22]
+
     steps:
       - uses: actions/checkout@v4
-      
-      # pnpmを使用する場合
-      - name: Install pnpm
-        uses: pnpm/action-setup@v2
-        with:
-          version: 8
-          
       - name: Use Node.js ${{ matrix.node-version }}
         uses: actions/setup-node@v4
         with:
           node-version: ${{ matrix.node-version }}
-          cache: 'pnpm'
-          
-      - name: Install dependencies
-        run: pnpm install
-        
-      - name: Run lint
-        run: pnpm run lint
-        
-      - name: Run type check
-        run: pnpm run typecheck
-        
-      - name: Run tests
-        run: pnpm test
-        
-      - name: Build
-        run: pnpm run build
+          cache: "pnpm"
 
-  # E2E tests are not needed for this library as it's a component library
-  # and testing is done through unit tests and manual testing
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Type Check
+        run: pnpm typecheck
+
+      - name: Lint
+        run: pnpm lint
+
+      - name: Test
+        run: pnpm test
+
+      - name: Build
+        run: pnpm build

@@ -11,14 +11,12 @@ export default defineConfig({
   build: isPackageBuild ? {
     lib: {
       entry: resolve(__dirname, 'src/index.ts'),
-      formats: ['es', 'cjs', 'umd'],
+      formats: ['es', 'umd'],
       name: 'Chuci',  // UMDグローバル変数名
       fileName: (format) => {
         switch(format) {
           case 'es':
             return 'chuci.js';
-          case 'cjs':
-            return 'chuci.cjs';
           case 'umd':
             return 'chuci.umd.js';
           default:
@@ -29,25 +27,29 @@ export default defineConfig({
     rollupOptions: {
       external: [],
       output: {
-        globals: {}
+        globals: {},
+        inlineDynamicImports: true
       }
-    }
+    },
+    copyPublicDir: false
   } : {
-    outDir: 'dist',
+    outDir: 'dist-demo',
     emptyOutDir: true
   },
   plugins: [
-    dts({
-      outDir: 'dist',
-      exclude: ['tests', 'node_modules'],
-      rollupTypes: true,
-      skipDiagnostics: true,
-      tsconfigPath: './tsconfig.json',
-      logLevel: 'silent',
-      insertTypesEntry: true,
-      staticImport: true,
-      copyDtsFiles: true
-    })
+    ...(isPackageBuild ? [
+      dts({
+        outDir: 'dist',
+        exclude: ['tests', 'node_modules'],
+        rollupTypes: true,
+        skipDiagnostics: true,
+        tsconfigPath: './tsconfig.json',
+        logLevel: 'silent',
+        insertTypesEntry: true,
+        staticImport: true,
+        copyDtsFiles: true
+      })
+    ] : [])
   ],
   test: {
     environment: 'jsdom',

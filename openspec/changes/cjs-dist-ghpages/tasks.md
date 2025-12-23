@@ -1,0 +1,16 @@
+- [x] Update `vite.config.ts` to remove CJS format <!-- id: 0 -->
+- [x] Update `package.json` to remove CJS `main` and exports <!-- id: 1 -->
+- [x] Configure `vite.config.ts` to correctly handle `index.html` at root <!-- id: 2 -->
+- [/] Create/Update `tsconfig.json` or build script to ensure `d.ts` generation <!-- id: 3 -->
+- [x] Separate demo build logic (maybe a separate vite config or mode) <!-- id: 4 -->
+- [x] Remove `dist` from `.gitignore` <!-- id: 5 -->
+- [x] Create GitHub Actions workflow for GitHub Pages <!-- id: 6 -->
+- [x] Verify `pnpm build` produces clean `dist` with only ESM + d.ts <!-- id: 7 -->
+- [x] Verify `pnpm dev` works at root URL <!-- id: 8 -->
+- [x] Refine build config to remove hashed chunks from `dist` <!-- id: 14 -->
+- [x] Update `deploy.yml` to trigger on `main` branch <!-- id: 15 -->
+- [x] Ensure CI (Test, Lint, TypeCheck) runs on all branches <!-- id: 16 -->
+- [x] Archive `cjs-dist-ghpages` <!-- id: 17 -->
+- [ ] Git commit (excluding logs) <!-- id: 18 -->
+- [ ] Migrate `master` to `main` and set as default <!-- id: 19 -->
+- [ ] Close related Issue <!-- id: 20 -->
