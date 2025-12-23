@@ -13,6 +13,7 @@ export class CcSwiper extends ChuciElement {
   private divPagination?: HTMLDivElement
   private divPrevious?: HTMLDivElement
   private divNext?: HTMLDivElement
+  private isDragging = false
   
   static get observedAttributes() {
     return ['has-thumb', 'autoplay']
@@ -282,6 +283,12 @@ export class CcSwiper extends ChuciElement {
         img.addEventListener('dragstart', (e) => e.preventDefault())
         
         img.addEventListener('click', (e) => {
+          // Ignore click if user was dragging
+          if (this.isDragging) {
+            this.isDragging = false
+            return
+          }
+          
           e.preventDefault()
           e.stopPropagation()
           e.stopImmediatePropagation()
@@ -346,7 +353,18 @@ export class CcSwiper extends ChuciElement {
       preventClicksPropagation: false,
       simulateTouch: true,
       allowTouchMove: true,
-      loop: slidesLoop
+      loop: slidesLoop,
+      on: {
+        sliderMove: () => {
+          this.isDragging = true
+        },
+        touchEnd: () => {
+          // Reset dragging flag after a short delay to allow click event to check it
+          setTimeout(() => {
+            this.isDragging = false
+          }, 50)
+        }
+      }
     })
   }
 }
