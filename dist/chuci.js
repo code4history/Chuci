@@ -3232,6 +3232,7 @@ class Vu extends zr {
     Se(this, "divPagination");
     Se(this, "divPrevious");
     Se(this, "divNext");
+    Se(this, "isDragging", !1);
   }
   static get observedAttributes() {
     return ["has-thumb", "autoplay"];
@@ -3434,6 +3435,10 @@ class Vu extends zr {
         });
       }), this.queryAll("img.viewer").forEach((o) => {
         o.addEventListener("dragstart", (c) => c.preventDefault()), o.addEventListener("click", (c) => {
+          if (this.isDragging) {
+            this.isDragging = !1;
+            return;
+          }
           c.preventDefault(), c.stopPropagation(), c.stopImmediatePropagation();
           const l = c.target, d = l.getAttribute("data-image-url") || "", h = l.getAttribute("data-image-type") || "image", u = parseInt(l.getAttribute("data-index") || "0", 10);
           return this.openViewer(d, h, u), !1;
@@ -3471,7 +3476,17 @@ class Vu extends zr {
       preventClicksPropagation: !1,
       simulateTouch: !0,
       allowTouchMove: !0,
-      loop: i
+      loop: i,
+      on: {
+        sliderMove: () => {
+          this.isDragging = !0;
+        },
+        touchEnd: () => {
+          setTimeout(() => {
+            this.isDragging = !1;
+          }, 50);
+        }
+      }
     }));
   }
 }

@@ -6,6 +6,7 @@ export declare class CcSwiper extends ChuciElement {
     private divPagination?;
     private divPrevious?;
     private divNext?;
+    private isDragging;
     static get observedAttributes(): string[];
     get hasThumb(): boolean;
     get autoplay(): boolean;
