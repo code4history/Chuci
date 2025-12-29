@@ -276,7 +276,11 @@ ${this.getTargetDebugInfo()}
       normalCanvas.style.left = `${rect.left}px`
       normalCanvas.style.width = `${rect.width}px`
       normalCanvas.style.height = `${rect.height}px`
-      normalCanvas.style.zIndex = 'calc(var(--cc-viewer-z-index-each, 1000) + 1)'  // Above backdrop but below buttons
+      // Get z-index from host style
+      const hostStyle = window.getComputedStyle(this)
+      const zIndexVar = hostStyle.getPropertyValue('--cc-viewer-z-index-each').trim()
+      const baseZIndex = zIndexVar ? parseInt(zIndexVar, 10) : 1000
+      normalCanvas.style.zIndex = `${baseZIndex + 1}`  // Above backdrop but below buttons
       normalCanvas.style.pointerEvents = 'auto'  // Keep mouse events for 3D controls
       normalCanvas.style.display = 'block'
       normalCanvas.style.background = 'transparent'

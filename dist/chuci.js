@@ -21278,12 +21278,14 @@ class a_ extends os {
       const i = this.container.clientWidth || this.container.offsetWidth, n = this.container.clientHeight || this.container.offsetHeight;
       this.camera = new ri(75, i / n, 0.1, 1e3), this.renderer = new LA({ antialias: !0, alpha: !0 }), this.renderer.setSize(i, n), this.renderer.setPixelRatio(window.devicePixelRatio), this.renderer.shadowMap.enabled = !0;
       const r = this.renderer.domElement;
-      r.style.position = "fixed", r.style.left = `${t.left}px`, r.style.top = `${t.top}px`, r.style.width = `${t.width}px`, r.style.height = `${t.height}px`, r.style.pointerEvents = "auto", r.style.zIndex = "calc(var(--cc-viewer-z-index-each, 1000) + 1)", document.body.appendChild(r), this.externalCanvas = r, this.controls = new ZA(this.camera, r), this.controls.enableDamping = !0, this.controls.dampingFactor = 0.05;
-      const a = new jp(4210752, 2), o = new Kp(16777215, 1);
-      o.position.set(1, 1, 1), this.scene.add(a, o), await this.loadModel(), this.resizeObserver = new ResizeObserver((c) => {
-        for (const l of c) {
-          const { width: d, height: h } = l.contentRect;
-          d > 0 && h > 0 && this.handleResize();
+      r.style.position = "fixed", r.style.left = `${t.left}px`, r.style.top = `${t.top}px`, r.style.width = `${t.width}px`, r.style.height = `${t.height}px`, r.style.pointerEvents = "auto";
+      const o = window.getComputedStyle(this).getPropertyValue("--cc-viewer-z-index-each").trim(), c = o ? parseInt(o, 10) : 1e3;
+      r.style.zIndex = `${c + 1}`, document.body.appendChild(r), this.externalCanvas = r, this.controls = new ZA(this.camera, r), this.controls.enableDamping = !0, this.controls.dampingFactor = 0.05;
+      const l = new jp(4210752, 2), d = new Kp(16777215, 1);
+      d.position.set(1, 1, 1), this.scene.add(l, d), await this.loadModel(), this.resizeObserver = new ResizeObserver((h) => {
+        for (const u of h) {
+          const { width: p, height: g } = u.contentRect;
+          p > 0 && g > 0 && this.handleResize();
         }
       }), this.resizeObserver.observe(this.container), this.animateLoop();
     } catch (i) {
@@ -21541,7 +21543,12 @@ ${this.getTargetDebugInfo()}
     if (!i) return;
     const n = i.getBoundingClientRect();
     let r = document.getElementById(t);
-    r || (r = document.createElement("canvas"), r.id = t, r.style.position = "fixed", r.style.top = `${n.top}px`, r.style.left = `${n.left}px`, r.style.width = `${n.width}px`, r.style.height = `${n.height}px`, r.style.zIndex = "calc(var(--cc-viewer-z-index-each, 1000) + 1)", r.style.pointerEvents = "auto", r.style.display = "block", r.style.background = "transparent", document.body.appendChild(r)), r.style.top = `${n.top}px`, r.style.left = `${n.left}px`, r.style.width = `${n.width}px`, r.style.height = `${n.height}px`, this.canvas = r;
+    if (!r) {
+      r = document.createElement("canvas"), r.id = t, r.style.position = "fixed", r.style.top = `${n.top}px`, r.style.left = `${n.left}px`, r.style.width = `${n.width}px`, r.style.height = `${n.height}px`;
+      const o = window.getComputedStyle(this).getPropertyValue("--cc-viewer-z-index-each").trim(), c = o ? parseInt(o, 10) : 1e3;
+      r.style.zIndex = `${c + 1}`, r.style.pointerEvents = "auto", r.style.display = "block", r.style.background = "transparent", document.body.appendChild(r);
+    }
+    r.style.top = `${n.top}px`, r.style.left = `${n.left}px`, r.style.width = `${n.width}px`, r.style.height = `${n.height}px`, this.canvas = r;
     try {
       const a = this.query(".gaussian-container");
       if (!a) return;

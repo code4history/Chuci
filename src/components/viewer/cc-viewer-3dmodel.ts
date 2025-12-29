@@ -325,7 +325,11 @@ export class CcViewer3DModel extends CcViewerBase {
       canvas.style.width = `${rect.width}px`
       canvas.style.height = `${rect.height}px`
       canvas.style.pointerEvents = 'auto'
-      canvas.style.zIndex = 'calc(var(--cc-viewer-z-index-each, 1000) + 1)'
+      // Get z-index from host style
+      const hostStyle = window.getComputedStyle(this)
+      const zIndexVar = hostStyle.getPropertyValue('--cc-viewer-z-index-each').trim()
+      const baseZIndex = zIndexVar ? parseInt(zIndexVar, 10) : 1000
+      canvas.style.zIndex = `${baseZIndex + 1}`
       document.body.appendChild(canvas)
       
       // Store canvas reference for cleanup
