@@ -74,7 +74,7 @@ export class CcViewer3DModel extends CcViewerBase {
       `
         ${this.isLoading ? '<div class="loading">Loading...</div>' : ''}
         ${!this.isLoading && this.debugMode ? `
-          <div class="debug-info" style="z-index: 1005;">
+          <div class="debug-info" style="z-index: calc(var(--cc-viewer-z-index-each, 1000) + 5);">
             Camera Position: ${this.getCameraDebugInfo()}<br>
             Camera Target: ${this.getTargetDebugInfo()}<br>
             Controls: Rotate (drag), Zoom (scroll), Pan (right-drag)
@@ -150,7 +150,7 @@ export class CcViewer3DModel extends CcViewerBase {
         font-size: 12px;
         border-radius: 4px;
         pointer-events: none;
-        z-index: 1010;
+        z-index: calc(var(--cc-viewer-z-index-each, 1000) + 10);
       }
       
       .texture-toggle {
@@ -164,7 +164,7 @@ export class CcViewer3DModel extends CcViewerBase {
         cursor: pointer;
         border-radius: 4px;
         transition: background 0.3s;
-        z-index: 1010;
+        z-index: calc(var(--cc-viewer-z-index-each, 1000) + 10);
         pointer-events: auto;
       }
       

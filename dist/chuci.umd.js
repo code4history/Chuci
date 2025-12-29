@@ -4247,7 +4247,7 @@ void main() {
         ${this.modelUrl?`
         ${this.isLoading?'<div class="loading">Loading...</div>':""}
         ${!this.isLoading&&this.debugMode?`
-          <div class="debug-info" style="z-index: 1005;">
+          <div class="debug-info" style="z-index: calc(var(--cc-viewer-z-index-each, 1000) + 5);">
             Camera Position: ${this.getCameraDebugInfo()}<br>
             Camera Target: ${this.getTargetDebugInfo()}<br>
             Controls: Rotate (drag), Zoom (scroll), Pan (right-drag)
@@ -4314,7 +4314,7 @@ void main() {
         font-size: 12px;
         border-radius: 4px;
         pointer-events: none;
-        z-index: 1010;
+        z-index: calc(var(--cc-viewer-z-index-each, 1000) + 10);
       }
       
       .texture-toggle {
@@ -4328,7 +4328,7 @@ void main() {
         cursor: pointer;
         border-radius: 4px;
         transition: background 0.3s;
-        z-index: 1010;
+        z-index: calc(var(--cc-viewer-z-index-each, 1000) + 10);
         pointer-events: auto;
       }
       
@@ -4355,7 +4355,7 @@ void main() {
         width: 100%;
         height: 100%;
         background-color: rgba(0, 0, 0, 0.9);
-        z-index: 1000;
+        z-index: var(--cc-viewer-z-index-each, 1000);
       }
       
       .viewer {
@@ -4422,7 +4422,7 @@ void main() {
         pointer-events: none;
         white-space: pre-line;
         min-width: 200px;
-        z-index: 1003;
+        z-index: calc(var(--cc-viewer-z-index-each, 1000) + 3);
       }
       
       ${this.getNavigationStyles()}
