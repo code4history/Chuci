@@ -233,7 +233,7 @@
         justify-content: center;
         cursor: pointer;
         transition: background 0.3s;
-        z-index: 1002;
+        z-index: calc(var(--cc-viewer-z-index-each, 1000) + 2);
         pointer-events: auto;
       }
       

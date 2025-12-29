@@ -1,4 +1,4 @@
-import { describe, test, expect, beforeAll } from 'vitest';
+import { describe, test, expect } from 'vitest';
 import { CcViewerBase } from '../src/components/viewer/cc-viewer-base';
 
 // Simple concrete implementation for testing logic without external dependencies
