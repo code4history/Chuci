@@ -276,7 +276,7 @@ ${this.getTargetDebugInfo()}
       normalCanvas.style.left = `${rect.left}px`
       normalCanvas.style.width = `${rect.width}px`
       normalCanvas.style.height = `${rect.height}px`
-      normalCanvas.style.zIndex = '1001'  // Above backdrop but below buttons
+      normalCanvas.style.zIndex = 'calc(var(--cc-viewer-z-index-each, 1000) + 1)'  // Above backdrop but below buttons
       normalCanvas.style.pointerEvents = 'auto'  // Keep mouse events for 3D controls
       normalCanvas.style.display = 'block'
       normalCanvas.style.background = 'transparent'
