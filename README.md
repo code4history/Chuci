@@ -15,10 +15,37 @@ A standalone multimedia swiper and viewer web components library extracted from 
 - 📦 **Lightweight**: Optimized bundle size with tree-shaking support
 - 🛠️ **TypeScript**: Full TypeScript support with type definitions
 
+## Requirements
+
+- **Node.js**: 20 or higher
+- **Package Manager**: pnpm 9.0.0 or higher (recommended)
+- **Browser**: Any modern browser supporting Web Components
+  - Chrome/Edge 79+
+  - Firefox 63+
+  - Safari 12.1+
+
 ## Installation
+
+### Using pnpm (recommended)
+
+```bash
+pnpm add @c4h/chuci
+```
+
+### Using npm
 
 ```bash
 npm install @c4h/chuci
+```
+
+### CDN (Browser)
+
+```html
+<script src="https://cdn.jsdelivr.net/npm/@c4h/chuci@latest/dist/chuci.umd.js"></script>
+<script>
+  // Components are available globally as Chuci
+  // Use custom elements directly in HTML
+</script>
 ```
 
 ## Usage
@@ -101,31 +128,51 @@ Main carousel component.
 
 **Methods:**
 - `openViewer(imageUrl: string, imageType: string, slideIndex?: number)`: Programmatically open viewer
+  - `imageUrl`: URL of the media to display
+  - `imageType`: Type of media (see supported types above)
+  - `slideIndex`: Optional slide index (default: 0)
 
 **Events:**
 - `slidechange`: Fired when slide changes
+  - `detail.activeIndex`: Current active slide index
+
+**Properties:**
+- `slider`: Access to underlying Swiper instance
 
 ### `<cc-swiper-slide>`
 
 Individual slide component.
 
 **Attributes:**
-- `thumbnail-url`: URL for thumbnail image
-- `image-url`: URL for full media
-- `image-type`: Media type (see supported types above)
+- `thumbnail-url`: URL for thumbnail image (required)
+- `image-url`: URL for full media (required)
+- `image-type`: Media type (see supported types above) (required)
 - `caption`: Optional caption text
+
+**3D Model & Gaussian Splatting Attributes:**
+- `material-url`: Material file URL for 3D models (OBJ/MTL)
+- `debug-mode`: Enable debug information display (`"true"` or `"false"`)
+- `camera-position`: Initial camera position as `"x,y,z"` (e.g., `"0,1,5"`)
+- `camera-target`: Camera target position as `"x,y,z"` (e.g., `"0,0,0"`)
+- `show-texture`: Show/hide texture for 3D models (`"true"` or `"false"`)
+- `fit-to-container`: Fit model to container size (`"true"` or `"false"`)
 
 ### Viewer Components
 
 All viewer components inherit from `CcViewerBase` and support:
 
 **Methods:**
-- `open(url: string)`: Open viewer with media
+- `open(url: string)`: Open viewer with media URL
 - `close()`: Close viewer
 
 **Properties:**
-- `showPrevButton`: Show/hide previous button
-- `showNextButton`: Show/hide next button
+- `showPrevButton` (boolean): Show/hide previous navigation button
+- `showNextButton` (boolean): Show/hide next navigation button
+
+**Events:**
+- `close`: Fired when viewer is closed
+- `navigate-prev`: Fired when previous button is clicked
+- `navigate-next`: Fired when next button is clicked
 
 ### Media-specific Examples
 
@@ -173,17 +220,20 @@ cc-swiper {
   --cc-slider-navigation-color: #007aff;
 }
 
-cc-viewer {
+cc-viewer-base,
+cc-viewer-image,
+cc-viewer-panorama,
+cc-viewer-youtube,
+cc-viewer-video,
+cc-viewer-3dmodel,
+cc-viewer-gaussian {
   --cc-viewer-z-index: 1000;
 }
 ```
 
 ## Browser Support
 
-Works in all modern browsers that support Web Components:
-- Chrome/Edge 79+
-- Firefox 63+
-- Safari 12.1+
+See [Requirements](#requirements) section for browser compatibility details.
 
 ## Development
 
@@ -203,7 +253,11 @@ pnpm run build
 
 ## License
 
-MIT License - see LICENSE file for details.
+MIT License
+
+Copyright (c) 2024-2026 Code for History
+
+See [LICENSE](LICENSE) file for details.
 
 ## Migration from Quyuan
 
