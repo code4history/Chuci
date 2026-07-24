@@ -2,9 +2,9 @@
 <h1 align="center">Chuci</h1>
 
 <p align="center">
-  [![CI](https://github.com/code4history/Chuci/actions/workflows/ci.yml/badge.svg)](https://github.com/code4history/Chuci/actions/workflows/ci.yml)
-  [![npm version](https://img.shields.io/npm/v/@c4h/chuci)](https://www.npmjs.com/package/@c4h/chuci)
-  [![License](https://img.shields.io/npm/l/@c4h/chuci)](LICENSE)
+  <a href="https://github.com/code4history/Chuci/actions/workflows/ci.yml"><img src="https://github.com/code4history/Chuci/actions/workflows/ci.yml/badge.svg" alt="CI" /></a>
+  <a href="https://www.npmjs.com/package/@c4h/chuci"><img src="https://img.shields.io/npm/v/@c4h/chuci" alt="npm version" /></a>
+  <a href="LICENSE"><img src="https://img.shields.io/npm/l/@c4h/chuci" alt="License" /></a>
 </p>
 
 <!-- SECTION 2: Elevator Pitch -->
