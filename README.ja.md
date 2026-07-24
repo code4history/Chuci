@@ -1,69 +1,63 @@
-# Chuci (楚辞)
+<!-- SECTION 1: Header (badges, title) -->
+<h1 align="center">Chuci</h1>
 
-[![CI](https://github.com/code4history/Chuci/actions/workflows/ci.yml/badge.svg)](https://github.com/code4history/Chuci/actions/workflows/ci.yml)
-[![npm version](https://badge.fury.io/js/@c4h%2Fchuci.svg)](https://www.npmjs.com/package/@c4h/chuci)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+<p align="center">
+  [![CI](https://github.com/code4history/Chuci/actions/workflows/ci.yml/badge.svg)](https://github.com/code4history/Chuci/actions/workflows/ci.yml)
+  [![npm version](https://img.shields.io/npm/v/@c4h/chuci)](https://www.npmjs.com/package/@c4h/chuci)
+  [![License](https://img.shields.io/npm/l/@c4h/chuci)](LICENSE)
+</p>
 
+<!-- SECTION 2: Elevator Pitch -->
+## Chuci について
 
-[Quyuan](https://github.com/code4history/Quyuan)から抽出されたスタンドアロンのマルチメディアスワイパーとビューアWebコンポーネントライブラリです。フレームワークに依存せず、タッチ対応のカルーセルとマルチメディアビューアを提供します。
+Chuci は [Quyuan](https://github.com/code4history/Quyuan) から抽出されたスタンドアロンのマルチメディアスワイパー・ビューア Web Components ライブラリです。
+フレームワークに依存せず、タッチ対応のカルーセルとマルチメディアビューア（画像・パノラマ・動画・YouTube・3Dモデル・Gaussian スプラット）を提供します。
+プロジェクト名は、中国古代の詩集
+[楚辞 (Chuci)](https://en.wikipedia.org/wiki/Chu_Ci) に由来しています。
 
-## 特徴
+Chuci は MIT License のオープンソースソフトウェアです。
 
-- 🚀 **フレームワーク非依存**: 純粋なWeb Components、任意のフレームワークまたはバニラJSで動作
-- 📱 **タッチ対応**: Swiper.jsをベースとしたスムーズなタッチ操作
-- 🎬 **複数のメディアタイプ**: 画像、パノラマ、動画、YouTube、3Dモデル、Gaussianスプラットに対応
-- 🔧 **ゼロ依存関係**: すべての依存関係がバンドル済み（Lit依存なし）
-- 📦 **軽量**: tree-shakingサポートによる最適化されたバンドルサイズ
-- 🛠️ **TypeScript**: 型定義付きの完全なTypeScriptサポート
+<!-- SECTION 3: Language switch link -->
+**[英語版はこちら / Read this document in English](README.md)**
 
-## 要件
+<!-- SECTION 4: Key Features -->
+## 主な特徴
 
-- **Node.js**: 20以降
-- **パッケージマネージャー**: pnpm 9.0.0以降（推奨）
-- **ブラウザ**: Web Componentsをサポートするモダンブラウザ
-  - Chrome/Edge 79+
-  - Firefox 63+
-  - Safari 12.1+
+- フレームワーク非依存: 純粋な Web Components・任意のフレームワークやバニラ JS で動作
+- Swiper.js ベースのタッチ対応カルーセル
+- 複数メディアタイプ: 画像・パノラマ・動画・YouTube・3Dモデル・Gaussian スプラット
+- ゼロ依存関係: すべての依存関係がバンドル済み（Lit 依存なし）
+- 軽量・tree-shaking サポート・完全な TypeScript 型定義
 
-## インストール
+<!-- SECTION 5: Quick Start -->
+## クイックスタート
 
-### pnpmを使用（推奨）
+> 特定リリースに紐づく情報（ADR-0012）。下記の CDN 例は `@latest` を使用しています。
+> 本番環境では具体的なバージョンを固定してください。
+
+### インストール
 
 ```bash
+# pnpm（推奨）
 pnpm add @c4h/chuci
-```
 
-### npmを使用
-
-```bash
+# npm
 npm install @c4h/chuci
 ```
 
-### CDN（ブラウザ）
-
-```html
-<script src="https://cdn.jsdelivr.net/npm/@c4h/chuci@latest/dist/chuci.umd.js"></script>
-<script>
-  // コンポーネントはグローバルにChuciとして利用可能
-  // HTMLで直接カスタム要素を使用できます
-</script>
-```
-
-## 使用方法
-
-### 基本的なスワイパー
+### 最小利用例
 
 ```html
 <cc-swiper>
-  <cc-swiper-slide 
-    thumbnail-url="thumb1.jpg" 
-    image-url="full1.jpg" 
+  <cc-swiper-slide
+    thumbnail-url="thumb1.jpg"
+    image-url="full1.jpg"
     image-type="image"
     caption="最初の画像">
   </cc-swiper-slide>
-  <cc-swiper-slide 
-    thumbnail-url="thumb2.jpg" 
-    image-url="full2.jpg" 
+  <cc-swiper-slide
+    thumbnail-url="thumb2.jpg"
+    image-url="full2.jpg"
     image-type="image"
     caption="2番目の画像">
   </cc-swiper-slide>
@@ -74,207 +68,137 @@ npm install @c4h/chuci
 </script>
 ```
 
-### プログラムによる使用
-
-```javascript
-import '@c4h/chuci';
-
-// スワイパー要素を取得
-const swiper = document.querySelector('cc-swiper');
-
-// プログラムでビューアを開く
-swiper.openViewer('path/to/image.jpg', 'image', 0);
-
-// スライド変更イベントをリッスン
-swiper.addEventListener('slidechange', (e) => {
-  console.log('現在のスライド:', e.detail.activeIndex);
-});
-```
-
-### サムネイルギャラリー付き
+### CDN（jsDelivr）
 
 ```html
-<cc-swiper has-thumb>
-  <cc-swiper-slide thumbnail-url="..." image-url="..." image-type="image"></cc-swiper-slide>
-  <cc-swiper-slide thumbnail-url="..." image-url="..." image-type="image"></cc-swiper-slide>
-</cc-swiper>
+<script src="https://cdn.jsdelivr.net/npm/@c4h/chuci@latest/dist/chuci.umd.js"></script>
+<script>
+  // コンポーネントはグローバルに Chuci として利用可能
+  // HTML で直接カスタム要素を使用できます
+</script>
 ```
 
-### 自動再生
+### API リファレンス
 
-```html
-<cc-swiper autoplay>
-  <!-- スライド -->
-</cc-swiper>
-```
+- **API シグネチャ**（リリース依存）: [`docs/api/`](docs/api/) を参照
 
-## サポートされるメディアタイプ
+### 開発
 
-- **image**: 通常の画像（jpg, png, gif など）
-- **panorama**: 360°パノラマ画像
-- **youtube**: YouTube動画（YouTube URLを提供）
-- **video**: HTML5動画（mp4, webm など）
-- **3dmodel**: 3Dモデル（OBJ/MTL形式）
-- **gaussian**: Gaussianスプラッティングファイル（.splat, .ply）
-
-## コンポーネント
-
-### `<cc-swiper>`
-
-メインのカルーセルコンポーネント。
-
-**属性:**
-- `has-thumb`: サムネイルギャラリーを表示
-- `autoplay`: 自動再生を有効化
-
-**メソッド:**
-- `openViewer(imageUrl: string, imageType: string, slideIndex?: number)`: プログラムでビューアを開く
-  - `imageUrl`: 表示するメディアのURL
-  - `imageType`: メディアのタイプ（上記のサポートされるタイプを参照）
-  - `slideIndex`: オプションのスライドインデックス（デフォルト: 0）
-
-**イベント:**
-- `slidechange`: スライドが変更されたときに発火
-  - `detail.activeIndex`: 現在のアクティブなスライドインデックス
-
-**プロパティ:**
-- `slider`: 基盤となるSwiperインスタンスへのアクセス
-
-### `<cc-swiper-slide>`
-
-個別のスライドコンポーネント。
-
-**属性:**
-- `thumbnail-url`: サムネイル画像のURL（必須）
-- `image-url`: フルメディアのURL（必須）
-- `image-type`: メディアタイプ（上記のサポートされるタイプを参照）（必須）
-- `caption`: オプションのキャプションテキスト
-
-**3DモデルとGaussianスプラット用の属性:**
-- `material-url`: 3Dモデル用のマテリアルファイルURL（OBJ/MTL）
-- `debug-mode`: デバッグ情報の表示を有効化（`"true"` または `"false"`）
-- `camera-position`: 初期カメラ位置を `"x,y,z"` 形式で指定（例: `"0,1,5"`）
-- `camera-target`: カメラターゲット位置を `"x,y,z"` 形式で指定（例: `"0,0,0"`）
-- `show-texture`: 3Dモデルのテクスチャの表示/非表示（`"true"` または `"false"`）
-- `fit-to-container`: モデルをコンテナサイズに合わせる（`"true"` または `"false"`）
-
-### ビューアコンポーネント
-
-すべてのビューアコンポーネントは`CcViewerBase`を継承し、以下をサポートします:
-
-**メソッド:**
-- `open(url: string)`: メディアURLでビューアを開く
-- `close()`: ビューアを閉じる
-
-**プロパティ:**
-- `showPrevButton` (boolean): 前へナビゲーションボタンの表示/非表示
-- `showNextButton` (boolean): 次へナビゲーションボタンの表示/非表示
-
-**イベント:**
-- `close`: ビューアが閉じられたときに発火
-- `navigate-prev`: 前へボタンがクリックされたときに発火
-- `navigate-next`: 次へボタンがクリックされたときに発火
-
-### メディア固有の例
-
-#### 3Dモデルビューア
-```html
-<cc-swiper-slide 
-  thumbnail-url="thumb.jpg"
-  image-url="model.obj"
-  image-type="3dmodel"
-  material-url="model.mtl"
-  debug-mode="true"
-  camera-position="0,1,5"
-  camera-target="0,0,0"
-  show-texture="true">
-</cc-swiper-slide>
-```
-
-#### Gaussianスプラッティングビューア
-```html
-<cc-swiper-slide
-  thumbnail-url="thumb.jpg"
-  image-url="scene.splat"
-  image-type="gaussian"
-  debug-mode="true"
-  camera-position="0,0,10">
-</cc-swiper-slide>
-```
-
-#### YouTube動画
-```html
-<cc-swiper-slide
-  thumbnail-url="thumb.jpg"
-  image-url="https://www.youtube.com/watch?v=VIDEO_ID"
-  image-type="youtube">
-</cc-swiper-slide>
-```
-
-## スタイリング
-
-CSSカスタムプロパティ:
-
-```css
-cc-swiper {
-  --cc-slider-theme-color: #007aff;
-  --cc-slider-navigation-color: #007aff;
-}
-
-cc-viewer-base,
-cc-viewer-image,
-cc-viewer-panorama,
-cc-viewer-youtube,
-cc-viewer-video,
-cc-viewer-3dmodel,
-cc-viewer-gaussian {
-  --cc-viewer-z-index: 1000;
-}
-```
-
-## ブラウザサポート
-
-ブラウザ互換性の詳細については、[要件](#要件)セクションを参照してください。
-
-## 開発
+#### 準備
+リポジトリをクローンし、依存関係をインストールします。
 
 ```bash
-# 依存関係のインストール
+git clone https://github.com/code4history/Chuci.git
+cd Chuci
 pnpm install
+```
 
-# 開発サーバーの起動
+#### 開発サーバー
+
+```bash
 pnpm run dev
+```
 
-# テストの実行
-pnpm test
+#### ビルド
 
-# ライブラリのビルド
+```bash
 pnpm run build
 ```
 
-## ライセンス
+#### テスト
 
-MIT License
+```bash
+pnpm test
+```
 
+<!-- SECTION 6: Prerequisites -->
+## 動作環境
+
+> ランタイム要件（ADR-0012: 特定リリースに紐づく）。
+
+- Node.js: `20` 以上
+- pnpm: `9.0.0` 以上（推奨）
+- ブラウザ: Web Components をサポートするモダンブラウザ
+  - Chrome / Edge 79+
+  - Firefox 63+
+  - Safari 12.1+
+
+<!-- SECTION 7: Peer Dependencies -->
+<!-- Chuci は依存関係ゼロ（すべてバンドル済み）のため、本節は省略します。 -->
+
+<!-- SECTION 8: Ecosystem / Related Repositories -->
+## エコシステム
+
+Chuci は [Code for History](https://github.com/code4history) が運営する
+Maplat エコシステムの一部です。全容は下記エコシステム図を参照してください。
+
+📖 **エコシステム図** — *（図は現在外部非公開の計画リポジトリにあります。
+公開ビューアからは下記の姉妹リポジトリ表で代替します）*
+
+### 姉妹リポジトリ
+
+| リポジトリ | ライセンス | npm | 役割 |
+|---|---|---|---|
+| [Maplat](https://github.com/code4history/Maplat) | Apache 2.0 | `@maplat/ui` | メインビューア |
+| [MaplatCore](https://github.com/code4history/MaplatCore) | Apache 2.0 | `@maplat/core` | コアライブラリ |
+| [MaplatTin](https://github.com/code4history/MaplatTin) | Apache 2.0 | `@maplat/tin` | TIN 変換 |
+| [MaplatTransform](https://github.com/code4history/MaplatTransform) | Apache 2.0 | `@maplat/transform` | 座標変換 |
+| [MaplatEditor](https://github.com/code4history/MaplatEditor) | Apache 2.0 | — | データ作成ツール（デスクトップ） |
+
+> MaplatEditor は上記ビューアライブラリが描画する地図・POI を作成する
+> データ作成ツールです。Maplat エコシステムはエンドツーエンド:
+> MaplatEditor で作成し、いずれかのビューアライブラリで公開、という流れになります。
+
+<!-- SECTION 9: Nayuta links -->
+<!-- MIT ライセンスのリポジトリ（Weiwudi / Quyuan / Chuci）へは那由多社リンクを置きません（ADR-0012）。 -->
+
+<!-- SECTION 10: License -->
+## License
+
+MIT License — 詳細は [LICENSE](LICENSE) を参照。
+
+```
 Copyright (c) 2024-2026 Code for History
 
-詳細は[LICENSE](LICENSE)ファイルを参照してください。
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
 
-## Quyuanからの移行
+The above copyright notice and this permission notice shall be included in
+all copies or substantial portions of the Software.
 
-元のQuyuan実装から移行する場合:
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+THE SOFTWARE.
+```
 
-1. インポートを`quyuan`から`@c4h/chuci`に変更
-2. コンポーネント名は同じまま（`cc-swiper`、`cc-swiper-slide`など）
-3. 3DモデルのURLはパイプ区切り形式を使用しなくなりました:
+<!-- SECTION 11: Contributors / Sponsors (optional) -->
+<!-- Chuci には Contributors / Sponsors 節はありません。 -->
+
+---
+
+## Quyuan からの移行
+
+元の Quyuan 実装から移行する場合:
+
+1. インポートを `quyuan` から `@c4h/chuci` に変更
+2. コンポーネント名は同じまま（`cc-swiper`・`cc-swiper-slide` 等）
+3. 3Dモデルの URL はパイプ区切り形式を使用しなくなりました:
    ```html
    <!-- 旧 -->
    <cc-swiper-slide image-url="model.obj|model.mtl" ...>
-   
+
    <!-- 新 -->
    <cc-swiper-slide image-url="model.obj" material-url="model.mtl" ...>
    ```
 
 ## クレジット
 
-Code for Historyによる[Quyuan](https://github.com/code4history/Quyuan)から抽出。
+Code for History による [Quyuan](https://github.com/code4history/Quyuan) から抽出。
