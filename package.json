@@ -41,7 +41,7 @@
   },
   "dependencies": {
     "gsplat": "^1.2.9",
-    "swiper": "^11.2.10",
+    "swiper": "^12.1.2",
     "three": "^0.171.0",
     "viewerjs": "^1.11.7"
   },
