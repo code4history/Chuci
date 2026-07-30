@@ -31,7 +31,7 @@
   },
   "scripts": {
     "dev": "vite --host",
-    "build": "npm run typecheck && cross-env BUILD_MODE=package vite build",
+    "build": "pnpm run typecheck && cross-env BUILD_MODE=package vite build",
     "build:demo": "vite build",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
@@ -39,7 +39,7 @@
     "coverage": "vitest run --coverage",
     "lint": "eslint src tests",
     "lint:fix": "eslint src tests --fix",
-    "prepublishOnly": "npm run typecheck && npm run build"
+    "prepublishOnly": "pnpm run typecheck && pnpm run build"
   },
   "engines": {
     "pnpm": ">=9.0.0"
