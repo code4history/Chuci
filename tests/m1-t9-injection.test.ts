@@ -205,3 +205,57 @@ describe("m1-t9: 各ビューアの注入対策", () => {
     expect(shadow(vd).querySelector("video")!.getAttribute("src")).toBe(BENIGN_URL);
   });
 });
+
+// ─────────────────────────────────────────────────────────────
+// S4: panorama の iframe srcdoc
+//
+// 契約（設計 §5 D1 の S4）: **srcdoc に外部由来値を一切埋めない**。
+// 値の受け渡しは postMessage に確定している（contentDocument は採らない。
+// sandbox="allow-scripts" では opaque origin になり遮断されるため）。
+//
+// onAfterRender は setTimeout(…, 0) 経由なので待つ。
+describe("m1-t9: panorama の srcdoc 契約（S4）と SRI（D5）", () => {
+  beforeEach(() => {
+    document.body.innerHTML = "";
+  });
+
+  const openPanorama = async (url: string) => {
+    const el = document.createElement("cc-viewer-panorama") as HTMLElement & {
+      open(u: string): void;
+    };
+    el.setAttribute("show", "true");
+    document.body.appendChild(el);
+    el.open(url);
+    await new Promise<void>(r => setTimeout(r, 10));
+    return el;
+  };
+
+  test("S4: srcdoc に外部由来値が一切含まれない", async () => {
+    const el = await openPanorama(ATTR_PAYLOAD);
+    const iframe = shadow(el).querySelector<HTMLIFrameElement>("iframe.iframe");
+    expect(iframe, "iframe が生成されていること").not.toBeNull();
+    const srcdoc = iframe!.getAttribute("srcdoc") || "";
+    expect(srcdoc.length, "srcdoc が組み立てられていること").toBeGreaterThan(0);
+    // payload の断片すら現れないこと（分割して埋めていないことも見る）
+    expect(srcdoc).not.toContain(ATTR_PAYLOAD);
+    expect(srcdoc).not.toContain("onmouseover");
+  });
+
+  test("S4: 正常な URL でも srcdoc には埋めない（契約は値によらない）", async () => {
+    const el = await openPanorama(BENIGN_URL);
+    const iframe = shadow(el).querySelector<HTMLIFrameElement>("iframe.iframe");
+    const srcdoc = iframe!.getAttribute("srcdoc") || "";
+    expect(srcdoc).not.toContain(BENIGN_URL);
+  });
+
+  test("D5: aframe の script に integrity と crossorigin が付与されている", async () => {
+    const el = await openPanorama(BENIGN_URL);
+    const iframe = shadow(el).querySelector<HTMLIFrameElement>("iframe.iframe");
+    const srcdoc = iframe!.getAttribute("srcdoc") || "";
+    expect(srcdoc).toContain("aframe.min.js");
+    expect(srcdoc).toContain(
+      "sha384-rrkicQnp5c3ysj7SGZ2b/wF2W7mu6NQQMy4w63/dfRnMLkCL1d0IX4i3IOkYi2pj"
+    );
+    expect(srcdoc).toContain('crossorigin="anonymous"');
+  });
+});
