@@ -49,8 +49,17 @@ export class CcViewerYoutube extends CcViewerBase {
     this.videoUrl = ''
   }
   
+  // m1-t9 S5: src を**テンプレートに埋めない**。videoUrl は POI 由来の外部値であり、
+  // 文字列補間すると属性ブレイクアウトが成立する（設計 §5 D1）。
+  // extractYouTubeId が失敗すると生 URL がそのまま videoUrl になるため（:23）、
+  // 埋め込み形式に正規化されているとは限らない。
   protected getViewerContent(): string {
-    return `<iframe class="iframe" src="${this.videoUrl}" allowfullscreen></iframe>`
+    return `<iframe class="iframe" allowfullscreen></iframe>`
+  }
+
+  protected applyExternalValues(): void {
+    const iframeEl = this.query('.iframe')
+    if (iframeEl) iframeEl.setAttribute('src', this.videoUrl)
   }
   
   protected getCustomStyles(): string {

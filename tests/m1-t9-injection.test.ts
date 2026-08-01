@@ -101,7 +101,7 @@ describe("m1-t9: cc-swiper の注入対策", () => {
     expect(p!.textContent).toBe(HTML_PAYLOAD);
   });
 
-  test("AC4 正系: 通常の URL と caption が従来どおり描画される", () => {
+  test("AC4 正系: 通常の URL と caption が従来どおり描画される（cc-swiper）", () => {
     const el = buildSwiper({
       "thumbnail-url": BENIGN_URL,
       "image-url": BENIGN_URL,
@@ -123,5 +123,85 @@ describe("m1-t9: cc-swiper の注入対策", () => {
     const bgImage = thumb!.style.getPropertyValue("background-image");
     // URL が欠けたり壊れたりしていないこと（CSS.escape を使うとここが落ちる）
     expect(bgImage).toContain(BENIGN_URL);
+  });
+});
+
+// ─────────────────────────────────────────────────────────────
+// S5 / S6: 各ビューアが URL を生補間するシンク
+//
+// 配線（設計 §2.3 で実測）: cc-swiper が getAttribute で読んだ値を
+// openViewer → ccView.open → 各ビューアの doOpen(url) へ渡す。
+// したがって image-type の値しだいで同じ POI 由来値がここへ到達する。
+//
+// open() は doOpen を microtask 後に render するため、assert の前に待つ。
+const flush = () => new Promise<void>(r => setTimeout(r, 0));
+
+describe("m1-t9: 各ビューアの注入対策", () => {
+  beforeEach(() => {
+    document.body.innerHTML = "";
+  });
+
+  test("S5: youtube の iframe src が属性を破って別属性を注入できない", async () => {
+    const el = document.createElement("cc-viewer-youtube") as HTMLElement & {
+      open(url: string): void;
+    };
+    document.body.appendChild(el);
+    // YouTube ID として抽出できない値は生 URL がそのまま videoUrl になる（:23）
+    el.open(ATTR_PAYLOAD);
+    await flush();
+
+    const iframe = shadow(el).querySelector("iframe.iframe");
+    expect(iframe, "iframe が生成されていること").not.toBeNull();
+    expect(iframe!.hasAttribute("onmouseover")).toBe(false);
+    expect(iframe!.getAttribute("src")).toBe(ATTR_PAYLOAD);
+  });
+
+  test("S6: video の src が属性を破って別属性を注入できない", async () => {
+    const el = document.createElement("cc-viewer-video") as HTMLElement & {
+      open(url: string): void;
+    };
+    document.body.appendChild(el);
+    el.open(ATTR_PAYLOAD);
+    await flush();
+
+    const video = shadow(el).querySelector("video");
+    expect(video, "video が生成されていること").not.toBeNull();
+    expect(video!.hasAttribute("onmouseover")).toBe(false);
+    expect(video!.getAttribute("src")).toBe(ATTR_PAYLOAD);
+  });
+
+  test("S6(:95): video のエラー表示が HTML として解釈されない", async () => {
+    const el = document.createElement("cc-viewer-video") as HTMLElement & {
+      open(url: string): void;
+    };
+    document.body.appendChild(el);
+    el.open(HTML_PAYLOAD);
+    await flush();
+
+    const video = shadow(el).querySelector("video");
+    expect(video).not.toBeNull();
+    // 読み込み失敗を発火させてエラー表示経路へ入る
+    video!.dispatchEvent(new Event("error"));
+
+    const err = shadow(el).querySelector(".video-error");
+    expect(err, "エラー表示が出ていること").not.toBeNull();
+    expect(err!.querySelectorAll("img").length, "payload が img として生成されていないこと").toBe(0);
+    expect(err!.textContent).toContain(HTML_PAYLOAD);
+  });
+
+  test("AC4 正系: 通常の URL で youtube / video が従来どおり描画される", async () => {
+    const yt = document.createElement("cc-viewer-youtube") as HTMLElement & { open(u: string): void };
+    document.body.appendChild(yt);
+    yt.open("https://www.youtube.com/watch?v=abc123XYZ");
+    await flush();
+    expect(shadow(yt).querySelector("iframe.iframe")!.getAttribute("src")).toBe(
+      "https://www.youtube.com/embed/abc123XYZ"
+    );
+
+    const vd = document.createElement("cc-viewer-video") as HTMLElement & { open(u: string): void };
+    document.body.appendChild(vd);
+    vd.open(BENIGN_URL);
+    await flush();
+    expect(shadow(vd).querySelector("video")!.getAttribute("src")).toBe(BENIGN_URL);
   });
 });

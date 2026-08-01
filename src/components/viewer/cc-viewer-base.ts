@@ -125,12 +125,28 @@ export abstract class CcViewerBase extends ChuciElement {
     `
     
     this.updateShadowRoot(html)
-    
+
+    // m1-t9: 外部由来値は **テンプレート補間ではなく DOM API で** 入れる。
+    // updateShadowRoot の直後に同期で呼ぶ（onAfterRender は setTimeout 経由のため、
+    // 描画直後の一瞬でも値の無い要素が観測される／テストが非同期に引きずられる）。
+    this.applyExternalValues()
+
     // Add listeners after render
     setTimeout(() => {
       this.addNavigationListeners()
       this.onAfterRender()
     }, 0)
+  }
+
+  /**
+   * m1-t9: 外部由来値（POI の URL 等）を描画後の DOM へ setAttribute で入れるフック。
+   *
+   * getViewerContent() が返すテンプレートには **外部由来値を含めない**。
+   * 文字列補間すると属性ブレイクアウトが成立するためである
+   * （m1 包括セキュリティレビュー SRH-1・設計書 §5 D1）。
+   */
+  protected applyExternalValues(): void {
+    // 既定は何もしない。外部由来値を持つビューアだけが override する
   }
   
   // Hook for viewers that need completely custom rendering (e.g., image viewer)
