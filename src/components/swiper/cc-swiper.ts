@@ -5,6 +5,17 @@ import { Navigation, Pagination, Scrollbar, Autoplay, Thumbs, Keyboard } from 's
 // Import Swiper styles as strings to inject into shadow DOM
 import swiperStyles from './swiper-styles.css?inline'
 
+/**
+ * m1-t9: CSS の `url("…")` へ値を入れるためのエスケープ（設計 §5 D1 の S3）。
+ *
+ * 二重引用符で囲む前提で、`"` と `\` のみをバックスラッシュでエスケープする。
+ * URL に現れ得る `/` `:` `.` `?` `&` `%` は**触らない** — 触ると正系の URL が壊れる。
+ * `CSS.escape` は CSS 識別子用のため、この用途では使ってはならない。
+ */
+export function escapeCssUrl(value: string): string {
+  return value.replace(/\\/g, '\\\\').replace(/"/g, '\\"')
+}
+
 export class CcSwiper extends ChuciElement {
   private slider?: Swiper
   private divContainer?: HTMLDivElement
@@ -92,6 +103,67 @@ export class CcSwiper extends ChuciElement {
     // Initialization is now done in render method after DOM update
   }
   
+  /**
+   * m1-t9: スライド要素を DOM API で組み立てる（設計 §5 D1 の S1/S2/S7）。
+   *
+   * 外部由来値（thumbnail-url / image-url / image-type / caption）は
+   * すべて setAttribute と textContent で入れる。文字列補間を経由させない。
+   */
+  private buildSlideElements() {
+    const wrapper = this.query<HTMLDivElement>('#divSlides')
+    if (!wrapper) return
+
+    this.slides.forEach((slide, index) => {
+      const thumbnailUrl = slide.getAttribute('thumbnail-url') || ''
+      const imageUrl = slide.getAttribute('image-url') || ''
+      const imageType = slide.getAttribute('image-type') || 'image'
+      const caption = slide.getAttribute('caption') || ''
+
+      const div = document.createElement('div')
+      div.className = 'swiper-slide'
+
+      const img = document.createElement('img')
+      img.setAttribute('src', thumbnailUrl)
+      img.setAttribute('data-image-url', imageUrl)
+      img.setAttribute('data-image-type', imageType)
+      img.setAttribute('data-index', String(index))
+      img.className = caption !== '' ? 'viewer w-caption' : 'viewer'
+      div.appendChild(img)
+
+      if (caption !== '') {
+        const p = document.createElement('p')
+        p.className = 'slider-caption'
+        // textContent なので caption は HTML として解釈されない
+        p.textContent = caption
+        div.appendChild(p)
+      }
+
+      wrapper.appendChild(div)
+    })
+  }
+
+  /**
+   * m1-t9: ギャラリーのサムネイルを DOM API で組み立てる（設計 §5 D1 の S3）。
+   *
+   * background-image は **CSS コンテキスト**であり HTML エスケープでは守れない。
+   * `escapeCssUrl` で `"` と `\` のみをエスケープして url("…") へ入れる。
+   * `CSS.escape` は使わない — CSS 識別子用であり URL に適用すると `/` `:` `.` まで
+   * エスケープされて URL が壊れる（設計 §5 D1 の S3 セル）。
+   */
+  private buildGalleryElements() {
+    const wrapper = this.query<HTMLDivElement>('#divGallery')?.querySelector('.swiper-wrapper')
+    if (!wrapper) return
+
+    this.slides.forEach((slide, index) => {
+      const thumbnailUrl = slide.getAttribute('thumbnail-url') || ''
+      const div = document.createElement('div')
+      div.className = 'swiper-slide gallery-thumb'
+      div.setAttribute('data-index', String(index))
+      div.style.setProperty('background-image', `url("${escapeCssUrl(thumbnailUrl)}")`)
+      wrapper.appendChild(div)
+    })
+  }
+
   protected render() {
     // Inject Swiper styles
     const swiperStyleTag = `
@@ -226,47 +298,28 @@ export class CcSwiper extends ChuciElement {
       }
     `
     
-    const slidesHtml = this.slides.map((slide, index) => {
-      const thumbnailUrl = slide.getAttribute('thumbnail-url') || ''
-      const imageUrl = slide.getAttribute('image-url') || ''
-      const imageType = slide.getAttribute('image-type') || 'image'
-      const caption = slide.getAttribute('caption') || ''
-      
-      return `
-        <div class='swiper-slide'>
-          <img src="${thumbnailUrl}" data-image-url="${imageUrl}" data-image-type="${imageType}" data-index="${index}" class="viewer${caption !== "" ? ` w-caption` : ""}">
-          ${caption !== "" ? `<p class="slider-caption">${caption}</p>` : ""}
-        </div>
-      `
-    }).join('')
-    
-    const galleryHtml = this.slides.map((slide, index) => {
-      const thumbnailUrl = slide.getAttribute('thumbnail-url') || ''
-      return `
-        <div class='swiper-slide gallery-thumb' data-index="${index}" style="background-image: url('${thumbnailUrl}')"></div>
-      `
-    }).join('')
-    
+    // m1-t9: スライドとギャラリーは**テンプレート補間で組まない**。
+    // slide の属性は POI 由来の外部値であり、文字列補間すると属性ブレイクアウトが成立する
+    // （設計 §2.3 の S1/S2/S3/S7）。骨格だけをテンプレートで作り、外部値は
+    // updateShadowRoot の後に setAttribute / textContent / setProperty で入れる。
     const html = `
       ${swiperStyleTag}
       ${styles}
       <div id='divContainer' class='swiper gallery-top'>
-        <div id='divSlides' class='swiper-wrapper'>
-          ${slidesHtml}
-        </div>
+        <div id='divSlides' class='swiper-wrapper'></div>
 
         <div id='divPagination' class='swiper-pagination'></div>
         <div id='divPrevious' class='swiper-button-prev'></div>
         <div id='divNext' class='swiper-button-next'></div>
       </div>
       <div id='divGallery' class='swiper gallery-thumbs'>
-        <div class='swiper-wrapper'>
-          ${galleryHtml}
-        </div>
+        <div class='swiper-wrapper'></div>
       </div>
     `
-    
+
     this.updateShadowRoot(html)
+    this.buildSlideElements()
+    this.buildGalleryElements()
     
     // Initialize Swiper after DOM update
     setTimeout(() => {
