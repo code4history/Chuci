@@ -259,3 +259,49 @@ describe("m1-t9: panorama の srcdoc 契約（S4）と SRI（D5）", () => {
     expect(srcdoc).toContain('crossorigin="anonymous"');
   });
 });
+
+// ─────────────────────────────────────────────────────────────
+// m1-t9-hotfix-1: postMessage の送信元検証
+//
+// 起票元: m1-t9 実装レビュー Info-1
+//
+// m1-t9 の S4 で導入した postMessage 契約は、親 → iframe の方向だけ
+// 送信元を照合していなかった。同一ページの別スクリプトが
+// cc-panorama-src を投げるとパノラマ画像を差し替えられる。
+//
+// 深刻度は低い（終端は setAttribute であり属性ブレイクアウトには繋がらない）が、
+// 「呼び出し側が正しいはず」という前提を受け手が置かないという m1-t9 §2.2 の
+// 方針は片方向でも成立しない。窓口を開けた側が送信元を見る。
+//
+// jsdom は srcdoc の script を実行しないため、リスナの動作そのものは
+// 実機で確認する（AC3）。ここでは guard がソースに存在することを固定する。
+describe("m1-t9-hotfix-1: panorama の postMessage 送信元検証", () => {
+  beforeEach(() => {
+    document.body.innerHTML = "";
+  });
+
+  const getSrcdoc = async () => {
+    const el = document.createElement("cc-viewer-panorama") as HTMLElement & {
+      open(u: string): void;
+    };
+    el.setAttribute("show", "true");
+    document.body.appendChild(el);
+    el.open(BENIGN_URL);
+    await new Promise<void>(r => setTimeout(r, 10));
+    const iframe = shadow(el).querySelector<HTMLIFrameElement>("iframe.iframe");
+    return iframe!.getAttribute("srcdoc") || "";
+  };
+
+  test("AC1: iframe 側リスナが送信元を親に限定している", async () => {
+    const srcdoc = await getSrcdoc();
+    // origin ではなく source で照合する。sandbox を付けると opaque origin になり
+    // e.origin が "null" になるため（m1-t9 D4 の実測）
+    expect(srcdoc).toMatch(/e\.source\s*!==\s*parent/);
+  });
+
+  test("AC2: 既存の型ガードが維持されている", async () => {
+    const srcdoc = await getSrcdoc();
+    expect(srcdoc).toContain("cc-panorama-src");
+    expect(srcdoc).toMatch(/typeof\s+d\.src\s*!==\s*'string'/);
+  });
+});
