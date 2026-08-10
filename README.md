@@ -3,7 +3,6 @@
 
 <p align="center">
   <a href="https://github.com/code4history/Chuci/actions/workflows/ci.yml"><img src="https://github.com/code4history/Chuci/actions/workflows/ci.yml/badge.svg" alt="CI" /></a>
-  <a href="https://www.npmjs.com/package/@c4h/chuci"><img src="https://img.shields.io/npm/v/@c4h/chuci" alt="npm version" /></a>
   <a href="LICENSE"><img src="https://img.shields.io/npm/l/@c4h/chuci" alt="License" /></a>
 </p>
 
@@ -35,17 +34,21 @@ Chuci is open-source under the MIT License.
 <!-- SECTION 5: Quick Start -->
 ## Quick Start
 
-> Release-dependent information (ADR-0012). The CDN example below uses `@latest`;
-> pin a specific version for production use.
+<!-- release-pinned:start -->
+> **Current release: `1.0.0-rc1`** — a release candidate. This block is the only place in
+> this repository that carries a release version (ADR-0012); everything outside it is
+> written against the 1.0 release.
+> npm: [`@c4h/chuci`](https://www.npmjs.com/package/@c4h/chuci)
+> [![npm rc](https://img.shields.io/npm/v/@c4h/chuci/rc)](https://www.npmjs.com/package/@c4h/chuci)
 
 ### Install
 
 ```bash
 # pnpm (recommended)
-pnpm add @c4h/chuci
+pnpm add @c4h/chuci@rc
 
 # npm
-npm install @c4h/chuci
+npm install @c4h/chuci@rc
 ```
 
 ### Minimal usage
@@ -74,7 +77,7 @@ npm install @c4h/chuci
 ### CDN (jsDelivr)
 
 ```html
-<script src="https://cdn.jsdelivr.net/npm/@c4h/chuci@latest/dist/chuci.umd.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@c4h/chuci@1.0.0-rc1/dist/chuci.umd.js"></script>
 <script>
   // Components are available globally as Chuci
   // Use custom elements directly in HTML
@@ -113,6 +116,7 @@ pnpm run build
 ```bash
 pnpm test
 ```
+<!-- release-pinned:end -->
 
 <!-- SECTION 6: Prerequisites -->
 ## Prerequisites

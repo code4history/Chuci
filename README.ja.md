@@ -3,7 +3,6 @@
 
 <p align="center">
   <a href="https://github.com/code4history/Chuci/actions/workflows/ci.yml"><img src="https://github.com/code4history/Chuci/actions/workflows/ci.yml/badge.svg" alt="CI" /></a>
-  <a href="https://www.npmjs.com/package/@c4h/chuci"><img src="https://img.shields.io/npm/v/@c4h/chuci" alt="npm version" /></a>
   <a href="LICENSE"><img src="https://img.shields.io/npm/l/@c4h/chuci" alt="License" /></a>
 </p>
 
@@ -32,17 +31,21 @@ Chuci は MIT License のオープンソースソフトウェアです。
 <!-- SECTION 5: Quick Start -->
 ## クイックスタート
 
-> 特定リリースに紐づく情報（ADR-0012）。下記の CDN 例は `@latest` を使用しています。
-> 本番環境では具体的なバージョンを固定してください。
+<!-- release-pinned:start -->
+> **現在のリリース: `1.0.0-rc1`**（リリース候補）。このブロックは本リポジトリで唯一
+> リリース版数を持つ場所です（ADR-0012）。ブロックの外はすべて 1.0 正式版を前提に
+> 書かれています。
+> npm: [`@c4h/chuci`](https://www.npmjs.com/package/@c4h/chuci)
+> [![npm rc](https://img.shields.io/npm/v/@c4h/chuci/rc)](https://www.npmjs.com/package/@c4h/chuci)
 
 ### インストール
 
 ```bash
 # pnpm（推奨）
-pnpm add @c4h/chuci
+pnpm add @c4h/chuci@rc
 
 # npm
-npm install @c4h/chuci
+npm install @c4h/chuci@rc
 ```
 
 ### 最小利用例
@@ -71,7 +74,7 @@ npm install @c4h/chuci
 ### CDN（jsDelivr）
 
 ```html
-<script src="https://cdn.jsdelivr.net/npm/@c4h/chuci@latest/dist/chuci.umd.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@c4h/chuci@1.0.0-rc1/dist/chuci.umd.js"></script>
 <script>
   // コンポーネントはグローバルに Chuci として利用可能
   // HTML で直接カスタム要素を使用できます
@@ -110,6 +113,7 @@ pnpm run build
 ```bash
 pnpm test
 ```
+<!-- release-pinned:end -->
 
 <!-- SECTION 6: Prerequisites -->
 ## 動作環境
