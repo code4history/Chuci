@@ -13,6 +13,22 @@ export declare class CcSwiper extends ChuciElement {
     get slides(): CcSwiperSlide[];
     openViewer(imageUrl: string, imageType: string, slideIndex?: number): Promise<void>;
     protected firstUpdated(): void;
+    /**
+     * m1-t9: スライド要素を DOM API で組み立てる（設計 §5 D1 の S1/S2/S7）。
+     *
+     * 外部由来値（thumbnail-url / image-url / image-type / caption）は
+     * すべて setAttribute と textContent で入れる。文字列補間を経由させない。
+     */
+    private buildSlideElements;
+    /**
+     * m1-t9: ギャラリーのサムネイルを DOM API で組み立てる（設計 §5 D1 の S3）。
+     *
+     * background-image は **CSS コンテキスト**であり HTML エスケープでは守れない。
+     * `escapeCssUrl` で `"` と `\` のみをエスケープして url("…") へ入れる。
+     * `CSS.escape` は使わない — CSS 識別子用であり URL に適用すると `/` `:` `.` まで
+     * エスケープされて URL が壊れる（設計 §5 D1 の S3 セル）。
+     */
+    private buildGalleryElements;
     protected render(): void;
     private initializeSwiper;
 }
@@ -96,6 +112,14 @@ export declare abstract class CcViewerBase extends ChuciElement {
     close(): void;
     protected cleanupNavigationListeners(): void;
     protected render(): void;
+    /**
+     * m1-t9: 外部由来値（POI の URL 等）を描画後の DOM へ setAttribute で入れるフック。
+     *
+     * getViewerContent() が返すテンプレートには **外部由来値を含めない**。
+     * 文字列補間すると属性ブレイクアウトが成立するためである
+     * （m1 包括セキュリティレビュー SRH-1・設計書 §5 D1）。
+     */
+    protected applyExternalValues(): void;
     protected shouldUseCustomRender(): boolean;
     protected customRender(): void;
     protected getCustomStyles(): string;
@@ -148,12 +172,35 @@ export declare class CcViewerImage extends CcViewerBase {
 
 export declare class CcViewerPanorama extends CcViewerBase {
     private imgUrl;
+    /**
+     * m1-t9 D5（SRH-2）: aframe CDN の Subresource Integrity。
+     *
+     * 実際に取得して算出した（2026-08-01）:
+     *   curl -sSL https://aframe.io/releases/1.4.0/aframe.min.js  → 1,325,299 bytes
+     *   openssl dgst -sha384 -binary | openssl base64 -A
+     *
+     * SRI が無いと CDN 侵害時に viewer 文脈で任意コードが走る。
+     * **URL の版を上げるときは必ずこのハッシュも取り直すこと**（不一致だと読み込まれない）。
+     */
+    private static readonly AFRAME_SRI;
     static get observedAttributes(): string[];
     attributeChangedCallback(name: string, oldValue: string | null, newValue: string | null): void;
     protected doOpen(imgUrl: string): void;
     protected doClose(): void;
     protected getViewerContent(): string;
     protected getCustomStyles(): string;
+    /**
+     * m1-t9 S4: srcdoc は **外部由来値を一切含まない固定文字列** である（設計 §5 D1）。
+     *
+     * 画像 URL は postMessage で iframe へ渡し、iframe 内で setAttribute する。
+     * `contentDocument` を使わないのは、D4 で `sandbox="allow-scripts"` を採ると
+     * iframe が opaque origin になり親からのアクセスが遮断されるためである。
+     * postMessage なら sandbox の有無にかかわらず成立する。
+     *
+     * 競合を避けるため、iframe 側から `cc-panorama-ready` を受け取ってから URL を送る。
+     */
+    private static readonly IFRAME_HTML;
+    private onIframeReady?;
     protected onAfterRender(): void;
 }
 
@@ -167,6 +214,7 @@ export declare class CcViewerVideo extends CcViewerBase {
     protected getViewerContent(): string;
     protected getCustomStyles(): string;
     protected onAfterRender(): void;
+    protected applyExternalValues(): void;
     private handleVideoError;
 }
 
@@ -178,6 +226,7 @@ export declare class CcViewerYoutube extends CcViewerBase {
     private extractYouTubeId;
     protected doClose(): void;
     protected getViewerContent(): string;
+    protected applyExternalValues(): void;
     protected getCustomStyles(): string;
 }
 
@@ -200,5 +249,14 @@ export declare abstract class ChuciElement extends HTMLElement {
     protected queryAll<T extends HTMLElement>(selector: string): NodeListOf<T>;
     protected dispatch(eventName: string, detail?: any): void;
 }
+
+/**
+ * m1-t9: CSS の `url("…")` へ値を入れるためのエスケープ（設計 §5 D1 の S3）。
+ *
+ * 二重引用符で囲む前提で、`"` と `\` のみをバックスラッシュでエスケープする。
+ * URL に現れ得る `/` `:` `.` `?` `&` `%` は**触らない** — 触ると正系の URL が壊れる。
+ * `CSS.escape` は CSS 識別子用のため、この用途では使ってはならない。
+ */
+export declare function escapeCssUrl(value: string): string;
 
 export { }
