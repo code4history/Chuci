@@ -32,20 +32,20 @@ Chuci は MIT License のオープンソースソフトウェアです。
 ## クイックスタート
 
 <!-- release-pinned:start -->
-> **現在のリリース: `1.0.0-rc1`**（リリース候補）。このブロックは本リポジトリで唯一
+> **現在のリリース: `1.0.0`**。このブロックは本リポジトリで唯一
 > リリース版数を持つ場所です（ADR-0012）。ブロックの外はすべて 1.0 正式版を前提に
 > 書かれています。
 > npm: [`@c4h/chuci`](https://www.npmjs.com/package/@c4h/chuci)
-> [![npm rc](https://img.shields.io/npm/v/@c4h/chuci/rc)](https://www.npmjs.com/package/@c4h/chuci)
+> [![npm](https://img.shields.io/npm/v/@c4h/chuci)](https://www.npmjs.com/package/@c4h/chuci)
 
 ### インストール
 
 ```bash
 # pnpm（推奨）
-pnpm add @c4h/chuci@rc
+pnpm add @c4h/chuci
 
 # npm
-npm install @c4h/chuci@rc
+npm install @c4h/chuci
 ```
 
 ### 最小利用例
@@ -74,7 +74,7 @@ npm install @c4h/chuci@rc
 ### CDN（jsDelivr）
 
 ```html
-<script src="https://cdn.jsdelivr.net/npm/@c4h/chuci@1.0.0-rc1/dist/chuci.umd.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@c4h/chuci@1.0.0/dist/chuci.umd.js"></script>
 <script>
   // コンポーネントはグローバルに Chuci として利用可能
   // HTML で直接カスタム要素を使用できます

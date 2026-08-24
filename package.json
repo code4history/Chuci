@@ -1,6 +1,6 @@
 {
   "name": "@c4h/chuci",
-  "version": "1.0.0-rc1",
+  "version": "1.0.0",
   "description": "Standalone multimedia swiper and viewer web components",
   "type": "module",
   "private": false,
