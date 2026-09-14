@@ -260,3 +260,76 @@ export declare abstract class ChuciElement extends HTMLElement {
 export declare function escapeCssUrl(value: string): string;
 
 export { }
+
+
+declare global {
+    interface HTMLElementTagNameMap {
+        'cc-viewer': CcViewer;
+    }
+}
+
+
+declare global {
+    interface HTMLElementTagNameMap {
+        'cc-swiper-slide': CcSwiperSlide;
+    }
+}
+
+
+declare global {
+    interface HTMLElementTagNameMap {
+        'cc-viewer-image': CcViewerImage;
+    }
+}
+
+
+declare global {
+    interface HTMLElementTagNameMap {
+        'cc-swiper': CcSwiper;
+    }
+}
+
+
+declare global {
+    interface HTMLElementTagNameMap {
+        'cc-viewer-youtube': CcViewerYoutube;
+    }
+}
+
+
+declare global {
+    interface HTMLElementTagNameMap {
+        'cc-viewer-panorama': CcViewerPanorama;
+    }
+}
+
+
+declare global {
+    interface HTMLElementTagNameMap {
+        'cc-viewer-gaussian': CcViewerGaussian;
+    }
+}
+
+
+declare global {
+    interface HTMLElementTagNameMap {
+        'cc-viewer-video': CcViewerVideo;
+    }
+}
+
+
+declare global {
+    interface HTMLElementTagNameMap {
+        'cc-viewer-3dmodel': CcViewer3DModel;
+    }
+}
+
+// Global type declarations for Chuci
+
+declare global {
+  interface Window {
+    // gsplat.js library global - external library without TypeScript types
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    gsplat?: any;
+  }
+}
