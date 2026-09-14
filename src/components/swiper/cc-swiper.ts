@@ -267,6 +267,12 @@ export class CcSwiper extends ChuciElement {
       }
 
       /* Navigation button styles with SVG icons */
+      /* swiper 12 の Navigation が挿入する SVG アイコンを隠し、下の ::after の chevron だけを描く（二重矢印の解消） */
+      .swiper-button-prev .swiper-navigation-icon,
+      .swiper-button-next .swiper-navigation-icon {
+        display: none;
+      }
+
       .swiper-button-prev,
       .swiper-button-next {
         color: var(--swiper-navigation-color);
