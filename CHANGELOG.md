@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.1-rc.1] - 2026-09-28
+
+### Fixed
+- swiper 12 で cc-swiper のナビゲーション矢印が二重に表示される不具合を修正
+
+### Changed
+- 依存関係を更新
+
 ## [0.1.0] - 2025-01-13
 
 ### Added
