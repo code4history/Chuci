@@ -18,6 +18,7 @@ export function escapeCssUrl(value: string): string {
 
 export class CcSwiper extends ChuciElement {
   private slider?: Swiper
+  private thumbsSlider?: Swiper
   private divContainer?: HTMLDivElement
   private divSlides?: HTMLDivElement
   private divGallery?: HTMLDivElement
@@ -384,6 +385,21 @@ export class CcSwiper extends ChuciElement {
     if (this.slider) {
       this.slider.destroy()
     }
+    // Issue #5: thumbs に Swiper インスタンスを渡した場合、main の destroy() は thumbs 側を破棄しない。
+    // 同じ #divGallery に前回の thumbs Swiper が残ると、その tap で破棄済み main の onThumbClick が
+    // 呼ばれて TypeError になる。cleanStyles は false にする — true だとサムネイルの
+    // background-image（インライン style）まで消える。
+    if (this.thumbsSlider) {
+      this.thumbsSlider.destroy(true, false)
+      this.thumbsSlider = undefined
+    }
+    if (this.hasThumb && this.divGallery) {
+      this.thumbsSlider = new Swiper(this.divGallery, {
+        spaceBetween: 10,
+        slidesPerView: Math.min(Math.max(4, this.slides.length), 8),
+        watchSlidesProgress: true,
+      })
+    }
     
     this.slider = new Swiper(this.divContainer, {
       modules: [Navigation, Pagination, Scrollbar, Autoplay, Thumbs, Keyboard],
@@ -401,12 +417,8 @@ export class CcSwiper extends ChuciElement {
         stopOnLastSlide: false,
         waitForTransition: true,
       } : false,
-      thumbs: this.hasThumb && this.divGallery ? {
-        swiper: new Swiper(this.divGallery, {
-          spaceBetween: 10,
-          slidesPerView: Math.min(Math.max(4, this.slides.length), 8),
-          watchSlidesProgress: true,
-        }),
+      thumbs: this.thumbsSlider ? {
+        swiper: this.thumbsSlider,
       } : {},
       preventClicks: false,
       preventClicksPropagation: false,
