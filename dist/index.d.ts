@@ -1,5 +1,6 @@
 export declare class CcSwiper extends ChuciElement {
     private slider?;
+    private thumbsSlider?;
     private divContainer?;
     private divSlides?;
     private divGallery?;
@@ -271,20 +272,6 @@ declare global {
 
 declare global {
     interface HTMLElementTagNameMap {
-        'cc-swiper-slide': CcSwiperSlide;
-    }
-}
-
-
-declare global {
-    interface HTMLElementTagNameMap {
-        'cc-viewer-image': CcViewerImage;
-    }
-}
-
-
-declare global {
-    interface HTMLElementTagNameMap {
         'cc-swiper': CcSwiper;
     }
 }
@@ -292,21 +279,7 @@ declare global {
 
 declare global {
     interface HTMLElementTagNameMap {
-        'cc-viewer-youtube': CcViewerYoutube;
-    }
-}
-
-
-declare global {
-    interface HTMLElementTagNameMap {
-        'cc-viewer-panorama': CcViewerPanorama;
-    }
-}
-
-
-declare global {
-    interface HTMLElementTagNameMap {
-        'cc-viewer-gaussian': CcViewerGaussian;
+        'cc-swiper-slide': CcSwiperSlide;
     }
 }
 
@@ -320,7 +293,35 @@ declare global {
 
 declare global {
     interface HTMLElementTagNameMap {
+        'cc-viewer-image': CcViewerImage;
+    }
+}
+
+
+declare global {
+    interface HTMLElementTagNameMap {
+        'cc-viewer-panorama': CcViewerPanorama;
+    }
+}
+
+
+declare global {
+    interface HTMLElementTagNameMap {
         'cc-viewer-3dmodel': CcViewer3DModel;
+    }
+}
+
+
+declare global {
+    interface HTMLElementTagNameMap {
+        'cc-viewer-youtube': CcViewerYoutube;
+    }
+}
+
+
+declare global {
+    interface HTMLElementTagNameMap {
+        'cc-viewer-gaussian': CcViewerGaussian;
     }
 }
 

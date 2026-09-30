@@ -3243,6 +3243,7 @@ function Pu(n) {
 }
 class Vu extends zr {
   slider;
+  thumbsSlider;
   divContainer;
   divSlides;
   divGallery;
@@ -3483,7 +3484,11 @@ class Vu extends zr {
   initializeSwiper() {
     this.divContainer = this.query("#divContainer") ?? void 0, this.divSlides = this.query("#divSlides") ?? void 0, this.divGallery = this.query("#divGallery") ?? void 0, this.divPagination = this.query("#divPagination") ?? void 0, this.divPrevious = this.query("#divPrevious") ?? void 0, this.divNext = this.query("#divNext") ?? void 0, this.slides.some((i) => i.getAttribute("caption")) && this.divContainer && this.divContainer.classList.add("has-captions");
     const t = this.slides.length >= 2;
-    this.divContainer && (this.slider && this.slider.destroy(), this.slider = new Kt(this.divContainer, {
+    this.divContainer && (this.slider && this.slider.destroy(), this.thumbsSlider && (this.thumbsSlider.destroy(!0, !1), this.thumbsSlider = void 0), this.hasThumb && this.divGallery && (this.thumbsSlider = new Kt(this.divGallery, {
+      spaceBetween: 10,
+      slidesPerView: Math.min(Math.max(4, this.slides.length), 8),
+      watchSlidesProgress: !0
+    })), this.slider = new Kt(this.divContainer, {
       modules: [Ru, Bu, Du, Qu, Lu, Iu],
       navigation: {
         prevEl: this.divPrevious,
@@ -3499,12 +3504,8 @@ class Vu extends zr {
         stopOnLastSlide: !1,
         waitForTransition: !0
       } : !1,
-      thumbs: this.hasThumb && this.divGallery ? {
-        swiper: new Kt(this.divGallery, {
-          spaceBetween: 10,
-          slidesPerView: Math.min(Math.max(4, this.slides.length), 8),
-          watchSlidesProgress: !0
-        })
+      thumbs: this.thumbsSlider ? {
+        swiper: this.thumbsSlider
       } : {},
       preventClicks: !1,
       preventClicksPropagation: !1,
