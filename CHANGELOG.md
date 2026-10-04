@@ -5,6 +5,10 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.1] - 2026-10-05
+
+1.0.1-rc.2 と同じ内容の正式版です（版番号のみ変更）。変更点は 1.0.1-rc.2 までの各項を参照してください。
+
 ## [1.0.1-rc.2] - 2026-10-01
 
 ### Fixed
