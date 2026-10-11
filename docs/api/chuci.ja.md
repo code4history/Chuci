@@ -6,7 +6,7 @@
 
 - **image**: 通常の画像（jpg, png, gif など）
 - **panorama**: 360°パノラマ画像
-- **youtube**: YouTube 動画（YouTube URL を指定）
+- **youtube**: YouTube 動画（https の URL を指定。YouTube の URL は http も含め https の埋め込み形式に変換する。https でない URL は表示しない）
 - **video**: HTML5 動画（mp4, webm など）
 - **3dmodel**: 3Dモデル（OBJ/MTL形式）
 - **gaussian**: Gaussian スプラッティングファイル（.splat, .ply）
@@ -143,6 +143,8 @@ swiper.addEventListener('slidechange', (e) => {
   image-type="youtube">
 </cc-swiper-slide>
 ```
+
+YouTube の URL（`youtube.com`・`youtu.be`・`youtube-nocookie.com`。http・https とも）は https の埋め込み形式に変換する。それ以外の https の URL はそのまま埋め込む。https でない URL は表示しない（`javascript:` や、`www.youtube.com/watch?v=...` のようなスキームの無い URL を含む）。
 
 ---
 

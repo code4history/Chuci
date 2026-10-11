@@ -224,7 +224,6 @@ export declare class CcViewerYoutube extends CcViewerBase {
     static get observedAttributes(): string[];
     attributeChangedCallback(name: string, oldValue: string | null, newValue: string | null): void;
     protected doOpen(videoUrl: string): void;
-    private extractYouTubeId;
     protected doClose(): void;
     protected getViewerContent(): string;
     protected applyExternalValues(): void;

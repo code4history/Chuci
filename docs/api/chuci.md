@@ -7,7 +7,7 @@ and usage examples.
 
 - **image**: Regular images (jpg, png, gif, etc.)
 - **panorama**: 360° panoramic images
-- **youtube**: YouTube videos (provide YouTube URL)
+- **youtube**: YouTube videos. Provide an https URL. YouTube URLs (including http ones) are converted to the https embed form; other non-https URLs are not displayed.
 - **video**: HTML5 videos (mp4, webm, etc.)
 - **3dmodel**: 3D models (OBJ/MTL format)
 - **gaussian**: Gaussian splatting files (.splat, .ply)
@@ -144,6 +144,8 @@ swiper.addEventListener('slidechange', (e) => {
   image-type="youtube">
 </cc-swiper-slide>
 ```
+
+YouTube URLs (`youtube.com`, `youtu.be`, `youtube-nocookie.com`; http or https) are converted to the https embed form. Any other https URL is embedded as is; other non-https URLs are not displayed (including `javascript:` and URLs without a scheme such as `www.youtube.com/watch?v=...`).
 
 ---
 
