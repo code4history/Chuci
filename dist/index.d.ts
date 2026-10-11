@@ -265,13 +265,6 @@ export { }
 
 declare global {
     interface HTMLElementTagNameMap {
-        'cc-viewer': CcViewer;
-    }
-}
-
-
-declare global {
-    interface HTMLElementTagNameMap {
         'cc-swiper': CcSwiper;
     }
 }
@@ -286,7 +279,7 @@ declare global {
 
 declare global {
     interface HTMLElementTagNameMap {
-        'cc-viewer-video': CcViewerVideo;
+        'cc-viewer': CcViewer;
     }
 }
 
@@ -307,14 +300,21 @@ declare global {
 
 declare global {
     interface HTMLElementTagNameMap {
-        'cc-viewer-3dmodel': CcViewer3DModel;
+        'cc-viewer-youtube': CcViewerYoutube;
     }
 }
 
 
 declare global {
     interface HTMLElementTagNameMap {
-        'cc-viewer-youtube': CcViewerYoutube;
+        'cc-viewer-video': CcViewerVideo;
+    }
+}
+
+
+declare global {
+    interface HTMLElementTagNameMap {
+        'cc-viewer-3dmodel': CcViewer3DModel;
     }
 }
 

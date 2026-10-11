@@ -228,11 +228,7 @@ ${this.getTargetDebugInfo()}
     if (!this.controls) return 'Target: controls unavailable'
     // gsplat.js OrbitControls might not have a target property
     // Return available control info instead
-    try {
-      return `Controls active (no target property in gsplat.js)`
-    } catch (_error) {
-      return `Target: ${JSON.stringify(this.controls)}`
-    }
+    return `Controls active (no target property in gsplat.js)`
   }
   
   private updateDebugInfo() {
@@ -295,61 +291,57 @@ ${this.getTargetDebugInfo()}
     
     this.canvas = normalCanvas
     
-    try {
-      const container = this.query('.gaussian-container') as HTMLDivElement
-      if (!container) return
-      
-      // Import gsplat using the proven API approach
-      const SPLAT = await import('gsplat')
-      
-      // Setup GSplat components exactly like the React example
-      this.scene = new SPLAT.Scene()
-      this.camera = new SPLAT.Camera()
-      this.renderer = new SPLAT.WebGLRenderer(this.canvas)
-      this.controls = new SPLAT.OrbitControls(this.camera, this.canvas)
-      
-      // Load the splat file
-      await SPLAT.Loader.LoadAsync(this.splatUrl, this.scene)
-      
-      // Start render loop
-      let frameCount = 0
-      const animate = () => {
-        // Check if renderer still exists before continuing
-        if (!this.renderer || !this.scene || !this.camera) {
-          return
-        }
-        
-        this.animationId = requestAnimationFrame(animate)
-        
-        if (this.controls) {
-          this.controls.update()
-        }
-        
-        try {
-          this.renderer.render(this.scene, this.camera)
-        } catch (_e) {
-        }
-        
-        // Log first frame only
-        if (frameCount === 0 && this.canvas) {
-          frameCount++
-        }
-        
-        if (this.debugMode) {
-          this.updateDebugInfo()
-        }
+    const container = this.query('.gaussian-container') as HTMLDivElement
+    if (!container) return
+    
+    // Import gsplat using the proven API approach
+    const SPLAT = await import('gsplat')
+    
+    // Setup GSplat components exactly like the React example
+    this.scene = new SPLAT.Scene()
+    this.camera = new SPLAT.Camera()
+    this.renderer = new SPLAT.WebGLRenderer(this.canvas)
+    this.controls = new SPLAT.OrbitControls(this.camera, this.canvas)
+    
+    // Load the splat file
+    await SPLAT.Loader.LoadAsync(this.splatUrl, this.scene)
+    
+    // Start render loop
+    let frameCount = 0
+    const animate = () => {
+      // Check if renderer still exists before continuing
+      if (!this.renderer || !this.scene || !this.camera) {
+        return
       }
-      animate()
       
-      // Setup resize handler
-      const resizeObserver = new ResizeObserver(() => {
-        this.handleResize()
-      })
-      resizeObserver.observe(container)
+      this.animationId = requestAnimationFrame(animate)
       
-    } catch (error) {
-      throw error
+      if (this.controls) {
+        this.controls.update()
+      }
+      
+      try {
+        this.renderer.render(this.scene, this.camera)
+      } catch (_e) {
+        // 描画の一時的な失敗は次のフレームで再試行されるので握りつぶす（従来の挙動を保つ）
+      }
+      
+      // Log first frame only
+      if (frameCount === 0 && this.canvas) {
+        frameCount++
+      }
+      
+      if (this.debugMode) {
+        this.updateDebugInfo()
+      }
     }
+    animate()
+    
+    // Setup resize handler
+    const resizeObserver = new ResizeObserver(() => {
+      this.handleResize()
+    })
+    resizeObserver.observe(container)
   }
   
   private handleResize() {
