@@ -301,146 +301,136 @@ export class CcViewer3DModel extends CcViewerBase {
     const rect = this.container.getBoundingClientRect()
     
     
-    try {
-      // Setup scene
-      this.scene = new THREE.Scene()
-      this.scene.background = new THREE.Color(0x303030) // Dark gray background
-      
-      // Setup camera
-      const width = this.container.clientWidth || this.container.offsetWidth
-      const height = this.container.clientHeight || this.container.offsetHeight
-      this.camera = new THREE.PerspectiveCamera(75, width / height, 0.1, 1000)
-      
-      // Setup renderer
-      this.renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true })
-      this.renderer.setSize(width, height)
-      this.renderer.setPixelRatio(window.devicePixelRatio)
-      this.renderer.shadowMap.enabled = true
-      
-      // Create canvas outside shadow DOM
-      const canvas = this.renderer.domElement
-      canvas.style.position = 'fixed'
-      canvas.style.left = `${rect.left}px`
-      canvas.style.top = `${rect.top}px`
-      canvas.style.width = `${rect.width}px`
-      canvas.style.height = `${rect.height}px`
-      canvas.style.pointerEvents = 'auto'
-      // Get z-index from host style
-      const hostStyle = window.getComputedStyle(this)
-      const zIndexVar = hostStyle.getPropertyValue('--cc-viewer-z-index-each').trim()
-      const baseZIndex = zIndexVar ? parseInt(zIndexVar, 10) : 1000
-      canvas.style.zIndex = `${baseZIndex + 1}`
-      document.body.appendChild(canvas)
-      
-      // Store canvas reference for cleanup
-      this.externalCanvas = canvas
-      
-      
-      // Setup controls - use the canvas in document body
-      this.controls = new OrbitControls(this.camera, canvas)
-      this.controls.enableDamping = true
-      this.controls.dampingFactor = 0.05
-      
-      // Setup lights
-      const ambientLight = new THREE.AmbientLight(0x404040, 2)
-      const directionalLight = new THREE.DirectionalLight(0xffffff, 1)
-      directionalLight.position.set(1, 1, 1)
-      this.scene.add(ambientLight, directionalLight)
-      
-      // Load model
-      await this.loadModel()
-      
-      // Setup resize handler
-      this.resizeObserver = new ResizeObserver((entries) => {
-        // Ignore resize events with zero size
-        for (const entry of entries) {
-          const { width, height } = entry.contentRect
-          if (width > 0 && height > 0) {
-            this.handleResize()
-          }
+    // Setup scene
+    this.scene = new THREE.Scene()
+    this.scene.background = new THREE.Color(0x303030) // Dark gray background
+    
+    // Setup camera
+    const width = this.container.clientWidth || this.container.offsetWidth
+    const height = this.container.clientHeight || this.container.offsetHeight
+    this.camera = new THREE.PerspectiveCamera(75, width / height, 0.1, 1000)
+    
+    // Setup renderer
+    this.renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true })
+    this.renderer.setSize(width, height)
+    this.renderer.setPixelRatio(window.devicePixelRatio)
+    this.renderer.shadowMap.enabled = true
+    
+    // Create canvas outside shadow DOM
+    const canvas = this.renderer.domElement
+    canvas.style.position = 'fixed'
+    canvas.style.left = `${rect.left}px`
+    canvas.style.top = `${rect.top}px`
+    canvas.style.width = `${rect.width}px`
+    canvas.style.height = `${rect.height}px`
+    canvas.style.pointerEvents = 'auto'
+    // Get z-index from host style
+    const hostStyle = window.getComputedStyle(this)
+    const zIndexVar = hostStyle.getPropertyValue('--cc-viewer-z-index-each').trim()
+    const baseZIndex = zIndexVar ? parseInt(zIndexVar, 10) : 1000
+    canvas.style.zIndex = `${baseZIndex + 1}`
+    document.body.appendChild(canvas)
+    
+    // Store canvas reference for cleanup
+    this.externalCanvas = canvas
+    
+    
+    // Setup controls - use the canvas in document body
+    this.controls = new OrbitControls(this.camera, canvas)
+    this.controls.enableDamping = true
+    this.controls.dampingFactor = 0.05
+    
+    // Setup lights
+    const ambientLight = new THREE.AmbientLight(0x404040, 2)
+    const directionalLight = new THREE.DirectionalLight(0xffffff, 1)
+    directionalLight.position.set(1, 1, 1)
+    this.scene.add(ambientLight, directionalLight)
+    
+    // Load model
+    await this.loadModel()
+    
+    // Setup resize handler
+    this.resizeObserver = new ResizeObserver((entries) => {
+      // Ignore resize events with zero size
+      for (const entry of entries) {
+        const { width, height } = entry.contentRect
+        if (width > 0 && height > 0) {
+          this.handleResize()
         }
-      })
-      this.resizeObserver.observe(this.container)
-      
-      // Start animation
-      this.animateLoop()
-      
-    } catch (error) {
-      throw error
-    }
+      }
+    })
+    this.resizeObserver.observe(this.container)
+    
+    // Start animation
+    this.animateLoop()
   }
   
   private async loadModel() {
     const objLoader = new OBJLoader()
     
-    try {
-      // Load materials if provided
-      if (this.materialUrl) {
-        const mtlLoader = new MTLLoader()
-        const basePath = this.materialUrl.substring(0, this.materialUrl.lastIndexOf('/') + 1)
-        mtlLoader.setPath(basePath)
-        
-        const materials = await new Promise<MTLLoader.MaterialCreator>((resolve, reject) => {
-          const filename = this.materialUrl.substring(this.materialUrl.lastIndexOf('/') + 1)
-          mtlLoader.load(filename, resolve, undefined, reject)
-        })
-        
-        materials.preload()
-        objLoader.setMaterials(materials)
-      }
+    // Load materials if provided
+    if (this.materialUrl) {
+      const mtlLoader = new MTLLoader()
+      const basePath = this.materialUrl.substring(0, this.materialUrl.lastIndexOf('/') + 1)
+      mtlLoader.setPath(basePath)
       
-      // Load OBJ
-      const basePath = this.modelUrl.substring(0, this.modelUrl.lastIndexOf('/') + 1)
-      objLoader.setPath(basePath)
-      
-      const object = await new Promise<THREE.Group>((resolve, reject) => {
-        const filename = this.modelUrl.substring(this.modelUrl.lastIndexOf('/') + 1)
-        objLoader.load(filename, resolve, undefined, reject)
+      const materials = await new Promise<MTLLoader.MaterialCreator>((resolve, reject) => {
+        const filename = this.materialUrl.substring(this.materialUrl.lastIndexOf('/') + 1)
+        mtlLoader.load(filename, resolve, undefined, reject)
       })
       
-      // Center and scale the model
-      const box = new THREE.Box3().setFromObject(object)
-      const size = new THREE.Vector3()
-      box.getSize(size)
-      const maxDim = Math.max(size.x, size.y, size.z)
-      object.scale.multiplyScalar(3.0 / maxDim)
-      
-      const center = new THREE.Vector3()
-      box.getCenter(center)
-      object.position.sub(center.multiplyScalar(object.scale.x))
-      
-      // Check if scene still exists (viewer might have been closed)
-      if (!this.scene) {
-        return
-      }
-      
-      this.scene.add(object)
-      this.currentModel = object
-      
-      // Store original materials for texture toggling
-      this.storeOriginalMaterials(object)
-      
-      // Position camera from attributes
-      const camPos = this.cameraPosition.split(',').map(n => parseFloat(n.trim()))
-      const camTarget = this.cameraTarget.split(',').map(n => parseFloat(n.trim()))
-      
-      if (camPos.length === 3) {
-        this.camera!.position.set(camPos[0], camPos[1], camPos[2])
-      }
-      if (camTarget.length === 3) {
-        this.camera!.lookAt(camTarget[0], camTarget[1], camTarget[2])
-        this.controls!.target.set(camTarget[0], camTarget[1], camTarget[2])
-      }
-      this.controls!.update()
-      
-      
-      // Force initial render
-      if (this.renderer && this.scene && this.camera) {
-        this.renderer.render(this.scene, this.camera)
-      }
-      
-    } catch (error) {
-      throw error
+      materials.preload()
+      objLoader.setMaterials(materials)
+    }
+    
+    // Load OBJ
+    const basePath = this.modelUrl.substring(0, this.modelUrl.lastIndexOf('/') + 1)
+    objLoader.setPath(basePath)
+    
+    const object = await new Promise<THREE.Group>((resolve, reject) => {
+      const filename = this.modelUrl.substring(this.modelUrl.lastIndexOf('/') + 1)
+      objLoader.load(filename, resolve, undefined, reject)
+    })
+    
+    // Center and scale the model
+    const box = new THREE.Box3().setFromObject(object)
+    const size = new THREE.Vector3()
+    box.getSize(size)
+    const maxDim = Math.max(size.x, size.y, size.z)
+    object.scale.multiplyScalar(3.0 / maxDim)
+    
+    const center = new THREE.Vector3()
+    box.getCenter(center)
+    object.position.sub(center.multiplyScalar(object.scale.x))
+    
+    // Check if scene still exists (viewer might have been closed)
+    if (!this.scene) {
+      return
+    }
+    
+    this.scene.add(object)
+    this.currentModel = object
+    
+    // Store original materials for texture toggling
+    this.storeOriginalMaterials(object)
+    
+    // Position camera from attributes
+    const camPos = this.cameraPosition.split(',').map(n => parseFloat(n.trim()))
+    const camTarget = this.cameraTarget.split(',').map(n => parseFloat(n.trim()))
+    
+    if (camPos.length === 3) {
+      this.camera!.position.set(camPos[0], camPos[1], camPos[2])
+    }
+    if (camTarget.length === 3) {
+      this.camera!.lookAt(camTarget[0], camTarget[1], camTarget[2])
+      this.controls!.target.set(camTarget[0], camTarget[1], camTarget[2])
+    }
+    this.controls!.update()
+    
+    
+    // Force initial render
+    if (this.renderer && this.scene && this.camera) {
+      this.renderer.render(this.scene, this.camera)
     }
   }
   
