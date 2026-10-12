@@ -1,4 +1,5 @@
 import { CcViewerBase } from './cc-viewer-base'
+import { toYouTubeIframeSrc } from '../../utils/youtube-embed'
 
 export class CcViewerYoutube extends CcViewerBase {
   private videoUrl = ''
@@ -15,30 +16,8 @@ export class CcViewerYoutube extends CcViewerBase {
   }
   
   protected doOpen(videoUrl: string): void {
-    // Convert YouTube URL to embed format
-    const videoId = this.extractYouTubeId(videoUrl)
-    if (videoId) {
-      this.videoUrl = `https://www.youtube.com/embed/${videoId}`
-    } else {
-      this.videoUrl = videoUrl
-    }
-  }
-  
-  private extractYouTubeId(url: string): string | null {
-    // Handle various YouTube URL formats
-    const patterns = [
-      /(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([^&\n?#]+)/,
-      /youtube\.com\/watch\?.*v=([^&\n?#]+)/
-    ]
-    
-    for (const pattern of patterns) {
-      const match = url.match(pattern)
-      if (match) {
-        return match[1]
-      }
-    }
-    
-    return null
+    // https の値（YouTube は埋め込み形式）だけを残す。それ以外は空にして src を付けない（A2-C-1・HR-16）
+    this.videoUrl = toYouTubeIframeSrc(videoUrl) ?? ''
   }
   
   protected doClose(): void {
@@ -51,15 +30,17 @@ export class CcViewerYoutube extends CcViewerBase {
   
   // m1-t9 S5: src を**テンプレートに埋めない**。videoUrl は POI 由来の外部値であり、
   // 文字列補間すると属性ブレイクアウトが成立する（設計 §5 D1）。
-  // extractYouTubeId が失敗すると生 URL がそのまま videoUrl になるため（:23）、
-  // 埋め込み形式に正規化されているとは限らない。
+  // src に入るのは toYouTubeIframeSrc が https に限った値だけ（A2-C-1・HR-16）。
   protected getViewerContent(): string {
     return `<iframe class="iframe" allowfullscreen></iframe>`
   }
 
   protected applyExternalValues(): void {
     const iframeEl = this.query('.iframe')
-    if (iframeEl) iframeEl.setAttribute('src', this.videoUrl)
+    if (!iframeEl) return
+    // 拒否したときは前回の値を残さない（拒否した入力で前の動画が出ないように）
+    if (this.videoUrl) iframeEl.setAttribute('src', this.videoUrl)
+    else iframeEl.removeAttribute('src')
   }
   
   protected getCustomStyles(): string {

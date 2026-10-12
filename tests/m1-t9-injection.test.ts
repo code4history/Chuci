@@ -146,14 +146,14 @@ describe("m1-t9: 各ビューアの注入対策", () => {
       open(url: string): void;
     };
     document.body.appendChild(el);
-    // YouTube ID として抽出できない値は生 URL がそのまま videoUrl になる（:23）
+    // 解釈できない値は src を付けない（A2-C-1）
     el.open(ATTR_PAYLOAD);
     await flush();
 
     const iframe = shadow(el).querySelector("iframe.iframe");
     expect(iframe, "iframe が生成されていること").not.toBeNull();
     expect(iframe!.hasAttribute("onmouseover")).toBe(false);
-    expect(iframe!.getAttribute("src")).toBe(ATTR_PAYLOAD);
+    expect(iframe!.getAttribute("src")).toBeNull();
   });
 
   test("S6: video の src が属性を破って別属性を注入できない", async () => {
