@@ -35,7 +35,7 @@ Chuci is open-source under the MIT License.
 ## Quick Start
 
 <!-- release-pinned:start -->
-> **Current release: `1.0.0`**. This block is the only place in
+> **Current release: `1.0.1`**. This block is the only place in
 > this repository that carries a release version (ADR-0012); everything outside it is
 > written against the 1.0 release.
 > npm: [`@c4h/chuci`](https://www.npmjs.com/package/@c4h/chuci)
@@ -77,7 +77,7 @@ npm install @c4h/chuci
 ### CDN (jsDelivr)
 
 ```html
-<script src="https://cdn.jsdelivr.net/npm/@c4h/chuci@1.0.0/dist/chuci.umd.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@c4h/chuci@1.0.1/dist/chuci.umd.js"></script>
 <script>
   // Components are available globally as Chuci
   // Use custom elements directly in HTML
