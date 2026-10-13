@@ -264,49 +264,7 @@ export { }
 
 declare global {
     interface HTMLElementTagNameMap {
-        'cc-viewer': CcViewer;
-    }
-}
-
-
-declare global {
-    interface HTMLElementTagNameMap {
-        'cc-swiper': CcSwiper;
-    }
-}
-
-
-declare global {
-    interface HTMLElementTagNameMap {
         'cc-swiper-slide': CcSwiperSlide;
-    }
-}
-
-
-declare global {
-    interface HTMLElementTagNameMap {
-        'cc-viewer-video': CcViewerVideo;
-    }
-}
-
-
-declare global {
-    interface HTMLElementTagNameMap {
-        'cc-viewer-image': CcViewerImage;
-    }
-}
-
-
-declare global {
-    interface HTMLElementTagNameMap {
-        'cc-viewer-panorama': CcViewerPanorama;
-    }
-}
-
-
-declare global {
-    interface HTMLElementTagNameMap {
-        'cc-viewer-3dmodel': CcViewer3DModel;
     }
 }
 
@@ -320,7 +278,49 @@ declare global {
 
 declare global {
     interface HTMLElementTagNameMap {
+        'cc-viewer-video': CcViewerVideo;
+    }
+}
+
+
+declare global {
+    interface HTMLElementTagNameMap {
+        'cc-swiper': CcSwiper;
+    }
+}
+
+
+declare global {
+    interface HTMLElementTagNameMap {
+        'cc-viewer': CcViewer;
+    }
+}
+
+
+declare global {
+    interface HTMLElementTagNameMap {
+        'cc-viewer-3dmodel': CcViewer3DModel;
+    }
+}
+
+
+declare global {
+    interface HTMLElementTagNameMap {
+        'cc-viewer-image': CcViewerImage;
+    }
+}
+
+
+declare global {
+    interface HTMLElementTagNameMap {
         'cc-viewer-gaussian': CcViewerGaussian;
+    }
+}
+
+
+declare global {
+    interface HTMLElementTagNameMap {
+        'cc-viewer-panorama': CcViewerPanorama;
     }
 }
 
