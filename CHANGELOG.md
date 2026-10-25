@@ -5,7 +5,7 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [1.0.2-rc.1] - 2026-10-25
 
 ### Security
 - `cc-viewer-youtube`（`image-type="youtube"`）は https の URL だけを受け付けるようにした。YouTube の URL は埋め込み形式に直す（http の YouTube URL も https の埋め込みにする）。https でない URL（`http:` の YouTube 以外のページ・`javascript:` 等）は表示しない。スキームの無い URL（`www.youtube.com/watch?v=...`・`youtu.be/...` など。従来は埋め込みに変換していた）も表示しない。http のページを指定していた場合は https の URL に、スキームの無い URL には `https://` を付けて書き換えてください
