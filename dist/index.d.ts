@@ -278,14 +278,21 @@ declare global {
 
 declare global {
     interface HTMLElementTagNameMap {
-        'cc-viewer': CcViewer;
+        'cc-viewer-panorama': CcViewerPanorama;
     }
 }
 
 
 declare global {
     interface HTMLElementTagNameMap {
-        'cc-viewer-panorama': CcViewerPanorama;
+        'cc-viewer-image': CcViewerImage;
+    }
+}
+
+
+declare global {
+    interface HTMLElementTagNameMap {
+        'cc-viewer': CcViewer;
     }
 }
 
@@ -300,13 +307,6 @@ declare global {
 declare global {
     interface HTMLElementTagNameMap {
         'cc-viewer-video': CcViewerVideo;
-    }
-}
-
-
-declare global {
-    interface HTMLElementTagNameMap {
-        'cc-viewer-image': CcViewerImage;
     }
 }
 
