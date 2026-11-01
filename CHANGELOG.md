@@ -5,7 +5,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [1.0.2] - 2026-11-02
+
+1.0.2-rc.1 と同じ内容の正式版です（版番号のみ変更）。変更点は 1.0.2-rc.1 までの各項を参照してください。
+
+### 既知の問題
+- `cc-swiper` を「前へ」で 1 回戻したあと `cc-viewer` で画像を送ると、裏の `realIndex` が 1 つずれ、閉じたときに別の画像が表示されます。1.0.1 から存在する不具合で、次の月次リリースで修正します。
+
+### Known issues
+- After going back once with "previous" in `cc-swiper` and then navigating in `cc-viewer`, the underlying `realIndex` is off by one, and a different image is shown on close. This bug has existed since 1.0.1 and will be fixed in the next monthly release.
+
+## [1.0.2-rc.1] - 2026-10-25
 
 ### Security
 - `cc-viewer-youtube`（`image-type="youtube"`）は https の URL だけを受け付けるようにした。YouTube の URL は埋め込み形式に直す（http の YouTube URL も https の埋め込みにする）。https でない URL（`http:` の YouTube 以外のページ・`javascript:` 等）は表示しない。スキームの無い URL（`www.youtube.com/watch?v=...`・`youtu.be/...` など。従来は埋め込みに変換していた）も表示しない。http のページを指定していた場合は https の URL に、スキームの無い URL には `https://` を付けて書き換えてください
