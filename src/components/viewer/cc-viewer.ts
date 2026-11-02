@@ -188,9 +188,15 @@ export class CcViewer extends ChuciElement {
     this.currentSlideIndex = index
     this.open(imageUrl, imageType, attributes)
     
-    // Update swiper position
-    if (this.swiper.slider) {
-      this.swiper.slider.slideTo(index)
+    // Update swiper position. In loop mode Swiper reorders the slides, so the
+    // real slide number must go through slideToLoop.
+    const slider = this.swiper.slider
+    if (slider) {
+      if (slider.params?.loop) {
+        slider.slideToLoop(index)
+      } else {
+        slider.slideTo(index)
+      }
     }
   }
   
