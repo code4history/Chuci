@@ -29,6 +29,8 @@ const BENIGN_URL = "https://example.com/path/a%20b.jpg?q=1&r=2";
 
 function buildSwiper(attrs: Record<string, string>): HTMLElement {
   const swiper = document.createElement("cc-swiper");
+  // has-thumb so that the gallery thumbnails (thumbnail-url) are built too
+  swiper.setAttribute("has-thumb", "");
   const slide = document.createElement("cc-swiper-slide");
   for (const [k, v] of Object.entries(attrs)) slide.setAttribute(k, v);
   swiper.appendChild(slide);
