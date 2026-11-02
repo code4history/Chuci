@@ -3310,6 +3310,7 @@ class Cf extends na {
    * エスケープされて URL が壊れる（設計 §5 D1 の S3 セル）。
    */
   buildGalleryElements() {
+    if (!this.hasThumb) return;
     const e = this.query("#divGallery")?.querySelector(".swiper-wrapper");
     e && this.slides.forEach((t, i) => {
       const r = t.getAttribute("thumbnail-url") || "", s = document.createElement("div");

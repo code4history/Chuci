@@ -152,6 +152,10 @@ export class CcSwiper extends ChuciElement {
    * エスケープされて URL が壊れる（設計 §5 D1 の S3 セル）。
    */
   private buildGalleryElements() {
+    // Thumbnails only work together with the Thumbs module, which is set up
+    // only with has-thumb. Without it they would be visible (through CSS
+    // variable overrides) but not respond to clicks.
+    if (!this.hasThumb) return
     const wrapper = this.query<HTMLDivElement>('#divGallery')?.querySelector('.swiper-wrapper')
     if (!wrapper) return
 

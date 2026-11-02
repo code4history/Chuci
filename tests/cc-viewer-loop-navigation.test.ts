@@ -95,21 +95,47 @@ describe("cc-swiper with loop", () => {
     return swiper;
   }
 
-  test("a thumbnail click does not call slideTo with the thumbnail number", async () => {
+  /**
+   * The pointer sequence a browser sends for a mouse click on a thumbnail.
+   * pointerdown / pointerup go through Swiper's touch handling (which emits
+   * "tap"), and the trailing click reaches plain click listeners.
+   */
+  function tap(el: Element, pointerId: number) {
+    const pos = { clientX: 10, clientY: 10, pageX: 10, pageY: 10 };
+    const init = { bubbles: true, composed: true, cancelable: true, pointerId, pointerType: "mouse", button: 0, isPrimary: true, ...pos };
+    el.dispatchEvent(new PointerEvent("pointerdown", init));
+    el.dispatchEvent(new PointerEvent("pointerup", init));
+    el.dispatchEvent(new MouseEvent("click", { bubbles: true, composed: true, cancelable: true, button: 0, ...pos }));
+  }
+
+  test("tapping a thumbnail moves the swiper only through slideToLoop", async () => {
     const el = buildThumbSwiper(5);
     await flush();
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const slider = (el as any).slider;
-    expect(slider).toBeTruthy();
+    expect(slider?.params?.loop).toBe(true);
+    // slideToLoop itself calls slideTo with the internal index, so it is
+    // stubbed here: any slideTo call left over comes from somewhere else.
+    const slideToLoop = vi.spyOn(slider, "slideToLoop").mockImplementation(() => slider);
     const slideTo = vi.spyOn(slider, "slideTo");
 
-    // The Thumbs module already moves the main swiper with slideToLoop.
-    // A second slideTo(index) would start moving to a different slide.
     const thumbs = el.shadowRoot!.querySelectorAll<HTMLElement>(".gallery-thumb");
-    thumbs[0].click();
+    tap(thumbs[2], 1);
+    // The Thumbs module defers its slideToLoop call to the next animation frame.
+    await flush(50);
 
-    expect(slideTo).not.toHaveBeenCalledWith(0);
+    expect(slideToLoop).toHaveBeenCalledTimes(1);
+    expect(slideToLoop).toHaveBeenCalledWith(2);
+    expect(slideTo).not.toHaveBeenCalledWith(2);
+  });
+
+  test("no thumbnails are built without has-thumb", async () => {
+    const el = buildThumbSwiper(5);
+    el.removeAttribute("has-thumb");
+    await flush();
+
+    expect(el.shadowRoot!.querySelectorAll(".gallery-thumb").length).toBe(0);
   });
 
   test("openViewer without an index uses realIndex, not activeIndex", async () => {
