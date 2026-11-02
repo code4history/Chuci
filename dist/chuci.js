@@ -3276,8 +3276,8 @@ class Cf extends na {
         }, 100);
       });
     }
-    r.setSwiper(this), r.setCurrentSlideIndex(i ?? this.slider?.activeIndex ?? 0);
-    const s = this.slides[i ?? this.slider?.activeIndex ?? 0], a = {};
+    r.setSwiper(this), r.setCurrentSlideIndex(i ?? this.slider?.realIndex ?? 0);
+    const s = this.slides[i ?? this.slider?.realIndex ?? 0], a = {};
     s?.hasAttribute("fit-to-container") && (a.fitToContainer = !0), s?.hasAttribute("debug-mode") && (a.debugMode = !0), s?.hasAttribute("camera-position") && (a.cameraPosition = s.getAttribute("camera-position")), s?.hasAttribute("camera-target") && (a.cameraTarget = s.getAttribute("camera-target")), s?.hasAttribute("show-texture") && (a.showTexture = s.getAttribute("show-texture") === "true"), t === "3dmodel" && s?.hasAttribute("material-url") && (a.materialUrl = s.getAttribute("material-url")), r.open(e, t, a);
   }
   firstUpdated() {
@@ -3466,9 +3466,7 @@ class Cf extends na {
       </div>
     `;
     this.updateShadowRoot(i), this.buildSlideElements(), this.buildGalleryElements(), setTimeout(() => {
-      this.initializeSwiper(), this.queryAll(".gallery-thumb").forEach((r, s) => {
-        r.addEventListener("click", () => this.slider?.slideTo(s));
-      }), this.queryAll("img.viewer").forEach((r) => {
+      this.initializeSwiper(), this.queryAll("img.viewer").forEach((r) => {
         r.addEventListener("dragstart", (s) => s.preventDefault()), r.addEventListener("click", (s) => {
           if (this.isDragging) {
             this.isDragging = !1;
@@ -29134,7 +29132,9 @@ class h_ extends na {
     const t = this.swiper.slides[e], i = t.getAttribute("image-url") || "", r = t.getAttribute("image-type") || "image", s = Cs[this.currentType], a = this.query(s);
     a && a.close();
     const o = {};
-    t.hasAttribute("fit-to-container") && (o.fitToContainer = !0), t.hasAttribute("debug-mode") && (o.debugMode = !0), t.hasAttribute("camera-position") && (o.cameraPosition = t.getAttribute("camera-position")), t.hasAttribute("camera-target") && (o.cameraTarget = t.getAttribute("camera-target")), t.hasAttribute("show-texture") && (o.showTexture = t.getAttribute("show-texture") === "true"), t.hasAttribute("material-url") && (o.materialUrl = t.getAttribute("material-url")), this.currentSlideIndex = e, this.open(i, r, o), this.swiper.slider && this.swiper.slider.slideTo(e);
+    t.hasAttribute("fit-to-container") && (o.fitToContainer = !0), t.hasAttribute("debug-mode") && (o.debugMode = !0), t.hasAttribute("camera-position") && (o.cameraPosition = t.getAttribute("camera-position")), t.hasAttribute("camera-target") && (o.cameraTarget = t.getAttribute("camera-target")), t.hasAttribute("show-texture") && (o.showTexture = t.getAttribute("show-texture") === "true"), t.hasAttribute("material-url") && (o.materialUrl = t.getAttribute("material-url")), this.currentSlideIndex = e, this.open(i, r, o);
+    const l = this.swiper.slider;
+    l && (l.params?.loop ? l.slideToLoop(e) : l.slideTo(e));
   }
   updateNavigationButtons() {
     if (!this.swiper) return;

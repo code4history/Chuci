@@ -67,10 +67,10 @@ export class CcSwiper extends ChuciElement {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     (ccView as any).setSwiper(this);
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    (ccView as any).setCurrentSlideIndex(slideIndex ?? this.slider?.activeIndex ?? 0);
+    (ccView as any).setCurrentSlideIndex(slideIndex ?? this.slider?.realIndex ?? 0);
     
     // Get the slide element to extract attributes
-    const slide = this.slides[slideIndex ?? this.slider?.activeIndex ?? 0];
+    const slide = this.slides[slideIndex ?? this.slider?.realIndex ?? 0];
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const attributes: Record<string, any> = {};
     
@@ -331,11 +331,8 @@ export class CcSwiper extends ChuciElement {
     // Initialize Swiper after DOM update
     setTimeout(() => {
       this.initializeSwiper()
-      
-      // Add click handlers for gallery thumbs
-      this.queryAll('.gallery-thumb').forEach((thumb, index) => {
-        thumb.addEventListener('click', () => this.slider?.slideTo(index))
-      })
+      // Thumbnail clicks are handled by Swiper's Thumbs module, which also
+      // handles loop mode correctly.
       
       // Add click handlers for viewer images
       this.queryAll('img.viewer').forEach((img) => {
