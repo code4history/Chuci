@@ -15,19 +15,19 @@ export declare class CcSwiper extends ChuciElement {
     openViewer(imageUrl: string, imageType: string, slideIndex?: number): Promise<void>;
     protected firstUpdated(): void;
     /**
-     * m1-t9: スライド要素を DOM API で組み立てる（設計 §5 D1 の S1/S2/S7）。
+     * スライド要素を DOM API で組み立てる。
      *
      * 外部由来値（thumbnail-url / image-url / image-type / caption）は
      * すべて setAttribute と textContent で入れる。文字列補間を経由させない。
      */
     private buildSlideElements;
     /**
-     * m1-t9: ギャラリーのサムネイルを DOM API で組み立てる（設計 §5 D1 の S3）。
+     * ギャラリーのサムネイルを DOM API で組み立てる。
      *
      * background-image は **CSS コンテキスト**であり HTML エスケープでは守れない。
      * `escapeCssUrl` で `"` と `\` のみをエスケープして url("…") へ入れる。
      * `CSS.escape` は使わない — CSS 識別子用であり URL に適用すると `/` `:` `.` まで
-     * エスケープされて URL が壊れる（設計 §5 D1 の S3 セル）。
+     * エスケープされて URL が壊れる。
      */
     private buildGalleryElements;
     protected render(): void;
@@ -114,11 +114,10 @@ export declare abstract class CcViewerBase extends ChuciElement {
     protected cleanupNavigationListeners(): void;
     protected render(): void;
     /**
-     * m1-t9: 外部由来値（POI の URL 等）を描画後の DOM へ setAttribute で入れるフック。
+     * 外部由来値（POI の URL 等）を描画後の DOM へ setAttribute で入れるフック。
      *
      * getViewerContent() が返すテンプレートには **外部由来値を含めない**。
-     * 文字列補間すると属性ブレイクアウトが成立するためである
-     * （m1 包括セキュリティレビュー SRH-1・設計書 §5 D1）。
+     * 文字列補間すると属性ブレイクアウトが成立するためである。
      */
     protected applyExternalValues(): void;
     protected shouldUseCustomRender(): boolean;
@@ -174,7 +173,7 @@ export declare class CcViewerImage extends CcViewerBase {
 export declare class CcViewerPanorama extends CcViewerBase {
     private imgUrl;
     /**
-     * m1-t9 D5（SRH-2）: aframe CDN の Subresource Integrity。
+     * aframe CDN の Subresource Integrity。
      *
      * 実際に取得して算出した（2026-08-01）:
      *   curl -sSL https://aframe.io/releases/1.4.0/aframe.min.js  → 1,325,299 bytes
@@ -191,10 +190,10 @@ export declare class CcViewerPanorama extends CcViewerBase {
     protected getViewerContent(): string;
     protected getCustomStyles(): string;
     /**
-     * m1-t9 S4: srcdoc は **外部由来値を一切含まない固定文字列** である（設計 §5 D1）。
+     * srcdoc は **外部由来値を一切含まない固定文字列** である。
      *
      * 画像 URL は postMessage で iframe へ渡し、iframe 内で setAttribute する。
-     * `contentDocument` を使わないのは、D4 で `sandbox="allow-scripts"` を採ると
+     * `contentDocument` を使わないのは、`sandbox="allow-scripts"` を採ると
      * iframe が opaque origin になり親からのアクセスが遮断されるためである。
      * postMessage なら sandbox の有無にかかわらず成立する。
      *
@@ -251,7 +250,7 @@ export declare abstract class ChuciElement extends HTMLElement {
 }
 
 /**
- * m1-t9: CSS の `url("…")` へ値を入れるためのエスケープ（設計 §5 D1 の S3）。
+ * CSS の `url("…")` へ値を入れるためのエスケープ。
  *
  * 二重引用符で囲む前提で、`"` と `\` のみをバックスラッシュでエスケープする。
  * URL に現れ得る `/` `:` `.` `?` `&` `%` は**触らない** — 触ると正系の URL が壊れる。
@@ -260,6 +259,13 @@ export declare abstract class ChuciElement extends HTMLElement {
 export declare function escapeCssUrl(value: string): string;
 
 export { }
+
+
+declare global {
+    interface HTMLElementTagNameMap {
+        'cc-viewer': CcViewer;
+    }
+}
 
 
 declare global {
@@ -278,7 +284,7 @@ declare global {
 
 declare global {
     interface HTMLElementTagNameMap {
-        'cc-viewer-panorama': CcViewerPanorama;
+        'cc-viewer-video': CcViewerVideo;
     }
 }
 
@@ -292,27 +298,6 @@ declare global {
 
 declare global {
     interface HTMLElementTagNameMap {
-        'cc-viewer': CcViewer;
-    }
-}
-
-
-declare global {
-    interface HTMLElementTagNameMap {
-        'cc-viewer-youtube': CcViewerYoutube;
-    }
-}
-
-
-declare global {
-    interface HTMLElementTagNameMap {
-        'cc-viewer-video': CcViewerVideo;
-    }
-}
-
-
-declare global {
-    interface HTMLElementTagNameMap {
         'cc-viewer-3dmodel': CcViewer3DModel;
     }
 }
@@ -320,7 +305,21 @@ declare global {
 
 declare global {
     interface HTMLElementTagNameMap {
+        'cc-viewer-panorama': CcViewerPanorama;
+    }
+}
+
+
+declare global {
+    interface HTMLElementTagNameMap {
         'cc-viewer-gaussian': CcViewerGaussian;
+    }
+}
+
+
+declare global {
+    interface HTMLElementTagNameMap {
+        'cc-viewer-youtube': CcViewerYoutube;
     }
 }
 

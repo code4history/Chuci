@@ -3283,7 +3283,7 @@ class Cf extends na {
   firstUpdated() {
   }
   /**
-   * m1-t9: スライド要素を DOM API で組み立てる（設計 §5 D1 の S1/S2/S7）。
+   * スライド要素を DOM API で組み立てる。
    *
    * 外部由来値（thumbnail-url / image-url / image-type / caption）は
    * すべて setAttribute と textContent で入れる。文字列補間を経由させない。
@@ -3302,12 +3302,12 @@ class Cf extends na {
     });
   }
   /**
-   * m1-t9: ギャラリーのサムネイルを DOM API で組み立てる（設計 §5 D1 の S3）。
+   * ギャラリーのサムネイルを DOM API で組み立てる。
    *
    * background-image は **CSS コンテキスト**であり HTML エスケープでは守れない。
    * `escapeCssUrl` で `"` と `\` のみをエスケープして url("…") へ入れる。
    * `CSS.escape` は使わない — CSS 識別子用であり URL に適用すると `/` `:` `.` まで
-   * エスケープされて URL が壊れる（設計 §5 D1 の S3 セル）。
+   * エスケープされて URL が壊れる。
    */
   buildGalleryElements() {
     if (!this.hasThumb) return;
@@ -3645,11 +3645,10 @@ class hr extends na {
     }, 0);
   }
   /**
-   * m1-t9: 外部由来値（POI の URL 等）を描画後の DOM へ setAttribute で入れるフック。
+   * 外部由来値（POI の URL 等）を描画後の DOM へ setAttribute で入れるフック。
    *
    * getViewerContent() が返すテンプレートには **外部由来値を含めない**。
-   * 文字列補間すると属性ブレイクアウトが成立するためである
-   * （m1 包括セキュリティレビュー SRH-1・設計書 §5 D1）。
+   * 文字列補間すると属性ブレイクアウトが成立するためである。
    */
   applyExternalValues() {
   }
@@ -5749,7 +5748,7 @@ customElements.get("cc-viewer-image") || customElements.define("cc-viewer-image"
 class Zs extends hr {
   imgUrl = "";
   /**
-   * m1-t9 D5（SRH-2）: aframe CDN の Subresource Integrity。
+   * aframe CDN の Subresource Integrity。
    *
    * 実際に取得して算出した（2026-08-01）:
    *   curl -sSL https://aframe.io/releases/1.4.0/aframe.min.js  → 1,325,299 bytes
@@ -5785,10 +5784,10 @@ class Zs extends hr {
     `;
   }
   /**
-   * m1-t9 S4: srcdoc は **外部由来値を一切含まない固定文字列** である（設計 §5 D1）。
+   * srcdoc は **外部由来値を一切含まない固定文字列** である。
    *
    * 画像 URL は postMessage で iframe へ渡し、iframe 内で setAttribute する。
-   * `contentDocument` を使わないのは、D4 で `sandbox="allow-scripts"` を採ると
+   * `contentDocument` を使わないのは、`sandbox="allow-scripts"` を採ると
    * iframe が opaque origin になり親からのアクセスが遮断されるためである。
    * postMessage なら sandbox の有無にかかわらず成立する。
    *
@@ -5817,12 +5816,12 @@ class Zs extends hr {
                 <a-entity camera look-controls="reverseMouseDrag: true"></a-entity>
               </a-scene>
               <script>
-                // m1-t9: 画像 URL は親から postMessage で受け取り setAttribute で入れる。
-                // srcdoc に埋めると属性ブレイクアウトが成立するため（SRH-1）。
+                // 画像 URL は親から postMessage で受け取り setAttribute で入れる。
+                // srcdoc に埋めると属性ブレイクアウトが成立するため。
                 window.addEventListener('message', function (e) {
-                  // m1-t9-hotfix-1: 正当な送り手は親フレームだけである。
+                  // 正当な送り手は親フレームだけである。
                   // origin ではなく source で照合する — 将来 sandbox を付けると
-                  // opaque origin になり e.origin が "null" になるため（m1-t9 D4 の実測）。
+                  // opaque origin になり e.origin が "null" になるため（実測）。
                   // source 照合なら sandbox の有無によらず成立する。
                   if (e.source !== parent) return;
                   var d = e.data;
@@ -5884,9 +5883,9 @@ class hp extends hr {
     const e = this.query(".iframe");
     e && (e.src = ""), this.videoUrl = "";
   }
-  // m1-t9 S5: src を**テンプレートに埋めない**。videoUrl は POI 由来の外部値であり、
-  // 文字列補間すると属性ブレイクアウトが成立する（設計 §5 D1）。
-  // src に入るのは toYouTubeIframeSrc が https に限った値だけ（A2-C-1・HR-16）。
+  // src を**テンプレートに埋めない**。videoUrl は POI 由来の外部値であり、
+  // 文字列補間すると属性ブレイクアウトが成立する。
+  // src に入るのは toYouTubeIframeSrc が https に限った値だけ。
   getViewerContent() {
     return '<iframe class="iframe" allowfullscreen></iframe>';
   }
@@ -5973,12 +5972,12 @@ class up extends hr {
     const e = this.query("video");
     e && e.addEventListener("error", (t) => this.handleVideoError(t));
   }
-  // m1-t9 S6: src を**テンプレートに埋めない**（設計 §5 D1）
+  // src を**テンプレートに埋めない**
   applyExternalValues() {
     const e = this.query("video");
     e && e.setAttribute("src", this.videoUrl);
   }
-  // m1-t9 S6(:95): エラー表示は innerHTML ではなく textContent で書く。
+  // エラー表示は innerHTML ではなく textContent で書く。
   // videoUrl は POI 由来の外部値であり、innerHTML では <img onerror> が実行される。
   handleVideoError(e) {
     const t = this.query(".video-container");
