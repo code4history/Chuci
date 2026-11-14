@@ -36,7 +36,7 @@ Chuci is open-source under the MIT License.
 
 <!-- release-pinned:start -->
 > **Current release: `1.0.2`**. This block is the only place in
-> this repository that carries a release version (ADR-0012); everything outside it is
+> this repository that carries a release version; everything outside it is
 > written against the 1.0 release.
 > npm: [`@c4h/chuci`](https://www.npmjs.com/package/@c4h/chuci)
 > [![npm](https://img.shields.io/npm/v/@c4h/chuci)](https://www.npmjs.com/package/@c4h/chuci)
@@ -121,7 +121,7 @@ pnpm test
 <!-- SECTION 6: Prerequisites -->
 ## Prerequisites
 
-> Runtime requirements (ADR-0012: release-dependent).
+> Runtime requirements (release-dependent).
 
 - Node.js: `20` or higher
 - pnpm: `9.0.0` or higher (recommended)
@@ -160,7 +160,7 @@ repository; the Sister repositories table below is the public substitute)*
 > author with MaplatEditor, serve with any of the viewer libraries.
 
 <!-- SECTION 9: Nayuta links -->
-<!-- MIT-licensed repositories (Weiwudi / Quyuan / Chuci) carry no Nayuta link (ADR-0012). -->
+<!-- MIT-licensed repositories (Weiwudi / Quyuan / Chuci) carry no Nayuta link. -->
 
 <!-- SECTION 10: License -->
 ## License

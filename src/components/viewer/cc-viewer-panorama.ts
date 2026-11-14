@@ -4,7 +4,7 @@ export class CcViewerPanorama extends CcViewerBase {
   private imgUrl = ''
 
   /**
-   * m1-t9 D5（SRH-2）: aframe CDN の Subresource Integrity。
+   * aframe CDN の Subresource Integrity。
    *
    * 実際に取得して算出した（2026-08-01）:
    *   curl -sSL https://aframe.io/releases/1.4.0/aframe.min.js  → 1,325,299 bytes
@@ -36,7 +36,7 @@ export class CcViewerPanorama extends CcViewerBase {
     if (iframeEl) {
       iframeEl.srcdoc = ''
     }
-    // m1-t9: postMessage のリスナを残すと閉じた後も生き続ける
+    // postMessage のリスナを残すと閉じた後も生き続ける
     if (this.onIframeReady) {
       window.removeEventListener('message', this.onIframeReady)
       this.onIframeReady = undefined
@@ -59,10 +59,10 @@ export class CcViewerPanorama extends CcViewerBase {
   }
   
   /**
-   * m1-t9 S4: srcdoc は **外部由来値を一切含まない固定文字列** である（設計 §5 D1）。
+   * srcdoc は **外部由来値を一切含まない固定文字列** である。
    *
    * 画像 URL は postMessage で iframe へ渡し、iframe 内で setAttribute する。
-   * `contentDocument` を使わないのは、D4 で `sandbox="allow-scripts"` を採ると
+   * `contentDocument` を使わないのは、`sandbox="allow-scripts"` を採ると
    * iframe が opaque origin になり親からのアクセスが遮断されるためである。
    * postMessage なら sandbox の有無にかかわらず成立する。
    *
@@ -91,12 +91,12 @@ export class CcViewerPanorama extends CcViewerBase {
                 <a-entity camera look-controls="reverseMouseDrag: true"></a-entity>
               </a-scene>
               <script>
-                // m1-t9: 画像 URL は親から postMessage で受け取り setAttribute で入れる。
-                // srcdoc に埋めると属性ブレイクアウトが成立するため（SRH-1）。
+                // 画像 URL は親から postMessage で受け取り setAttribute で入れる。
+                // srcdoc に埋めると属性ブレイクアウトが成立するため。
                 window.addEventListener('message', function (e) {
-                  // m1-t9-hotfix-1: 正当な送り手は親フレームだけである。
+                  // 正当な送り手は親フレームだけである。
                   // origin ではなく source で照合する — 将来 sandbox を付けると
-                  // opaque origin になり e.origin が "null" になるため（m1-t9 D4 の実測）。
+                  // opaque origin になり e.origin が "null" になるため（実測）。
                   // source 照合なら sandbox の有無によらず成立する。
                   if (e.source !== parent) return;
                   var d = e.data;

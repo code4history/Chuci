@@ -33,7 +33,7 @@ Chuci は MIT License のオープンソースソフトウェアです。
 
 <!-- release-pinned:start -->
 > **現在のリリース: `1.0.2`**。このブロックは本リポジトリで唯一
-> リリース版数を持つ場所です（ADR-0012）。ブロックの外はすべて 1.0 正式版を前提に
+> リリース版数を持つ場所です。ブロックの外はすべて 1.0 正式版を前提に
 > 書かれています。
 > npm: [`@c4h/chuci`](https://www.npmjs.com/package/@c4h/chuci)
 > [![npm](https://img.shields.io/npm/v/@c4h/chuci)](https://www.npmjs.com/package/@c4h/chuci)
@@ -118,7 +118,7 @@ pnpm test
 <!-- SECTION 6: Prerequisites -->
 ## 動作環境
 
-> ランタイム要件（ADR-0012: 特定リリースに紐づく）。
+> ランタイム要件（特定のリリースに紐づく値）。
 
 - Node.js: `20` 以上
 - pnpm: `9.0.0` 以上（推奨）
@@ -157,7 +157,7 @@ Maplat エコシステムの一部です。全容は下記エコシステム図�
 > MaplatEditor で作成し、いずれかのビューアライブラリで公開、という流れになります。
 
 <!-- SECTION 9: Nayuta links -->
-<!-- MIT ライセンスのリポジトリ（Weiwudi / Quyuan / Chuci）へは那由多社リンクを置きません（ADR-0012）。 -->
+<!-- MIT ライセンスのリポジトリ（Weiwudi / Quyuan / Chuci）へは那由多社リンクを置きません。 -->
 
 <!-- SECTION 10: License -->
 ## License

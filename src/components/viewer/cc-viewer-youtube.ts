@@ -16,7 +16,7 @@ export class CcViewerYoutube extends CcViewerBase {
   }
   
   protected doOpen(videoUrl: string): void {
-    // https の値（YouTube は埋め込み形式）だけを残す。それ以外は空にして src を付けない（A2-C-1・HR-16）
+    // https の値（YouTube は埋め込み形式）だけを残す。それ以外は空にして src を付けない
     this.videoUrl = toYouTubeIframeSrc(videoUrl) ?? ''
   }
   
@@ -28,9 +28,9 @@ export class CcViewerYoutube extends CcViewerBase {
     this.videoUrl = ''
   }
   
-  // m1-t9 S5: src を**テンプレートに埋めない**。videoUrl は POI 由来の外部値であり、
-  // 文字列補間すると属性ブレイクアウトが成立する（設計 §5 D1）。
-  // src に入るのは toYouTubeIframeSrc が https に限った値だけ（A2-C-1・HR-16）。
+  // src を**テンプレートに埋めない**。videoUrl は POI 由来の外部値であり、
+  // 文字列補間すると属性ブレイクアウトが成立する。
+  // src に入るのは toYouTubeIframeSrc が https に限った値だけ。
   protected getViewerContent(): string {
     return `<iframe class="iframe" allowfullscreen></iframe>`
   }
