@@ -6,7 +6,7 @@ import { Navigation, Pagination, Scrollbar, Autoplay, Thumbs, Keyboard } from 's
 import swiperStyles from './swiper-styles.css?inline'
 
 /**
- * m1-t9: CSS の `url("…")` へ値を入れるためのエスケープ（設計 §5 D1 の S3）。
+ * CSS の `url("…")` へ値を入れるためのエスケープ。
  *
  * 二重引用符で囲む前提で、`"` と `\` のみをバックスラッシュでエスケープする。
  * URL に現れ得る `/` `:` `.` `?` `&` `%` は**触らない** — 触ると正系の URL が壊れる。
@@ -105,7 +105,7 @@ export class CcSwiper extends ChuciElement {
   }
   
   /**
-   * m1-t9: スライド要素を DOM API で組み立てる（設計 §5 D1 の S1/S2/S7）。
+   * スライド要素を DOM API で組み立てる。
    *
    * 外部由来値（thumbnail-url / image-url / image-type / caption）は
    * すべて setAttribute と textContent で入れる。文字列補間を経由させない。
@@ -144,12 +144,12 @@ export class CcSwiper extends ChuciElement {
   }
 
   /**
-   * m1-t9: ギャラリーのサムネイルを DOM API で組み立てる（設計 §5 D1 の S3）。
+   * ギャラリーのサムネイルを DOM API で組み立てる。
    *
    * background-image は **CSS コンテキスト**であり HTML エスケープでは守れない。
    * `escapeCssUrl` で `"` と `\` のみをエスケープして url("…") へ入れる。
    * `CSS.escape` は使わない — CSS 識別子用であり URL に適用すると `/` `:` `.` まで
-   * エスケープされて URL が壊れる（設計 §5 D1 の S3 セル）。
+   * エスケープされて URL が壊れる。
    */
   private buildGalleryElements() {
     // Thumbnails only work together with the Thumbs module, which is set up
@@ -309,9 +309,9 @@ export class CcSwiper extends ChuciElement {
       }
     `
     
-    // m1-t9: スライドとギャラリーは**テンプレート補間で組まない**。
-    // slide の属性は POI 由来の外部値であり、文字列補間すると属性ブレイクアウトが成立する
-    // （設計 §2.3 の S1/S2/S3/S7）。骨格だけをテンプレートで作り、外部値は
+    // スライドとギャラリーは**テンプレート補間で組まない**。
+    // slide の属性は POI 由来の外部値であり、文字列補間すると属性ブレイクアウトが成立する。
+    // 骨格だけをテンプレートで作り、外部値は
     // updateShadowRoot の後に setAttribute / textContent / setProperty で入れる。
     const html = `
       ${swiperStyleTag}

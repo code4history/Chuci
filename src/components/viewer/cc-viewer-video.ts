@@ -86,13 +86,13 @@ export class CcViewerVideo extends CcViewerBase {
     }
   }
   
-  // m1-t9 S6: src を**テンプレートに埋めない**（設計 §5 D1）
+  // src を**テンプレートに埋めない**
   protected applyExternalValues(): void {
     const video = this.query('video')
     if (video) video.setAttribute('src', this.videoUrl)
   }
 
-  // m1-t9 S6(:95): エラー表示は innerHTML ではなく textContent で書く。
+  // エラー表示は innerHTML ではなく textContent で書く。
   // videoUrl は POI 由来の外部値であり、innerHTML では <img onerror> が実行される。
   private handleVideoError(_e: Event) {
     const container = this.query('.video-container')

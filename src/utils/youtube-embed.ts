@@ -1,4 +1,4 @@
-// cc-viewer-youtube の <iframe src> に入れる値を決める（A2-C-1・HR-16「緩い案: httpsなら通します」）。
+// cc-viewer-youtube の <iframe src> に入れる値を決める（https なら通す）。
 // 公開 API にしない（src/index.ts から export しない）。
 
 const YOUTUBE_HOSTS = new Set(['youtube.com', 'www.youtube.com', 'm.youtube.com'])
@@ -33,7 +33,7 @@ function extractVideoId(url: URL): { id: string; nocookie: boolean } | null {
 }
 
 /**
- * cc-viewer-youtube が <iframe src> に入れる値を決める（A2-C-1・HR-16）。
+ * cc-viewer-youtube が <iframe src> に入れる値を決める。
  * 返り値は https の URL か null。null のときは src を付けない。
  */
 export function toYouTubeIframeSrc(input: string): string | null {

@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### 修正
+- 1.0.2 の「既知の問題」で告知し、次の月次で直すと約束していた不具合を修正（#28）。`cc-swiper` を「前へ」で 1 回戻したあと `cc-viewer` で画像を送ると裏の `realIndex` が 1 つずれ、閉じたときに別の画像が表示される問題で、ループ中は `slideToLoop` を使うようになり、サムネイルクリックで起きる余分な移動もなくなった。
+
+### Fixed
+- Fixed the bug announced under "Known issues" in 1.0.2 and promised for the next monthly release (#28). After going back once with "previous" in `cc-swiper` and then navigating in `cc-viewer`, the underlying `realIndex` drifted by one and a different image was shown on close. Loop mode now uses `slideToLoop`, and the extra move on thumbnail click is gone.
+
 ## [1.0.2] - 2026-11-02
 
 1.0.2-rc.1 と同じ内容の正式版です（版番号のみ変更）。変更点は 1.0.2-rc.1 までの各項を参照してください。
