@@ -3,7 +3,7 @@
 // 起票元: リリース前のセキュリティレビューの指摘
 // 決定: 「緩い案: https なら通す」
 //
-// 規則（§3.1）:
+// 規則:
 //   1. new URL(input)（基点なし）で解釈できなければ null
 //   2. protocol が http: / https: で、ホストが YouTube、動画 ID が ^[A-Za-z0-9_-]+$ なら https の埋め込み形式
 //   3. 2 に当たらず protocol が https: なら url.href
