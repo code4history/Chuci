@@ -36,7 +36,7 @@ Vitest is the test runner (`pnpm test`). Tests live in `tests/` and mirror compo
 
 ## Commit & Pull Request Guidelines
 
-Recent `git log` shows a mix of terse subject-only commits, `docs:`-prefixed messages, and task-ID-prefixed messages (e.g. `m15-t1:`, `c2-m4-t3:`) tied to this project's internal task tracking. Keep commits scoped to one concern; when a message is not part of a tracked task, prefer a Conventional Commits prefix. Pull requests should describe the component behavior affected, note any `CHANGELOG.md` update, and confirm lint, typecheck, and tests pass locally before requesting review.
+Recent `git log` shows a mix of terse subject-only commits, `docs:`-prefixed messages, and messages prefixed with internal task identifiers. Keep commits scoped to one concern; when a message is not part of a tracked task, prefer a Conventional Commits prefix. Pull requests should describe the component behavior affected, note any `CHANGELOG.md` update, and confirm lint, typecheck, and tests pass locally before requesting review.
 
 ## Release & Configuration Tips
 

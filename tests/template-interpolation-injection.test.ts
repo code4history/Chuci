@@ -1,15 +1,14 @@
-// m1-t9: 生テンプレート補間による注入の回帰テスト
+// 生テンプレート補間による注入の回帰テスト
 //
-// 起票元: m1 包括セキュリティレビュー SRH-1（Major）
-// 設計書: docs/superpowers/specs/2026-08-01-m1-t9-chuci-template-interpolation-design.md v1.2
+// 起票元: 包括セキュリティレビューの指摘（Major）
 //
-// なぜ「送り手側（@maplat/core）が守っているから不要」ではないか（設計 §2.2 / §7.1）:
+// なぜ「送り手側（@maplat/core）が守っているから不要」ではないか:
 //   Chuci は独立した公開パッケージであり、@maplat/core を介さず直接使われ得る。
 //   利用者が別版の @maplat/core を引けば送り手側の防御は消える。
 //   したがって本テストは **属性へ直接 payload を置く**。送り手が守ってくれるという
 //   前提を置かないことが是正の趣旨そのものである。
 //
-// 対象シンク（設計 §2.3 の S1〜S7 のうち cc-swiper 配下の4件）:
+// 対象シンク（S1〜S7 のうち cc-swiper 配下の4件）:
 //   S1 cc-swiper.ts:237 img の src="${thumbnailUrl}"        … HTML 属性
 //   S2 cc-swiper.ts:237 img の data-image-url="${imageUrl}" … HTML 属性
 //   S3 cc-swiper.ts:246 style="background-image: url('…')"  … CSS
@@ -24,7 +23,7 @@ const ATTR_PAYLOAD = 'x" onmouseover="alert(1)';
 const CSS_PAYLOAD = "x') ; background: url('y";
 /** HTML コンテンツ文脈用の payload。innerHTML では script は動かないが img の onerror は動く */
 const HTML_PAYLOAD = '<img src=x onerror="alert(1)">';
-/** 正系（AC4）。壊してはならない実在しうる URL */
+/** 正系。壊してはならない実在しうる URL */
 const BENIGN_URL = "https://example.com/path/a%20b.jpg?q=1&r=2";
 
 function buildSwiper(attrs: Record<string, string>): HTMLElement {
@@ -44,7 +43,7 @@ const shadow = (el: HTMLElement): ShadowRoot => {
   return root;
 };
 
-describe("m1-t9: cc-swiper の注入対策", () => {
+describe("cc-swiper の注入対策", () => {
   beforeEach(() => {
     document.body.innerHTML = "";
   });
@@ -103,7 +102,7 @@ describe("m1-t9: cc-swiper の注入対策", () => {
     expect(p!.textContent).toBe(HTML_PAYLOAD);
   });
 
-  test("AC4 正系: 通常の URL と caption が従来どおり描画される（cc-swiper）", () => {
+  test("正系: 通常の URL と caption が従来どおり描画される（cc-swiper）", () => {
     const el = buildSwiper({
       "thumbnail-url": BENIGN_URL,
       "image-url": BENIGN_URL,
@@ -131,14 +130,14 @@ describe("m1-t9: cc-swiper の注入対策", () => {
 // ─────────────────────────────────────────────────────────────
 // S5 / S6: 各ビューアが URL を生補間するシンク
 //
-// 配線（設計 §2.3 で実測）: cc-swiper が getAttribute で読んだ値を
+// 配線（実測）: cc-swiper が getAttribute で読んだ値を
 // openViewer → ccView.open → 各ビューアの doOpen(url) へ渡す。
 // したがって image-type の値しだいで同じ POI 由来値がここへ到達する。
 //
 // open() は doOpen を microtask 後に render するため、assert の前に待つ。
 const flush = () => new Promise<void>(r => setTimeout(r, 0));
 
-describe("m1-t9: 各ビューアの注入対策", () => {
+describe("各ビューアの注入対策", () => {
   beforeEach(() => {
     document.body.innerHTML = "";
   });
@@ -191,7 +190,7 @@ describe("m1-t9: 各ビューアの注入対策", () => {
     expect(err!.textContent).toContain(HTML_PAYLOAD);
   });
 
-  test("AC4 正系: 通常の URL で youtube / video が従来どおり描画される", async () => {
+  test("正系: 通常の URL で youtube / video が従来どおり描画される", async () => {
     const yt = document.createElement("cc-viewer-youtube") as HTMLElement & { open(u: string): void };
     document.body.appendChild(yt);
     yt.open("https://www.youtube.com/watch?v=abc123XYZ");
@@ -211,12 +210,12 @@ describe("m1-t9: 各ビューアの注入対策", () => {
 // ─────────────────────────────────────────────────────────────
 // S4: panorama の iframe srcdoc
 //
-// 契約（設計 §5 D1 の S4）: **srcdoc に外部由来値を一切埋めない**。
+// 契約（S4）: **srcdoc に外部由来値を一切埋めない**。
 // 値の受け渡しは postMessage に確定している（contentDocument は採らない。
 // sandbox="allow-scripts" では opaque origin になり遮断されるため）。
 //
 // onAfterRender は setTimeout(…, 0) 経由なので待つ。
-describe("m1-t9: panorama の srcdoc 契約（S4）と SRI（D5）", () => {
+describe("panorama の srcdoc 契約（S4）と SRI", () => {
   beforeEach(() => {
     document.body.innerHTML = "";
   });
@@ -250,7 +249,7 @@ describe("m1-t9: panorama の srcdoc 契約（S4）と SRI（D5）", () => {
     expect(srcdoc).not.toContain(BENIGN_URL);
   });
 
-  test("D5: aframe の script に integrity と crossorigin が付与されている", async () => {
+  test("aframe の script に integrity と crossorigin が付与されている", async () => {
     const el = await openPanorama(BENIGN_URL);
     const iframe = shadow(el).querySelector<HTMLIFrameElement>("iframe.iframe");
     const srcdoc = iframe!.getAttribute("srcdoc") || "";
@@ -263,21 +262,21 @@ describe("m1-t9: panorama の srcdoc 契約（S4）と SRI（D5）", () => {
 });
 
 // ─────────────────────────────────────────────────────────────
-// m1-t9-hotfix-1: postMessage の送信元検証
+// postMessage の送信元検証
 //
-// 起票元: m1-t9 実装レビュー Info-1
+// 起票元: 実装レビューの指摘（Info）
 //
-// m1-t9 の S4 で導入した postMessage 契約は、親 → iframe の方向だけ
+// S4 で導入した postMessage 契約は、親 → iframe の方向だけ
 // 送信元を照合していなかった。同一ページの別スクリプトが
 // cc-panorama-src を投げるとパノラマ画像を差し替えられる。
 //
 // 深刻度は低い（終端は setAttribute であり属性ブレイクアウトには繋がらない）が、
-// 「呼び出し側が正しいはず」という前提を受け手が置かないという m1-t9 §2.2 の
+// 「呼び出し側が正しいはず」という前提を受け手が置かないという上の
 // 方針は片方向でも成立しない。窓口を開けた側が送信元を見る。
 //
 // jsdom は srcdoc の script を実行しないため、リスナの動作そのものは
-// 実機で確認する（AC3）。ここでは guard がソースに存在することを固定する。
-describe("m1-t9-hotfix-1: panorama の postMessage 送信元検証", () => {
+// 実機で確認する。ここでは guard がソースに存在することを固定する。
+describe("panorama の postMessage 送信元検証", () => {
   beforeEach(() => {
     document.body.innerHTML = "";
   });
@@ -294,14 +293,14 @@ describe("m1-t9-hotfix-1: panorama の postMessage 送信元検証", () => {
     return iframe!.getAttribute("srcdoc") || "";
   };
 
-  test("AC1: iframe 側リスナが送信元を親に限定している", async () => {
+  test("iframe 側リスナが送信元を親に限定している", async () => {
     const srcdoc = await getSrcdoc();
     // origin ではなく source で照合する。sandbox を付けると opaque origin になり
-    // e.origin が "null" になるため（m1-t9 D4 の実測）
+    // e.origin が "null" になるため（実測）
     expect(srcdoc).toMatch(/e\.source\s*!==\s*parent/);
   });
 
-  test("AC2: 既存の型ガードが維持されている", async () => {
+  test("既存の型ガードが維持されている", async () => {
     const srcdoc = await getSrcdoc();
     expect(srcdoc).toContain("cc-panorama-src");
     expect(srcdoc).toMatch(/typeof\s+d\.src\s*!==\s*'string'/);

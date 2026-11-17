@@ -1,6 +1,4 @@
-// oct26-m9-t1 AC-9: swiper 12 のナビゲーション矢印が二重に描かれる件の回帰テスト
-//
-// 設計書: docs/superpowers/specs/2026-09-14-oct26-m9-t1-design.md v2 §6
+// swiper 12 のナビゲーション矢印が二重に描かれる件の回帰テスト
 //
 // swiper 12 の Navigation モジュールは addIcons: true（既定）のとき、空の
 // .swiper-button-prev / .swiper-button-next に <svg class="swiper-navigation-icon"> を挿入する。
@@ -8,7 +6,7 @@
 // 両方が描かれて矢印が 2 本ずつになる。swiper の SVG を display: none にする 1 規則で単一化する。
 //
 // 本テストは shadowRoot の <style> 本文の文字列照合である（見た目は jsdom では判定できない）。
-// 見た目（computed display・::after の寸法）は Maplat の e2e/oct26-m9-t1-chuci-arrow.spec.ts
+// 見た目（computed display・::after の寸法）は Maplat の e2e/chuci-swiper-arrow.spec.ts
 // （monorepo 経路）が判定する。
 
 import { describe, test, expect, beforeEach } from "vitest";
@@ -49,7 +47,7 @@ function findRule(css: string, selector: string): string[] {
   return blocks;
 }
 
-describe("oct26-m9-t1 AC-9: cc-swiper のナビゲーション矢印の単一化", () => {
+describe("cc-swiper のナビゲーション矢印の単一化", () => {
   beforeEach(() => {
     document.body.innerHTML = "";
   });
