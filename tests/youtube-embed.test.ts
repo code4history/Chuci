@@ -1,8 +1,7 @@
-// nov26-m1-t2: cc-viewer-youtube が <iframe src> に入れる値を https に限る
+// cc-viewer-youtube が <iframe src> に入れる値を https に限る
 //
-// 起票元: 10 月フリーズ前セキュリティレビュー A2-C-1（nayutainc/NayutaProducts#28）
-// 人間の決定: HR-16「緩い案: httpsなら通します」
-// 設計書: docs/superpowers/specs/2026-10-11-nov26-m1-t2-task-design.md §3.1・§6
+// 起票元: リリース前のセキュリティレビューの指摘
+// 決定: 「緩い案: https なら通す」
 //
 // 規則（§3.1）:
 //   1. new URL(input)（基点なし）で解釈できなければ null
@@ -30,7 +29,7 @@ describe("落とす（https でない・解釈できない値は null）", () =>
     ["//example.com/"],
     ["javascript://www.youtube.com/watch?v=abc"],
     ['x" onmouseover="alert(1)'],
-    // レビュー t2 MIN-3: スキームの無い YouTube URL は従来は埋め込みへ変換していたが、
+    // レビューの指摘: スキームの無い YouTube URL は従来は埋め込みへ変換していたが、
     // https ではないので表示しない（利用者に見える退行。CHANGELOG に記載）
     ["www.youtube.com/watch?v=abc123XYZ"],
   ])("%j → null", (input) => {
