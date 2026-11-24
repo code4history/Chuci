@@ -374,6 +374,44 @@ describe("CcSwiper", () => {
     }
   });
 
+  test.each([
+    { frameX: undefined, drawnX: 100, startX: -60 },
+    { frameX: 30, drawnX: 80, startX: -120 },
+    { frameX: -70, drawnX: 0, startX: -200 }
+  ])("starts a two-panel right swipe on the left (last drawn pointer X: $frameX)", ({ frameX, drawnX, startX }) => {
+    vi.useFakeTimers({ toFake: ["requestAnimationFrame", "cancelAnimationFrame"] });
+    const el = makeSwiper(2);
+    Reflect.set(el, "width", 100);
+    el.goTo(0, { animate: false });
+    const [outgoing, incoming] = el.shadowRoot!.querySelectorAll<HTMLElement>(".cc-slide");
+    const pointer = { bubbles: true, pointerId: 13 };
+    outgoing.dispatchEvent(new PointerEvent("pointerdown", { ...pointer, button: 0, clientX: 50 }));
+    if (frameX !== undefined) {
+      outgoing.dispatchEvent(new PointerEvent("pointermove", { ...pointer, clientX: frameX }));
+      vi.advanceTimersToNextFrame();
+    }
+    expect(translatedX(incoming.style.transform)).toBe(drawnX);
+
+    const styles = new MutationObserver(() => {});
+    styles.observe(incoming, { attributeFilter: ["style"], attributeOldValue: true });
+    try {
+      outgoing.dispatchEvent(new PointerEvent("pointermove", { ...pointer, clientX: 90 }));
+      outgoing.dispatchEvent(new PointerEvent("pointerup", { ...pointer, clientX: 90 }));
+
+      expect(el.index).toBe(1);
+      expect(incoming.style.transition).toContain("250ms");
+      expect(translatedX(incoming.style.transform)).toBe(0);
+      const startStyle = styles.takeRecords().find(({ oldValue }) =>
+        oldValue?.includes("transition: transform")
+      );
+      const startTransform = startStyle?.oldValue?.match(/transform: ([^;]+);/)?.[1];
+      expect(startTransform).toBeDefined();
+      expect(translatedX(startTransform!)).toBe(startX);
+    } finally {
+      styles.disconnect();
+    }
+  });
+
   test("opening the viewer on another swiper releases the previous autoplay owner", async () => {
     vi.useFakeTimers();
     const first = makeSwiper(2, { autoplay: "" });
