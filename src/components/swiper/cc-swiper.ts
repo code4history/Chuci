@@ -19,7 +19,6 @@ interface DragState {
   pointerId: number;
   x: number;
   displayPx: number;
-  hasRenderedFrame: boolean;
   startedAt: number;
   moved: boolean;
   index: number;
@@ -260,7 +259,6 @@ export class CcSwiper extends ChuciElement {
       pointerId: event.pointerId,
       x: event.clientX,
       displayPx: 0,
-      hasRenderedFrame: false,
       startedAt: performance.now(),
       moved: false,
       index: Number(
@@ -280,7 +278,6 @@ export class CcSwiper extends ChuciElement {
     this.dragFrame = requestAnimationFrame(() => {
       this.dragFrame = undefined;
       this.updateLayout(false, drag.displayPx);
-      drag.hasRenderedFrame = this.width > 0;
     });
   }
   private cancelDragFrame() {
@@ -302,10 +299,9 @@ export class CcSwiper extends ChuciElement {
     else {
       const elapsed = Math.max(1, performance.now() - drag.startedAt);
       const fast = Math.abs(dx) / elapsed > FEEL.swipeVelocityPxPerMs;
-      if (Math.abs(dx) >= this.width * FEEL.swipeCommitRatio || fast) {
-        const firstFrameDragPx = drag.hasRenderedFrame ? undefined : this.displayDragPx(dx);
-        this.commitSwipe(dx < 0 ? -1 : 1, firstFrameDragPx);
-      } else this.updateLayout(true);
+      if (Math.abs(dx) >= this.width * FEEL.swipeCommitRatio || fast)
+        this.commitSwipe(dx < 0 ? -1 : 1);
+      else this.updateLayout(true);
     }
   }
 
@@ -406,50 +402,33 @@ export class CcSwiper extends ChuciElement {
     this.updateLayout(false);
   };
 
-  private commitSwipe(direction: -1 | 1, firstFrameDragPx?: number) {
+  private commitSwipe(direction: -1 | 1) {
     const previousIndex = this.index;
-    const nextIndex = stepIndex(
-      previousIndex,
+    this.currentIndex = stepIndex(
+      this.index,
       direction === -1 ? 1 : -1,
       this.items.length,
       this.loop
     );
-    this.currentIndex = nextIndex;
     const panels = Array.from(this.queryAll<HTMLElement>(".cc-slide"));
-    const nextOffsets = slideOffsets(nextIndex, panels.length, this.loop);
-    const renderedDragPx = this.panelPositions.get(panels[previousIndex]) ?? 0;
-    const transitions: { panel: HTMLElement; targetOffset: number }[] = [];
-
+    const nextOffsets = slideOffsets(this.index, panels.length, this.loop);
+    // Resolve the last written transforms before replacing them with the transition targets.
+    panels[0]?.getBoundingClientRect();
     panels.forEach((panel, index) => {
-      const renderedX = this.panelPositions.get(panel);
+      const fromX = this.panelPositions.get(panel);
       const targetOffset = panels.length === 2 && index === previousIndex
         ? direction
         : nextOffsets[index];
       const toX = targetOffset * this.width;
-      let fromX = renderedX;
-      const entering = index === nextIndex && nextIndex !== previousIndex;
-      if (entering && (fromX === undefined || fromX * direction >= 0)) {
-        // A release before the first frame can supply the drag distance for this placement.
-        fromX = toX - direction * this.width + (firstFrameDragPx ?? renderedDragPx);
-      }
-
+      const wasVisible = fromX !== undefined && Math.abs(fromX) < this.width;
+      const shouldTransition = wasVisible || Math.abs(toX) < this.width;
       panel.removeEventListener("transitionend", this.finishSwipeTransition);
-      panel.style.transition = "none";
-      const startsVisible = fromX !== undefined && Math.abs(fromX) < this.width;
-      if (startsVisible || Math.abs(toX) < this.width) {
-        if (fromX !== undefined && fromX !== renderedX)
-          this.setPanelPosition(panel, 0, fromX);
-        transitions.push({ panel, targetOffset });
+      if (shouldTransition) {
+        panel.addEventListener("transitionend", this.finishSwipeTransition);
+        panel.style.transition = `transform ${FEEL.slideTransitionMs}ms ease`;
       } else {
-        this.setPanelPosition(panel, targetOffset, 0);
+        panel.style.transition = "none";
       }
-    });
-
-    // Commit the starting positions before enabling transitions and writing their targets.
-    if (transitions.length > 0) void transitions[0].panel.offsetWidth;
-    transitions.forEach(({ panel, targetOffset }) => {
-      panel.addEventListener("transitionend", this.finishSwipeTransition);
-      panel.style.transition = `transform ${FEEL.slideTransitionMs}ms ease`;
       this.setPanelPosition(panel, targetOffset, 0);
     });
     this.updateChrome();
