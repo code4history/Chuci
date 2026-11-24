@@ -51,6 +51,7 @@ export class ThreeStage {
   private readonly view: Window;
   private readonly resizeObserver: ResizeObserver;
   private readonly frameCallbacks = new Set<(dt: number) => void>();
+  private readonly resizeCallbacks = new Set<(width: number, height: number) => void>();
   private readonly retainedMaterials = new Set<Material>();
   private frameId = 0;
   private previousTime?: number;
@@ -79,9 +80,21 @@ export class ThreeStage {
     this.frameId = this.view.requestAnimationFrame(this.drawFrame);
   }
 
+  get size(): { width: number; height: number } {
+    return { width: this.width, height: this.height };
+  }
+
   /** Register a callback that runs before rendering. The elapsed time is in seconds. */
   onFrame(cb: (dt: number) => void): void {
     this.frameCallbacks.add(cb);
+  }
+
+  /** Register a callback that runs when the viewport CSS dimensions change. */
+  onResize(cb: (width: number, height: number) => void): () => void {
+    this.resizeCallbacks.add(cb);
+    return () => {
+      this.resizeCallbacks.delete(cb);
+    };
   }
 
   retainMaterial(material: Material): void {
@@ -118,6 +131,7 @@ export class ThreeStage {
     this.view.cancelAnimationFrame(this.frameId);
     this.resizeObserver.disconnect();
     this.frameCallbacks.clear();
+    this.resizeCallbacks.clear();
     try {
       disposeThreeResources(this.scene, this.retainedMaterials);
     } finally {
@@ -143,11 +157,15 @@ export class ThreeStage {
     const pixelRatio = this.view.devicePixelRatio || 1;
     if (width <= 0 || height <= 0) return;
     if (width === this.width && height === this.height && pixelRatio === this.pixelRatio) return;
+    const sizeChanged = width !== this.width || height !== this.height;
     if (pixelRatio !== this.pixelRatio) this.renderer.setPixelRatio(pixelRatio);
     this.width = width;
     this.height = height;
     this.pixelRatio = pixelRatio;
     this.camera.aspect = width / height;
+    if (sizeChanged) {
+      for (const cb of this.resizeCallbacks) cb(width, height);
+    }
     this.camera.updateProjectionMatrix();
     this.renderer.setSize(width, height, false);
   };

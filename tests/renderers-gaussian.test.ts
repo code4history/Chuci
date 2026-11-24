@@ -160,14 +160,11 @@ test("no camera attrs uses GSPLAT_DEFAULT_VIEW", async () => {
   const { stage } = setup();
   const { home } = await prepareGaussianScene(stage, item, new AbortController().signal);
 
-  const expectedPosition = [
-    5 * Math.sin(0.5) * Math.cos(0.5),
-    5 * Math.sin(0.5),
-    5 * Math.cos(0.5) * Math.cos(0.5),
-  ];
-  expect(GSPLAT_DEFAULT_VIEW.position[0]).toBeCloseTo(expectedPosition[0], 10);
-  expect(GSPLAT_DEFAULT_VIEW.position[1]).toBeCloseTo(expectedPosition[1], 10);
-  expect(GSPLAT_DEFAULT_VIEW.position[2]).toBeCloseTo(expectedPosition[2], 10);
+  expect(GSPLAT_DEFAULT_VIEW.position).toEqual([
+    2.1036774620197414,
+    2.397127693021015,
+    3.8507557646703496,
+  ]);
   expect(GSPLAT_DEFAULT_VIEW.target).toEqual([0, 0, 0]);
 
   expect(home.position.toArray()).toEqual(GSPLAT_DEFAULT_VIEW.position);
@@ -293,12 +290,17 @@ test("GaussianRenderer mounts, reports debug entries, resets view, and cleans up
     },
   );
 
-  expect(renderer.debugEntries()).toEqual([
-    { label: "Camera Position", value: "4,5,6" },
-    { label: "Camera Target", value: "0,1,0" },
-    { label: "Field of View", value: "75" },
-    { label: "Load State", value: "Ready" },
+  const entries = renderer.debugEntries();
+  expect(entries.map((entry) => entry.label)).toEqual([
+    "Camera Position",
+    "Camera Target",
+    "Field of View",
+    "Load State",
   ]);
+  expect(entries[0].value).toBe("4,5,6");
+  expect(entries[1].value).toBe("0,1,0");
+  expect(Number(entries[2].value)).toBeCloseTo(29.68634584605771, 4);
+  expect(entries[3].value).toBe("Ready");
   expect(requestDebugRefresh).toHaveBeenCalled();
 
   host.dispatchEvent(new PointerEvent("pointerdown", { pointerId: 1, clientX: 0, clientY: 0 }));
@@ -310,4 +312,92 @@ test("GaussianRenderer mounts, reports debug entries, resets view, and cleans up
   expect(state.splatDisposes).toBe(1);
   expect(state.sparkDisposes).toBe(1);
   expect(renderer.debugEntries()).toEqual([{ label: "Load State", value: "Idle" }]);
+});
+
+test("Gaussian scene computes vertical fov from CSS pixel height (578px -> ~28.64°, 680px -> ~33.44°) and ignores devicePixelRatio", async () => {
+  stubSplatFetch();
+  let resizeCallback: ResizeObserverCallback | undefined;
+  class TestResizeObserver {
+    constructor(cb: ResizeObserverCallback) {
+      resizeCallback = cb;
+    }
+    observe() {}
+    unobserve() {}
+    disconnect() {}
+  }
+  vi.stubGlobal("ResizeObserver", TestResizeObserver);
+  vi.stubGlobal("devicePixelRatio", 2);
+
+  let currentWidth = 1080;
+  let currentHeight = 578;
+  const host = document.createElement("div");
+  host.getBoundingClientRect = () => new DOMRect(0, 0, currentWidth, currentHeight);
+  document.body.append(host);
+  const mockRenderer = {
+    dispose: vi.fn(),
+    forceContextLoss: vi.fn(),
+    render: vi.fn(),
+    setPixelRatio: vi.fn(),
+    setSize: vi.fn(),
+    getDrawingBufferSize: vi.fn((target: Vector2) =>
+      target.set(currentWidth * 2, currentHeight * 2),
+    ),
+    domElement: document.createElement("canvas"),
+  };
+  const stage = new ThreeStage(host, (canvas) => {
+    mockRenderer.domElement = canvas;
+    return mockRenderer as unknown as WebGLRenderer;
+  });
+  stages.push(stage);
+
+  const updateProjectionMatrix = vi.spyOn(stage.camera, "updateProjectionMatrix");
+  await prepareGaussianScene(stage, item, new AbortController().signal);
+  expect(Math.abs(stage.camera.fov - 28.64)).toBeLessThan(0.01);
+  expect(updateProjectionMatrix).toHaveBeenCalled();
+
+  updateProjectionMatrix.mockClear();
+  currentHeight = 680;
+  resizeCallback?.([], {} as ResizeObserver);
+  expect(updateProjectionMatrix).toHaveBeenCalled();
+  expect(Math.abs(stage.camera.fov - 33.44)).toBeLessThan(0.01);
+});
+
+test("GaussianRenderer refreshes debug Field of View on viewport height resize", async () => {
+  stubSplatFetch();
+  let resizeCallback: ResizeObserverCallback | undefined;
+  class TestResizeObserver {
+    constructor(cb: ResizeObserverCallback) {
+      resizeCallback = cb;
+    }
+    observe() {}
+    unobserve() {}
+    disconnect() {}
+  }
+  vi.stubGlobal("ResizeObserver", TestResizeObserver);
+
+  const renderer = new GaussianRenderer();
+  gaussianRenderers.push(renderer);
+  let currentHeight = 578;
+  const host = document.createElement("div");
+  host.getBoundingClientRect = () => new DOMRect(0, 0, 1080, currentHeight);
+  document.body.append(host);
+
+  const requestDebugRefresh = vi.fn();
+  await renderer.mount(host, item, {
+    signal: new AbortController().signal,
+    reportInteraction: vi.fn(),
+    reportError: vi.fn(),
+    requestDebugRefresh,
+  });
+
+  const fovBefore = Number(renderer.debugEntries().find((e) => e.label === "Field of View")?.value);
+  expect(Math.abs(fovBefore - 28.64)).toBeLessThan(0.01);
+
+  requestDebugRefresh.mockClear();
+  currentHeight = 680;
+  resizeCallback?.([], {} as ResizeObserver);
+
+  const fovAfter = Number(renderer.debugEntries().find((e) => e.label === "Field of View")?.value);
+  expect(Math.abs(fovAfter - 33.44)).toBeLessThan(0.01);
+  expect(requestDebugRefresh).toHaveBeenCalled();
 });

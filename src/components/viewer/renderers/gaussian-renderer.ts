@@ -1,5 +1,5 @@
 import { SparkRenderer, SplatFileType, SplatMesh, getSplatFileType } from "@sparkjsdev/spark";
-import { Vector3 } from "three";
+import { MathUtils, Vector3 } from "three";
 import { GestureInterpreter } from "@/core/gesture";
 import type { MediaItem } from "@/core/media-item";
 import { OrbitRig, parseVec3 } from "./orbit-rig";
@@ -14,6 +14,14 @@ type GaussianScene = { home: HomeView };
  * `target = (0, 0, 0)`) converted from OpenCV (+X right, +Y down, +Z forward)
  * to Three.js (+X right, +Y up, -Z forward).
  */
+/** gsplat 1.2.9 default CameraData pixel focal length (fx = fy = 1132). */
+export const GSPLAT_FOCAL_LENGTH_PX = 1132;
+
+/** Convert gsplat fixed pixel focal length to Three.js vertical FOV in degrees for CSS height. */
+export function gsplatVerticalFov(heightCssPx: number): number {
+  return MathUtils.radToDeg(2 * Math.atan(heightCssPx / (2 * GSPLAT_FOCAL_LENGTH_PX)));
+}
+
 export const GSPLAT_DEFAULT_VIEW: {
   position: [number, number, number];
   target: [number, number, number];
@@ -96,9 +104,19 @@ export async function prepareGaussianScene(
   };
   spark.material.addEventListener("dispose", disposeSparkResources);
 
+  let stopResize: (() => void) | undefined;
   try {
     await awaitWithAbort(splat.initialized, signal);
     signal.throwIfAborted();
+
+    const applyFov = (_width: number, height: number): void => {
+      if (height <= 0) return;
+      stage.camera.fov = gsplatVerticalFov(height);
+      stage.camera.updateProjectionMatrix();
+    };
+    const { width, height } = stage.size;
+    applyFov(width, height);
+    stopResize = stage.onResize(applyFov);
 
     const position = parseVec3(item.cameraPosition) ?? new Vector3(...GSPLAT_DEFAULT_VIEW.position);
     const target = parseVec3(item.cameraTarget) ?? new Vector3(...GSPLAT_DEFAULT_VIEW.target);
@@ -118,6 +136,7 @@ export async function prepareGaussianScene(
 
     return { home };
   } catch (error) {
+    stopResize?.();
     stage.scene.remove(spark, splat);
     disposeSparkResources();
     throw error;
@@ -165,6 +184,7 @@ export class GaussianRenderer implements MediaRenderer {
       const orbit = new OrbitRig(stage.camera, gestures);
       rig = this.rig = orbit;
       orbit.setHome(home.position, home.target);
+      stage.onResize(() => ctx.requestDebugRefresh());
       stage.onFrame((dt) => orbit.update(dt));
       this.loadState = "Ready";
       ctx.requestDebugRefresh();
