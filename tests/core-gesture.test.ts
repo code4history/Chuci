@@ -40,12 +40,15 @@ describe("GestureInterpreter", () => {
   });
 
   test("two-pointer move emits pan and pinch emits zoom with factor>1 when spreading", () => {
+    vi.useFakeTimers({ toFake: ["requestAnimationFrame", "cancelAnimationFrame"] });
     const { target, events, interpreter } = makeInterpreter();
     Object.defineProperty(target, "getBoundingClientRect", { value: () => ({ left: 100, top: 50, right: 200, bottom: 150, width: 100, height: 100, x: 100, y: 50, toJSON() {} }) });
     pointer(target, "pointerdown", { pointerId: 1, pointerType: "touch", button: 0, clientX: 110, clientY: 60 });
     pointer(target, "pointerdown", { pointerId: 2, pointerType: "touch", button: 0, clientX: 130, clientY: 60 });
     pointer(target, "pointermove", { pointerId: 2, pointerType: "touch", clientX: 150, clientY: 60 });
+    vi.advanceTimersToNextFrame();
     pointer(target, "pointermove", { pointerId: 1, pointerType: "touch", clientX: 115, clientY: 65 });
+    vi.advanceTimersToNextFrame();
     expect(events[0]).toEqual({ kind: "start" });
     expect(events).toContainEqual({ kind: "zoom", factor: 2, cx: 30, cy: 10 });
     expect(events.some((event) => event.kind === "pan")).toBe(true);
@@ -53,23 +56,80 @@ describe("GestureInterpreter", () => {
   });
 
   test("pinch sends the centre pan before the zoom so the pinched point stays under the fingers", () => {
+    vi.useFakeTimers({ toFake: ["requestAnimationFrame", "cancelAnimationFrame"] });
     const { target, events, interpreter } = makeInterpreter();
     Object.defineProperty(target, "getBoundingClientRect", { value: () => ({ left: 0, top: 0, right: 400, bottom: 400, width: 400, height: 400, x: 0, y: 0, toJSON() {} }) });
     pointer(target, "pointerdown", { pointerId: 1, pointerType: "touch", button: 0, clientX: 100, clientY: 100 });
     pointer(target, "pointerdown", { pointerId: 2, pointerType: "touch", button: 0, clientX: 200, clientY: 100 });
     pointer(target, "pointermove", { pointerId: 2, pointerType: "touch", clientX: 280, clientY: 100 });
+    vi.advanceTimersToNextFrame();
     const kinds = events.filter((event) => event.kind === "pan" || event.kind === "zoom").map((event) => event.kind);
     expect(kinds).toEqual(["pan", "zoom"]);
     interpreter.dispose();
   });
 
+  test("two pointers moving together in one frame emit one pan without zoom", () => {
+    vi.useFakeTimers({ toFake: ["requestAnimationFrame", "cancelAnimationFrame"] });
+    const { target, events, interpreter } = makeInterpreter();
+    pointer(target, "pointerdown", { pointerId: 1, pointerType: "touch", clientX: 60, clientY: 100 });
+    pointer(target, "pointerdown", { pointerId: 2, pointerType: "touch", clientX: 140, clientY: 100 });
+    pointer(target, "pointermove", { pointerId: 2, pointerType: "touch", clientX: 170, clientY: 100 });
+    pointer(target, "pointermove", { pointerId: 1, pointerType: "touch", clientX: 90, clientY: 100 });
+    expect(events).toEqual([]);
+    vi.advanceTimersToNextFrame();
+    expect(events).toEqual([{ kind: "start" }, { kind: "pan", dx: 30, dy: 0 }]);
+    interpreter.dispose();
+  });
+
+  test.each(["pointerup", "pointercancel", "lostpointercapture"])(
+    "%s flushes pending pinch movement before returning to one pointer",
+    (endEvent) => {
+      vi.useFakeTimers({ toFake: ["requestAnimationFrame", "cancelAnimationFrame"] });
+      const { target, events, interpreter } = makeInterpreter();
+      pointer(target, "pointerdown", { pointerId: 1, pointerType: "touch", clientX: 0 });
+      pointer(target, "pointermove", { pointerId: 1, pointerType: "touch", clientX: 10 });
+      pointer(target, "pointerdown", { pointerId: 2, pointerType: "touch", clientX: 90 });
+      pointer(target, "pointermove", { pointerId: 2, pointerType: "touch", clientX: 110 });
+      expect(events).toEqual([{ kind: "start" }, { kind: "rotate", dx: 10, dy: 0 }]);
+      pointer(target, endEvent, { pointerId: 2, pointerType: "touch", clientX: 110 });
+      pointer(target, "pointermove", { pointerId: 1, pointerType: "touch", clientX: 30 });
+      pointer(target, "pointerup", { pointerId: 1, pointerType: "touch", clientX: 30 });
+      vi.advanceTimersToNextFrame();
+      expect(events).toEqual([
+        { kind: "start" },
+        { kind: "rotate", dx: 10, dy: 0 },
+        { kind: "pan", dx: 10, dy: 0 },
+        { kind: "zoom", factor: 1.25, cx: 60, cy: 0 },
+        { kind: "rotate", dx: 20, dy: 0 }
+      ]);
+      interpreter.dispose();
+    }
+  );
+
+  test("dispose discards pending pinch movement", () => {
+    vi.useFakeTimers({ toFake: ["requestAnimationFrame", "cancelAnimationFrame"] });
+    const { target, events, interpreter } = makeInterpreter();
+    pointer(target, "pointerdown", { pointerId: 1, pointerType: "touch", clientX: 0 });
+    pointer(target, "pointerdown", { pointerId: 2, pointerType: "touch", clientX: 80 });
+    pointer(target, "pointermove", { pointerId: 2, pointerType: "touch", clientX: 110 });
+    interpreter.dispose();
+    expect(vi.getTimerCount()).toBe(0);
+    vi.advanceTimersToNextFrame();
+    expect(events).toEqual([]);
+  });
+
   test("small pinch movements accumulate from the two-pointer start", () => {
+    vi.useFakeTimers({ toFake: ["requestAnimationFrame", "cancelAnimationFrame"] });
     const { target, events, interpreter } = makeInterpreter();
     pointer(target, "pointerdown", { pointerId: 1, pointerType: "touch", button: 0, clientX: 0, clientY: 0 });
     pointer(target, "pointerdown", { pointerId: 2, pointerType: "touch", button: 0, clientX: 20, clientY: 0 });
     pointer(target, "pointermove", { pointerId: 2, pointerType: "touch", clientX: 24, clientY: 0 });
+    vi.advanceTimersToNextFrame();
+    expect(events).toEqual([]);
     pointer(target, "pointermove", { pointerId: 2, pointerType: "touch", clientX: 28, clientY: 0 });
+    vi.advanceTimersToNextFrame();
     pointer(target, "pointermove", { pointerId: 2, pointerType: "touch", clientX: 32, clientY: 0 });
+    vi.advanceTimersToNextFrame();
     expect(events[0]).toEqual({ kind: "start" });
     expect(events.filter((event) => event.kind === "start")).toHaveLength(1);
     const zoomFactor = events

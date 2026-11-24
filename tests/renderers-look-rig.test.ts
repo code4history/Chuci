@@ -1,4 +1,4 @@
-import { afterEach, expect, test } from "vitest";
+import { afterEach, expect, test, vi } from "vitest";
 import { PerspectiveCamera, Vector3 } from "three";
 import { FEEL } from "../src/core/feel";
 import { GestureInterpreter } from "../src/core/gesture";
@@ -11,6 +11,7 @@ let gestures: GestureInterpreter | undefined;
 afterEach(() => {
   rig?.dispose();
   gestures?.dispose();
+  vi.useRealTimers();
 });
 
 function setup() {
@@ -95,15 +96,35 @@ test("pan is ignored", () => {
 });
 
 test("pinch changes fov without moving the camera", () => {
+  vi.useFakeTimers({ toFake: ["requestAnimationFrame", "cancelAnimationFrame"] });
   const { host, camera, look } = setup();
   const orientation = camera.quaternion.clone();
   pointer(host, "pointerdown", 40, 50, 0, 1, "touch");
   pointer(host, "pointerdown", 80, 50, 0, 2, "touch");
   pointer(host, "pointermove", 110, 50, 0, 2, "touch");
+  vi.advanceTimersToNextFrame();
   look.update(FRAME);
   expect(look.fovDeg).toBeCloseTo(PANORAMA_INITIAL.fovDeg / 1.75);
   expect(camera.quaternion.equals(orientation)).toBe(true);
   expect(camera.position.toArray()).toEqual([0, 0, 0]);
+});
+
+test.each([
+  { fov: 30, wheelFactor: 10, dx: 30 },
+  { fov: 100, wheelFactor: 0.1, dx: -30 }
+])("two-finger pan preserves the field of view at $fov degrees", ({ fov, wheelFactor, dx }) => {
+  vi.useFakeTimers({ toFake: ["requestAnimationFrame", "cancelAnimationFrame"] });
+  const { host, look } = setup();
+  zoom(host, wheelFactor);
+  expect(look.fovDeg).toBe(fov);
+
+  pointer(host, "pointerdown", 60, 100, 0, 1, "touch");
+  pointer(host, "pointerdown", 140, 100, 0, 2, "touch");
+  pointer(host, "pointermove", 140 + dx, 100, 0, 2, "touch");
+  pointer(host, "pointermove", 60 + dx, 100, 0, 1, "touch");
+  vi.advanceTimersToNextFrame();
+
+  expect(look.fovDeg).toBe(fov);
 });
 
 test("reset restores PANORAMA_INITIAL and clears inertia", () => {

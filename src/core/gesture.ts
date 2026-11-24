@@ -18,12 +18,14 @@ export class GestureInterpreter {
   private primaryLast: PointerPosition | undefined;
   private primaryKind: "rotate" | "pan" = "rotate";
   private primaryStarted = false;
+  private gestureStarted = false;
   private multiPointer = false;
   private pinchStartDistance = 0;
   private pinchStartCenter: PointerPosition | undefined;
   private pinchLastDistance = 0;
   private pinchLastCenter: PointerPosition | undefined;
   private pinchStarted = false;
+  private pinchFrameId: number | undefined;
   private lastTap = Number.NEGATIVE_INFINITY;
   private lastTapPosition: PointerPosition | undefined;
   private previousTouchAction: string | undefined;
@@ -79,7 +81,9 @@ export class GestureInterpreter {
     this.target.removeEventListener("contextmenu", this.onContextMenu);
     if (this.wheelTimer !== undefined) clearTimeout(this.wheelTimer);
     this.wheelTimer = undefined;
+    this.cancelPinchFrame();
     this.pointers.clear();
+    this.resetPointerState();
     this.listeners.clear();
   }
 
@@ -99,16 +103,13 @@ export class GestureInterpreter {
       this.primaryLast = position;
       this.primaryKind = event.button === 2 ? "pan" : "rotate";
       this.primaryStarted = false;
+      this.gestureStarted = false;
       this.multiPointer = false;
       return;
     }
     this.multiPointer = true;
     if (this.pointers.size === 2) {
-      const [first, second] = [...this.pointers.values()];
-      this.pinchLastCenter = this.center(first, second);
-      this.pinchLastDistance = this.distance(first, second);
-      this.pinchStartCenter = this.pinchLastCenter;
-      this.pinchStartDistance = this.pinchLastDistance;
+      this.syncPinchAnchor();
       this.pinchStarted = false;
     }
   };
@@ -120,7 +121,7 @@ export class GestureInterpreter {
     this.pointers.set(event.pointerId, { ...previous, ...position });
 
     if (this.pointers.size >= 2) {
-      this.moveMultiplePointers();
+      this.schedulePinchFrame();
       return;
     }
     if (event.pointerId !== this.primaryId || !this.primaryStart || !this.primaryLast) return;
@@ -132,7 +133,7 @@ export class GestureInterpreter {
     }
     if (!this.primaryStarted) {
       this.primaryStarted = true;
-      this.onGesture({ kind: "start" });
+      this.emitStartOnce();
       this.onGesture({ kind: this.primaryKind, dx: totalDx, dy: totalDy });
     } else {
       this.onGesture({
@@ -159,6 +160,7 @@ export class GestureInterpreter {
   private finishPointer(event: PointerEvent, canceled: boolean): void {
     const pointer = this.pointers.get(event.pointerId);
     if (!pointer) return;
+    this.flushPinchFrame();
     this.pointers.delete(event.pointerId);
     if (this.pointers.size === 0) {
       if (!canceled && !this.multiPointer && !this.primaryStarted && pointer.button !== 2) {
@@ -173,6 +175,8 @@ export class GestureInterpreter {
       this.primaryStarted = this.primaryStarted || this.pinchStarted;
       this.multiPointer = true;
       this.pinchStarted = false;
+    } else if (this.pointers.size === 2) {
+      this.syncPinchAnchor();
     }
   }
 
@@ -196,30 +200,63 @@ export class GestureInterpreter {
     event.preventDefault();
   };
 
+  private schedulePinchFrame(): void {
+    if (this.pinchFrameId !== undefined) return;
+    this.pinchFrameId = requestAnimationFrame(() => {
+      this.pinchFrameId = undefined;
+      this.moveMultiplePointers();
+    });
+  }
+
+  private flushPinchFrame(): void {
+    if (this.pinchFrameId === undefined) return;
+    this.cancelPinchFrame();
+    this.moveMultiplePointers();
+  }
+
+  private cancelPinchFrame(): void {
+    if (this.pinchFrameId === undefined) return;
+    cancelAnimationFrame(this.pinchFrameId);
+    this.pinchFrameId = undefined;
+  }
+
+  private syncPinchAnchor(): void {
+    const [first, second] = [...this.pointers.values()];
+    this.pinchLastCenter = this.center(first, second);
+    this.pinchLastDistance = this.distance(first, second);
+    this.pinchStartCenter = this.pinchLastCenter;
+    this.pinchStartDistance = this.pinchLastDistance;
+  }
+
+  private emitStartOnce(): void {
+    if (this.gestureStarted) return;
+    this.gestureStarted = true;
+    this.onGesture({ kind: "start" });
+  }
+
   private moveMultiplePointers(): void {
-    const points = [...this.pointers.values()].slice(0, 2);
-    const [first, second] = points;
+    if (this.pointers.size < 2) return;
+    const [first, second] = [...this.pointers.values()].slice(0, 2);
     const center = this.center(first, second);
     const distance = this.distance(first, second);
-    const thresholdCenter = this.pinchStarted ? this.pinchLastCenter : this.pinchStartCenter;
-    const thresholdDistance = this.pinchStarted ? this.pinchLastDistance : this.pinchStartDistance;
-    const centerDelta = thresholdCenter
-      ? { dx: center.x - thresholdCenter.x, dy: center.y - thresholdCenter.y }
+    const previousCenter = this.pinchStarted ? this.pinchLastCenter : this.pinchStartCenter;
+    const previousDistance = this.pinchStarted ? this.pinchLastDistance : this.pinchStartDistance;
+    const centerDelta = previousCenter
+      ? { dx: center.x - previousCenter.x, dy: center.y - previousCenter.y }
       : { dx: 0, dy: 0 };
-    const distanceDelta = Math.abs(distance - thresholdDistance);
+    const distanceDelta = Math.abs(distance - previousDistance);
     if (!this.pinchStarted && Math.hypot(centerDelta.dx, centerDelta.dy) < FEEL.dragThresholdPx && distanceDelta < FEEL.dragThresholdPx) {
       return;
     }
     if (!this.pinchStarted) {
       this.pinchStarted = true;
-      this.onGesture({ kind: "start" });
+      this.emitStartOnce();
     }
-    const previousDistance = this.pinchStarted ? this.pinchLastDistance : this.pinchStartDistance;
     // 先に中心の移動を pan で送り、その後で新しい中心を基準に zoom を送る。
     // こうすると、指の中心にあった点が拡大縮小の後も指の中心に留まる。
     if (centerDelta.dx !== 0 || centerDelta.dy !== 0)
       this.onGesture({ kind: "pan", dx: centerDelta.dx, dy: centerDelta.dy });
-    if (previousDistance > 0 && distance !== previousDistance) {
+    if (previousDistance > 0 && Math.abs(distance - previousDistance) > 1e-9 * previousDistance) {
       this.onGesture({
         kind: "zoom",
         factor: distance / previousDistance,
@@ -251,10 +288,12 @@ export class GestureInterpreter {
   }
 
   private resetPointerState(): void {
+    this.cancelPinchFrame();
     this.primaryId = undefined;
     this.primaryStart = undefined;
     this.primaryLast = undefined;
     this.primaryStarted = false;
+    this.gestureStarted = false;
     this.multiPointer = false;
     this.pinchLastCenter = undefined;
     this.pinchLastDistance = 0;

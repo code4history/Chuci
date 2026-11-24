@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, test, vi } from "vitest";
+import { FEEL } from "../src/core/feel";
 import type { MediaItem } from "../src/core/media-item";
 import { createRenderer } from "../src/components/viewer/renderers/registry";
 import { ImageRenderer, zoomAt } from "../src/components/viewer/renderers/image-renderer";
@@ -33,6 +34,7 @@ function pointer(target: HTMLElement, type: string, init: PointerEventInit) {
 }
 
 afterEach(() => {
+  vi.useRealTimers();
   document.body.replaceChildren();
 });
 
@@ -118,6 +120,37 @@ describe("ImageRenderer", () => {
     expect(ctx.reportInteraction).toHaveBeenCalledOnce();
     expect(image.style.transform).toBe("translate3d(30px, 15px, 0) scale(1)");
     renderer.unmount();
+  });
+
+  test.each([
+    { limit: FEEL.imageMinZoom, deltaY: 2000, dx: 30 },
+    { limit: FEEL.imageMaxZoom, deltaY: -2000, dx: -30 }
+  ])("two-finger pan preserves image scale at $limit", async ({ limit, deltaY, dx }) => {
+    vi.useFakeTimers({ toFake: ["requestAnimationFrame", "cancelAnimationFrame"] });
+    const target = host();
+    const renderer = new ImageRenderer();
+    const mounted = renderer.mount(target, item, context());
+    const image = target.querySelector("img")!;
+    Object.defineProperties(image, {
+      naturalWidth: { value: 400 },
+      naturalHeight: { value: 300 }
+    });
+    image.dispatchEvent(new Event("load"));
+    await mounted;
+
+    try {
+      target.dispatchEvent(new WheelEvent("wheel", { deltaY, clientX: 400, clientY: 300 }));
+      expect(image.style.transform).toBe(`translate3d(0px, 0px, 0) scale(${limit})`);
+      pointer(target, "pointerdown", { pointerId: 1, pointerType: "touch", clientX: 60, clientY: 100 });
+      pointer(target, "pointerdown", { pointerId: 2, pointerType: "touch", clientX: 140, clientY: 100 });
+      pointer(target, "pointermove", { pointerId: 1, pointerType: "touch", clientX: 60 + dx, clientY: 100 });
+      pointer(target, "pointermove", { pointerId: 2, pointerType: "touch", clientX: 140 + dx, clientY: 100 });
+      vi.advanceTimersToNextFrame();
+
+      expect(image.style.transform).toBe(`translate3d(${dx * FEEL.panSpeed}px, 0px, 0) scale(${limit})`);
+    } finally {
+      renderer.unmount();
+    }
   });
 
   test("mount rejects when the image fails to load", async () => {
