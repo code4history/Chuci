@@ -156,6 +156,12 @@ export class CcViewer extends ChuciElement {
           position: static;
           grid-row: 2;
         }
+        /* 帯を確保するときは、前後ボタンを帯を除いた描画領域の中央に置く（再生ボタンと重ねない） */
+        .reserve-bottom-bar .nav-prev,
+        .reserve-bottom-bar .nav-next {
+          grid-row: 1;
+          grid-column: 1;
+        }
         .nav-button {
           display: grid;
           place-items: center;
