@@ -52,6 +52,17 @@ describe("GestureInterpreter", () => {
     interpreter.dispose();
   });
 
+  test("pinch sends the centre pan before the zoom so the pinched point stays under the fingers", () => {
+    const { target, events, interpreter } = makeInterpreter();
+    Object.defineProperty(target, "getBoundingClientRect", { value: () => ({ left: 0, top: 0, right: 400, bottom: 400, width: 400, height: 400, x: 0, y: 0, toJSON() {} }) });
+    pointer(target, "pointerdown", { pointerId: 1, pointerType: "touch", button: 0, clientX: 100, clientY: 100 });
+    pointer(target, "pointerdown", { pointerId: 2, pointerType: "touch", button: 0, clientX: 200, clientY: 100 });
+    pointer(target, "pointermove", { pointerId: 2, pointerType: "touch", clientX: 280, clientY: 100 });
+    const kinds = events.filter((event) => event.kind === "pan" || event.kind === "zoom").map((event) => event.kind);
+    expect(kinds).toEqual(["pan", "zoom"]);
+    interpreter.dispose();
+  });
+
   test("small pinch movements accumulate from the two-pointer start", () => {
     const { target, events, interpreter } = makeInterpreter();
     pointer(target, "pointerdown", { pointerId: 1, pointerType: "touch", button: 0, clientX: 0, clientY: 0 });
@@ -134,6 +145,13 @@ describe("GestureInterpreter", () => {
     }
     expect(events).toEqual([{ kind: "tap" }, { kind: "reset" }]);
     interpreter.dispose();
+  });
+
+  test("disables browser touch gestures on the target and restores them on dispose", () => {
+    const { target, interpreter } = makeInterpreter();
+    expect(target.style.touchAction).toBe("none");
+    interpreter.dispose();
+    expect(target.style.touchAction).toBe("");
   });
 
   test("taps far apart or from different pointer types are not a double tap", () => {

@@ -24,6 +24,7 @@ export class GestureInterpreter {
   private pinchStarted = false;
   private lastTap = Number.NEGATIVE_INFINITY;
   private lastTapPosition: PointerPosition | undefined;
+  private previousTouchAction: string | undefined;
   private wheelTimer: ReturnType<typeof setTimeout> | undefined;
 
   constructor(
@@ -31,6 +32,11 @@ export class GestureInterpreter {
     private readonly onGesture: (event: GestureEvent) => void,
     private readonly options: { observeOnly?: boolean } = {}
   ) {
+    if (!options.observeOnly) {
+      // 余白から始めたタッチでもブラウザのスクロールに奪われないよう、受け手全体で既定のタッチ操作を止める
+      this.previousTouchAction = target.style.touchAction;
+      target.style.touchAction = "none";
+    }
     target.addEventListener("pointerdown", this.onPointerDown);
     target.addEventListener("pointermove", this.onPointerMove);
     target.addEventListener("pointerup", this.onPointerUp);
@@ -44,6 +50,10 @@ export class GestureInterpreter {
   }
 
   dispose(): void {
+    if (this.previousTouchAction !== undefined) {
+      this.target.style.touchAction = this.previousTouchAction;
+      this.previousTouchAction = undefined;
+    }
     this.target.removeEventListener("pointerdown", this.onPointerDown);
     this.target.removeEventListener("pointermove", this.onPointerMove);
     this.target.removeEventListener("pointerup", this.onPointerUp);
@@ -188,6 +198,10 @@ export class GestureInterpreter {
       this.onGesture({ kind: "start" });
     }
     const previousDistance = this.pinchStarted ? this.pinchLastDistance : this.pinchStartDistance;
+    // 先に中心の移動を pan で送り、その後で新しい中心を基準に zoom を送る。
+    // こうすると、指の中心にあった点が拡大縮小の後も指の中心に留まる。
+    if (centerDelta.dx !== 0 || centerDelta.dy !== 0)
+      this.onGesture({ kind: "pan", dx: centerDelta.dx, dy: centerDelta.dy });
     if (previousDistance > 0 && distance !== previousDistance) {
       this.onGesture({
         kind: "zoom",
@@ -196,8 +210,6 @@ export class GestureInterpreter {
         cy: center.y
       });
     }
-    if (centerDelta.dx !== 0 || centerDelta.dy !== 0)
-      this.onGesture({ kind: "pan", dx: centerDelta.dx, dy: centerDelta.dy });
     this.pinchLastCenter = center;
     this.pinchLastDistance = distance;
   }
