@@ -28,6 +28,10 @@ export async function createRenderer(type: MediaType): Promise<MediaRenderer> {
       return new YoutubeRenderer();
     case "3dmodel":
       return new ModelRenderer();
+    case "gaussian": {
+      const { GaussianRenderer } = await import("./gaussian-renderer");
+      return new GaussianRenderer();
+    }
     default:
       return new UnsupportedRenderer(type);
   }

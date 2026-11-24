@@ -27,8 +27,7 @@ export default defineConfig({
     rollupOptions: {
       external: [],
       output: {
-        globals: {},
-        inlineDynamicImports: true
+        globals: {}
       }
     },
     copyPublicDir: false
