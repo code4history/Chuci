@@ -3,6 +3,7 @@ import { observeContainedSize } from "./fit";
 import type { MediaRenderer, RendererContext } from "./types";
 
 export class VideoRenderer implements MediaRenderer {
+  readonly reservesBottomBar = true;
   private dispose?: () => void;
 
   mount(
@@ -24,6 +25,7 @@ export class VideoRenderer implements MediaRenderer {
       const listeners = new AbortController();
       const options = { signal: listeners.signal };
       let stopFitting: (() => void) | undefined;
+      let ready = false;
 
       const fit = () => {
         if (!video.videoWidth || !video.videoHeight) return;
@@ -34,12 +36,17 @@ export class VideoRenderer implements MediaRenderer {
         );
       };
       const loaded = () => {
-        video.removeEventListener("error", failed);
+        ready = true;
         resolve();
       };
       const failed = () => {
+        const error = new Error(`Failed to load video: ${item.url}`);
+        if (ready) {
+          ctx.reportError(error);
+          return;
+        }
         video.removeEventListener("loadeddata", loaded);
-        reject(new Error(`Failed to load video: ${item.url}`));
+        reject(error);
       };
       const dispose = () => {
         this.dispose = undefined;
@@ -55,7 +62,7 @@ export class VideoRenderer implements MediaRenderer {
 
       video.addEventListener("loadedmetadata", fit, { ...options, once: true });
       video.addEventListener("loadeddata", loaded, { ...options, once: true });
-      video.addEventListener("error", failed, { ...options, once: true });
+      video.addEventListener("error", failed, options);
       video.addEventListener("play", ctx.reportInteraction, options);
       ctx.signal.addEventListener("abort", dispose, { ...options, once: true });
       video.setAttribute("src", item.url);

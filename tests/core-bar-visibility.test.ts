@@ -2,6 +2,38 @@ import { describe, expect, test, vi } from "vitest";
 import { BarVisibility } from "../src/core/bar-visibility";
 
 describe("BarVisibility", () => {
+  test("calls the default timers without a BarVisibility receiver", () => {
+    const schedule = globalThis.setTimeout;
+    const cancel = globalThis.clearTimeout;
+    vi.stubGlobal(
+      "setTimeout",
+      function (this: unknown, fn: () => void, ms: number) {
+        if (this !== undefined && this !== globalThis)
+          throw new TypeError("Illegal invocation");
+        return schedule(fn, ms);
+      }
+    );
+    vi.stubGlobal(
+      "clearTimeout",
+      function (this: unknown, timer: ReturnType<typeof setTimeout>) {
+        if (this !== undefined && this !== globalThis)
+          throw new TypeError("Illegal invocation");
+        cancel(timer);
+      }
+    );
+
+    try {
+      const changes: boolean[] = [];
+      const visibility = new BarVisibility((visible) => changes.push(visible));
+      visibility.shown();
+      visibility.poked();
+      visibility.dispose();
+      expect(changes).toEqual([true]);
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
   test("shown → visible, hidden after 3000 ms", () => {
     vi.useFakeTimers();
     const changes: boolean[] = [];

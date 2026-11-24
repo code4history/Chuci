@@ -8,10 +8,13 @@ export interface DebugEntry {
 export interface RendererContext {
   signal: AbortSignal;
   reportInteraction(): void;
+  reportError(error: unknown): void;
   requestDebugRefresh(): void;
 }
 
 export interface MediaRenderer {
+  /** Keep the caption bar visible below the media's available area. */
+  readonly reservesBottomBar?: boolean;
   /** Resolve when the media is ready, or reject on load failure or cancellation. */
   mount(
     host: HTMLElement,

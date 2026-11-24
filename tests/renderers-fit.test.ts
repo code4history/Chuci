@@ -34,7 +34,7 @@ describe("containSize", () => {
 });
 
 describe("video and YouTube renderers", () => {
-  test("YouTube fits a 16:9 iframe and reports focus through a shadow root", async () => {
+  test("YouTube fits a 16:9 iframe and keeps its caption visible on focus", async () => {
     const viewer = document.createElement("cc-viewer");
     document.body.append(viewer);
     const root = viewer.shadowRoot!;
@@ -61,7 +61,7 @@ describe("video and YouTube renderers", () => {
     iframe.focus();
     expect(root.activeElement).toBe(iframe);
     window.dispatchEvent(new Event("blur"));
-    expect(root.querySelector<HTMLElement>(".caption")!.hidden).toBe(true);
+    expect(root.querySelector<HTMLElement>(".caption")!.hidden).toBe(false);
   });
 
   test("YouTube rejects invalid URLs without assigning the iframe src", async () => {
@@ -72,6 +72,7 @@ describe("video and YouTube renderers", () => {
       renderer.mount(host, item("youtube", "relative-url"), {
         signal,
         reportInteraction: vi.fn(),
+        reportError: vi.fn(),
         requestDebugRefresh: vi.fn()
       })
     ).rejects.toThrow();
@@ -82,7 +83,7 @@ describe("video and YouTube renderers", () => {
     expect(host.children).toHaveLength(0);
   });
 
-  test("video uses its intrinsic aspect ratio and hides the caption on play", async () => {
+  test("video uses its intrinsic aspect ratio and keeps the caption visible on play", async () => {
     const viewer = document.createElement("cc-viewer");
     document.body.append(viewer);
     const root = viewer.shadowRoot!;
@@ -109,10 +110,28 @@ describe("video and YouTube renderers", () => {
 
     expect(root.querySelector<HTMLElement>(".caption")!.hidden).toBe(false);
     video.dispatchEvent(new Event("play"));
-    expect(root.querySelector<HTMLElement>(".caption")!.hidden).toBe(true);
+    expect(root.querySelector<HTMLElement>(".caption")!.hidden).toBe(false);
     viewer.close();
     expect(video.hasAttribute("src")).toBe(false);
     expect(video.isConnected).toBe(false);
+  });
+
+  test("shows the common error when a video fails after its first frame loads", async () => {
+    const viewer = document.createElement("cc-viewer");
+    document.body.append(viewer);
+    viewer.open([item("video", "/movie.mp4")], 0);
+    await Promise.resolve();
+
+    const root = viewer.shadowRoot!;
+    const video = root.querySelector("video")!;
+    const error = root.querySelector<HTMLElement>(".viewer-error")!;
+    video.dispatchEvent(new Event("loadeddata"));
+    await Promise.resolve();
+    expect(error.hidden).toBe(true);
+
+    video.dispatchEvent(new Event("error"));
+    expect(error.hidden).toBe(false);
+    expect(error.textContent).toBe("Failed to load video: /movie.mp4");
   });
 
   test("unmount settles a pending video load and removes its play listener", async () => {
@@ -122,6 +141,7 @@ describe("video and YouTube renderers", () => {
     const mount = renderer.mount(host, item("video", "/movie.mp4"), {
       signal: new AbortController().signal,
       reportInteraction,
+      reportError: vi.fn(),
       requestDebugRefresh: vi.fn()
     });
 

@@ -42,10 +42,10 @@ export class CcViewer extends ChuciElement {
 
     this.render();
     const backdrop = this.query(".backdrop")!;
-    if (!this.barVisibility) {
+    const opening = !this.activeMount;
+    if (opening) {
       const focused = this.ownerDocument.activeElement;
       if (focused instanceof HTMLElement) this.previousFocus = focused;
-      this.barVisibility = new BarVisibility(this.setBarVisible);
       this.gestures = new GestureInterpreter(
         this.query(".content")!,
         (gesture) => {
@@ -59,7 +59,6 @@ export class CcViewer extends ChuciElement {
         true
       );
       backdrop.hidden = false;
-      this.query(".nav-close")!.focus();
     }
 
     this.items = items.slice();
@@ -71,13 +70,12 @@ export class CcViewer extends ChuciElement {
         this.loop
       )
     );
+    if (opening) this.query(".nav-close")!.focus();
   }
 
   close(): void {
-    if (!this.barVisibility) return;
+    if (!this.activeMount) return;
 
-    this.barVisibility.dispose();
-    this.barVisibility = undefined;
     this.gestures?.dispose();
     this.gestures = undefined;
     this.ownerDocument.defaultView?.removeEventListener(
@@ -144,6 +142,19 @@ export class CcViewer extends ChuciElement {
           max-height: 30vh;
           overflow: auto;
           background: rgba(0, 0, 0, .75);
+        }
+        .reserve-bottom-bar {
+          display: grid;
+          grid-template-rows: minmax(0, 1fr) auto;
+        }
+        .reserve-bottom-bar .content {
+          position: relative;
+          inset: auto;
+          grid-row: 1;
+        }
+        .reserve-bottom-bar .caption {
+          position: static;
+          grid-row: 2;
         }
         .nav-button {
           display: grid;
@@ -257,7 +268,7 @@ export class CcViewer extends ChuciElement {
   }
 
   private goTo(index: number): void {
-    if (!this.barVisibility || index === this.index) return;
+    if (!this.activeMount || index === this.index) return;
     this.showItem(index);
     this.dispatch("cc-viewer-index-change", { index });
   }
@@ -283,8 +294,7 @@ export class CcViewer extends ChuciElement {
       (i) => this.goTo(i),
       "viewer"
     );
-    this.barVisibility!.shown();
-    caption.hidden = !model.showBar;
+    this.setBarVisible(true);
     this.query(".nav-prev")!.hidden = count <= 1 || (!this.loop && index === 0);
     this.query(".nav-next")!.hidden =
       count <= 1 || (!this.loop && index === count - 1);
@@ -317,11 +327,18 @@ export class CcViewer extends ChuciElement {
         return;
       }
       mount.renderer = renderer;
+      if (renderer.reservesBottomBar) {
+        this.query(".viewport")!.classList.add("reserve-bottom-bar");
+      } else {
+        this.barVisibility = new BarVisibility(this.setBarVisible);
+        this.barVisibility.shown();
+      }
       await renderer.mount(mount.host, item, {
         signal: mount.controller.signal,
         reportInteraction: () => {
           if (this.activeMount === mount) this.barVisibility?.interacted();
         },
+        reportError: (error) => this.reportRendererError(mount, error),
         requestDebugRefresh: () => {
           if (item.debugMode && this.activeMount === mount)
             this.refreshDebug(mount);
@@ -334,14 +351,17 @@ export class CcViewer extends ChuciElement {
       this.query(".media-controls")!.replaceChildren(...controls);
       if (item.debugMode) this.refreshDebug(mount);
     } catch (error) {
-      if (this.activeMount !== mount) return;
-      const message = this.query(".viewer-error")!;
-      message.textContent =
-        error instanceof Error ? error.message : String(error);
-      message.hidden = false;
+      this.reportRendererError(mount, error);
     } finally {
       if (this.activeMount === mount) this.query(".spinner")!.hidden = true;
     }
+  }
+
+  private reportRendererError(mount: ActiveMount, error: unknown): void {
+    if (this.activeMount !== mount) return;
+    const message = this.query(".viewer-error")!;
+    message.textContent = error instanceof Error ? error.message : String(error);
+    message.hidden = false;
   }
 
   private refreshDebug(mount: ActiveMount): void {
@@ -363,6 +383,9 @@ export class CcViewer extends ChuciElement {
   private clearRenderer(): void {
     const mount = this.activeMount;
     this.activeMount = undefined;
+    this.barVisibility?.dispose();
+    this.barVisibility = undefined;
+    this.query(".viewport")!.classList.remove("reserve-bottom-bar");
     if (mount) {
       mount.controller.abort();
       mount.renderer?.unmount();

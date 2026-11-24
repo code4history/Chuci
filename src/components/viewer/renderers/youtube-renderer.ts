@@ -6,6 +6,7 @@ import type { MediaRenderer, RendererContext } from "./types";
 const YOUTUBE_ASPECT = 16 / 9;
 
 export class YoutubeRenderer implements MediaRenderer {
+  readonly reservesBottomBar = true;
   private dispose?: () => void;
 
   mount(

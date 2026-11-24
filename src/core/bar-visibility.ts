@@ -6,8 +6,10 @@ export class BarVisibility {
 
   constructor(
     private readonly onChange: (visible: boolean) => void,
-    private readonly setTimer: typeof setTimeout = setTimeout,
-    private readonly clearTimer: typeof clearTimeout = clearTimeout
+    private readonly setTimer = (fn: () => void, ms: number) =>
+      setTimeout(fn, ms),
+    private readonly clearTimer = (timer: ReturnType<typeof setTimeout>) =>
+      clearTimeout(timer)
   ) {}
 
   shown(): void {

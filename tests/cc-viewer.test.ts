@@ -10,8 +10,8 @@ vi.mock("../src/components/viewer/renderers/registry", () => ({
 }));
 
 const item: MediaItem = {
-  type: "video",
-  url: "example.mp4",
+  type: "image",
+  url: "example.png",
   thumbnailUrl: "",
   caption: "Caption",
   fitToContainer: false,
@@ -199,6 +199,7 @@ describe("cc-viewer", () => {
       expect(stale.unmount).toHaveBeenCalledTimes(1);
       host.append(document.createElement("canvas"));
       context.reportInteraction();
+      context.reportError(new Error("Stale playback error"));
     }
     firstLoad.resolve();
     secondLoad.reject(new Error("Stale failure"));
@@ -261,6 +262,34 @@ describe("cc-viewer", () => {
       new PointerEvent("pointermove", { bubbles: true, pointerType: "mouse" })
     );
     expect(el(".caption").hidden).toBe(false);
+  });
+
+  test("keeps the YouTube caption and buttons visible and restores overlay behavior on navigation", async () => {
+    vi.useFakeTimers();
+    const youtube = { ...fakeRenderer(), reservesBottomBar: true };
+    createRenderer
+      .mockResolvedValueOnce(fakeRenderer())
+      .mockResolvedValueOnce(youtube);
+
+    viewer.open([item, { ...item, type: "youtube" }, item], 0);
+    await flush();
+    click(".nav-next");
+    await flush();
+
+    expect(el(".viewport").classList.contains("reserve-bottom-bar")).toBe(true);
+    youtube.mount.mock.calls[0][2].reportInteraction();
+    vi.advanceTimersByTime(FEEL.barHideDelayMs);
+    expect(el(".caption").hidden).toBe(false);
+    expect(el(".backdrop").classList.contains("bar-hidden")).toBe(false);
+    for (const selector of [".nav-prev", ".nav-next", ".nav-close"]) {
+      expect(el(selector).hidden).toBe(false);
+    }
+
+    click(".nav-next");
+    await flush();
+    expect(el(".viewport").classList.contains("reserve-bottom-bar")).toBe(false);
+    vi.advanceTimersByTime(FEEL.barHideDelayMs);
+    expect(el(".caption").hidden).toBe(true);
   });
 
   test("shows renderer debug entries and the localized hint only for debug items", async () => {
