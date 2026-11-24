@@ -28,6 +28,12 @@ function stubViewerOpen() {
   vi.spyOn(viewer, "open").mockImplementation(() => {});
 }
 
+function translatedX(transform: string): number {
+  const match = transform.match(/translateX\(calc\((-?\d+(?:\.\d+)?)% \+ (-?\d+(?:\.\d+)?)px\)\)/);
+  if (!match) throw new Error(`Unexpected transform: ${transform}`);
+  return Number(match[1]) + Number(match[2]);
+}
+
 afterEach(() => {
   vi.useRealTimers();
   document.body.innerHTML = "";
@@ -269,6 +275,46 @@ describe("CcSwiper", () => {
       expect(skipped.style.transition).toBe("none");
       expect(skipped.style.transform).toContain("100%");
     }
+  });
+
+  test.each([2, 3, 4])("clamps a 120px swipe and transitions panels by visibility (%i slides)", (count) => {
+    const el = makeSwiper(count);
+    Reflect.set(el, "width", 100);
+    Reflect.get(el, "updateLayout").call(el, false);
+    const panels = Array.from(el.shadowRoot!.querySelectorAll<HTMLElement>(".cc-slide"));
+    const first = panels[0];
+    first.dispatchEvent(new PointerEvent("pointerdown", {
+      bubbles: true,
+      pointerId: 11,
+      button: 0,
+      clientX: 150
+    }));
+    first.dispatchEvent(new PointerEvent("pointermove", {
+      bubbles: true,
+      pointerId: 11,
+      clientX: 30
+    }));
+    const releasePositions = panels.map((panel) => translatedX(panel.style.transform));
+    expect(releasePositions[0]).toBe(-100);
+    expect(first.style.transform).not.toContain("-120px");
+    panels.forEach((panel) => {
+      const dragPx = Number(panel.style.transform.match(/\+ (-?\d+)px\)/)?.[1]);
+      expect(dragPx).toBeGreaterThanOrEqual(-100);
+    });
+
+    first.dispatchEvent(new PointerEvent("pointerup", {
+      bubbles: true,
+      pointerId: 11,
+      clientX: 30
+    }));
+    panels.forEach((panel, index) => {
+      const finalPosition = translatedX(panel.style.transform);
+      const shouldTransition =
+        Math.abs(releasePositions[index]) < 100 || Math.abs(finalPosition) < 100;
+      expect(panel.style.transition === "none").toBe(!shouldTransition);
+      if (!shouldTransition) return;
+      expect(finalPosition).toBeLessThanOrEqual(releasePositions[index]);
+    });
   });
 
   test("opening the viewer on another swiper releases the previous autoplay owner", async () => {

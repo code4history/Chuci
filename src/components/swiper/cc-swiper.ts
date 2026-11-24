@@ -270,7 +270,7 @@ export class CcSwiper extends ChuciElement {
     const dx = event.clientX - this.drag.x;
     if (Math.abs(dx) > FEEL.dragThresholdPx) this.drag.moved = true;
     this.drag.lastX = event.clientX;
-    this.updateLayout(false, dx);
+    this.updateLayout(false, this.displayDragPx(dx));
   }
   private onPointerUp(event: PointerEvent) {
     const drag = this.drag;
@@ -285,10 +285,20 @@ export class CcSwiper extends ChuciElement {
     else {
       const elapsed = Math.max(1, performance.now() - drag.startedAt);
       const fast = Math.abs(dx) / elapsed > FEEL.swipeVelocityPxPerMs;
+      const displayDx = this.displayDragPx(dx);
+      this.updateLayout(false, displayDx);
       if (Math.abs(dx) >= this.width * FEEL.swipeCommitRatio || fast)
-        this.commitSwipe(dx < 0 ? -1 : 1);
+        this.commitSwipe(dx < 0 ? -1 : 1, displayDx);
       else this.updateLayout(true);
     }
+  }
+
+  private displayDragPx(dx: number): number {
+    const atUnloopedEdge =
+      !this.loop &&
+      ((this.index === 0 && dx > 0) ||
+        (this.index === this.items.length - 1 && dx < 0));
+    return atUnloopedEdge ? dx : Math.max(-this.width, Math.min(this.width, dx));
   }
 
   private observeSlides() {
@@ -368,14 +378,13 @@ export class CcSwiper extends ChuciElement {
 
   private finishSwipeTransition = (event: TransitionEvent) => {
     if (event.propertyName !== "transform") return;
-    (event.currentTarget as HTMLElement).removeEventListener(
-      "transitionend",
-      this.finishSwipeTransition
+    this.queryAll<HTMLElement>(".cc-slide").forEach((panel) =>
+      panel.removeEventListener("transitionend", this.finishSwipeTransition)
     );
     this.updateLayout(false);
   };
 
-  private commitSwipe(direction: -1 | 1) {
+  private commitSwipe(direction: -1 | 1, dragPx: number) {
     const previousIndex = this.index;
     this.currentIndex = stepIndex(
       this.index,
@@ -384,24 +393,28 @@ export class CcSwiper extends ChuciElement {
       this.loop
     );
     const panels = Array.from(this.queryAll<HTMLElement>(".cc-slide"));
-    const offsets = slideOffsets(this.index, panels.length, this.loop);
-    const nextPanel = panels[this.index];
-    const previousPanel = panels[previousIndex];
+    const previousOffsets = slideOffsets(previousIndex, panels.length, this.loop);
+    const nextOffsets = slideOffsets(this.index, panels.length, this.loop);
     panels.forEach((panel, index) => {
-      if (panel === previousPanel || panel === nextPanel) return;
-      panel.style.transition = "none";
-      panel.style.transform = `translateX(calc(${offsets[index] * 100}% + 0px))`;
+      const previousOffset =
+        panels.length === 2 && dragPx > 0 && index !== previousIndex
+          ? -1
+          : previousOffsets[index];
+      const fromX = previousOffset * this.width + dragPx;
+      const targetOffset = panels.length === 2 && index === previousIndex
+        ? direction
+        : nextOffsets[index];
+      const toX = targetOffset * this.width;
+      const shouldTransition = Math.abs(fromX) < this.width || Math.abs(toX) < this.width;
+      panel.removeEventListener("transitionend", this.finishSwipeTransition);
+      if (shouldTransition) {
+        panel.addEventListener("transitionend", this.finishSwipeTransition);
+        panel.style.transition = `transform ${FEEL.slideTransitionMs}ms ease`;
+      } else {
+        panel.style.transition = "none";
+      }
+      panel.style.transform = `translateX(calc(${targetOffset * 100}% + 0px))`;
     });
-    if (previousPanel) {
-      previousPanel.removeEventListener("transitionend", this.finishSwipeTransition);
-      previousPanel.addEventListener("transitionend", this.finishSwipeTransition);
-      previousPanel.style.transition = `transform ${FEEL.slideTransitionMs}ms ease`;
-      previousPanel.style.transform = `translateX(calc(${direction * 100}% + 0px))`;
-    }
-    if (nextPanel) {
-      nextPanel.style.transition = `transform ${FEEL.slideTransitionMs}ms ease`;
-      nextPanel.style.transform = "translateX(calc(0% + 0px))";
-    }
     this.updateChrome();
     this.dispatch("cc-swiper-index-change", { index: this.index });
   }

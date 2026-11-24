@@ -92,3 +92,29 @@
 
 - 指摘 2・3・5 と新規 Important の再現試験を追加し、指摘のタイマー状態・DOM パネル数・遷移先も検査した。
 - 追加の懸念なし。push はしていない。
+
+# Task 2 レビュー指摘（第 3 回）修正報告
+
+## 修正内容
+
+- ドラッグ中の横移動量を `±width` に制限し、`pointerup` 時も同じ制限値で配置を確定するようにした。`loop=false` の端から外向きにドラッグする場合は、従来どおり制限しない。
+- スワイプ確定時に各パネルの解放位置と遷移先をピクセルで求め、どちらかが `|x| < width` の表示領域に入るパネルだけに transition を付ける。表示領域外のパネルは transition なしで再配置する。
+- 2枚構成では `slideOffsets` の値が送り方向を表さないため、退出パネルの遷移先を送り方向で補正した。ドラッグ方向が右の場合の既存の2枚配置も維持した。
+- 2・3・4枚で左へ120pxドラッグする試験を追加し、ドラッグ量の制限、transition 対象と表示領域の一致、左送りでの逆走防止を確認する。
+- transition 完了時は対象パネルすべてのリスナーを解除して正規配置へ戻す。
+
+## 検証
+
+- 対象試験: `node_modules/.bin/vitest run tests/cc-swiper.test.ts` — 1 file / 23 tests passed。
+- 全体試験: `node_modules/.bin/vitest run` — 9 files / 124 tests passed。
+- 型検査: `node_modules/.bin/tsc --noEmit` — 成功。
+- lint: `node_modules/.bin/eslint src tests` — エラーなし。実行時に追加試験の未使用引数 warning が1件出たため、その引数を削除した。指定どおり lint は1回のみ実行し、編集後の再実行はしていない。
+
+## 変更ファイル
+
+- 変更: `src/components/swiper/cc-swiper.ts`、`tests/cc-swiper.test.ts`
+
+## 自己レビュー・懸念
+
+- 試験で2・3・4枚の境界ケースと可視パネルの transition 判定を確認した。全体試験・型検査は通過。
+- lint はコード上のwarningを報告後に解消したが、指定の1回制限に従い修正後の再実行をしていない。push はしていない。
