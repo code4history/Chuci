@@ -72,6 +72,15 @@ describe("cc-swiper の注入対策", () => {
     expect(shadow(el).querySelectorAll(".gallery-thumb img")).toHaveLength(0);
   });
 
+  test("has-thumb の img src で属性境界文字列が別属性にならない", () => {
+    const payload = 'x" onerror="alert(1)';
+    const el = buildSwiper({ "thumbnail-url": payload });
+    const thumb = shadow(el).querySelector<HTMLImageElement>(".gallery-thumb");
+    expect(thumb).not.toBeNull();
+    expect(thumb!.hasAttribute("onerror")).toBe(false);
+    expect(thumb!.getAttribute("src")).toBe(payload);
+  });
+
   test("S7: caption が HTML として解釈されない", () => {
     const el = buildSwiper({ caption: HTML_PAYLOAD });
     const root = shadow(el);

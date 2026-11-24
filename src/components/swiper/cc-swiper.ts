@@ -26,12 +26,16 @@ interface DragState {
 }
 
 export class CcSwiper extends ChuciElement {
+  private static activeViewerOwner: CcSwiper | undefined;
   private currentIndex = 0;
   private timer?: ReturnType<typeof setInterval>;
   private observer?: ResizeObserver;
   private drag?: DragState;
   private width = 0;
   private pointerHandlers?: AbortController;
+  private slidesObserver?: MutationObserver;
+  private viewerOpen = false;
+  private stopHostPropagation = (event: Event) => event.stopPropagation();
 
   static get observedAttributes() {
     return ["has-thumb", "autoplay"];
@@ -73,13 +77,15 @@ export class CcSwiper extends ChuciElement {
       .cc-slide { position:absolute; inset:0; width:100%; height:100%; background:white; display:flex; align-items:center; justify-content:center; }
       .cc-slide img { width:100%; height:100%; object-fit:contain; user-select:none; -webkit-user-drag:none; cursor:pointer; }
       .nav { position:absolute; z-index:2; top:50%; transform:translateY(-50%); width:44px;height:44px;border:0;padding:0;background:transparent;color:var(--navigation-color);cursor:pointer;font-size:0; }
-      .nav::after { display:block;font-size:38px;line-height:40px;font-family:Arial,sans-serif; }
-      #previous { left:4px; } #previous::after { content:'‹'; } #next { right:4px; } #next::after { content:'›'; }
+      .nav::after { content:'';display:block;width:100%;height:100%;background-color:var(--navigation-color);mask-size:contain;mask-repeat:no-repeat;mask-position:center; }
+      #previous { left:4px; } #previous::after { mask-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='black'%3E%3Cpath d='M15.41 7.41L14 6l-6 6 6 6 1.41-1.41L10.83 12z'/%3E%3C/svg%3E"); }
+      #next { right:4px; } #next::after { mask-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='black'%3E%3Cpath d='M8.59 16.59L10 18l6-6-6-6-1.41 1.41L13.17 12z'/%3E%3C/svg%3E"); }
       #caption { flex:0 0 auto; min-height:0; box-sizing:border-box; padding:5px; color:white; background:#000; font-size:.6rem; font-weight:700; }
       ${captionBarStyles}
       .cc-bar--slider { min-height:1.5rem; }
       .cc-bar-dot { color:var(--cc-slider-theme-color,#007aff); }
       #gallery { flex:0 0 90px; display:flex; gap:10px; overflow-x:auto; padding:5px; box-sizing:border-box; }
+      #gallery[hidden], #caption[hidden] { display:none; }
       .gallery-thumb { flex:0 0 min(22%,100px);height:100%;object-fit:cover;opacity:.35;cursor:pointer; }
       .gallery-thumb[aria-current="true"] { opacity:1; }
     `;
@@ -88,8 +94,9 @@ export class CcSwiper extends ChuciElement {
     );
     this.buildSlides();
     this.bindEvents();
+    this.observeSlides();
     this.observeSize();
-    this.startAutoplay();
+    if (!this.viewerOpen) this.startAutoplay();
     this.updateLayout(false);
   }
 
@@ -100,6 +107,12 @@ export class CcSwiper extends ChuciElement {
     this.observer = undefined;
     if (this.timer !== undefined) clearInterval(this.timer);
     this.timer = undefined;
+    for (const name of ["pointerdown", "pointermove", "pointerup", "pointercancel", "wheel", "click"])
+      this.removeEventListener(name, this.stopHostPropagation);
+    for (const name of ["pointerdown", "pointermove", "pointerup", "pointercancel", "wheel", "click"])
+      this.shadowRoot?.removeEventListener(name, this.stopHostPropagation);
+    this.slidesObserver?.disconnect();
+    this.slidesObserver = undefined;
   }
 
   disconnectedCallback() {
@@ -198,6 +211,10 @@ export class CcSwiper extends ChuciElement {
       opts
     );
     document.addEventListener("cc-viewer-close", this.onViewerClose, opts);
+    for (const name of ["pointerdown", "pointermove", "pointerup", "pointercancel", "wheel", "click"])
+      this.addEventListener(name, this.stopHostPropagation);
+    for (const name of ["pointerdown", "pointermove", "pointerup", "pointercancel", "wheel", "click"])
+      this.shadowRoot?.addEventListener(name, this.stopHostPropagation);
   }
 
   private onKeyDown = (event: KeyboardEvent) => {
@@ -209,9 +226,16 @@ export class CcSwiper extends ChuciElement {
       this.goTo(stepIndex(this.index, -1, this.items.length, this.loop));
     }
   };
-  private onViewerIndexChange = (event: CustomEvent<{ index: number }>) =>
-    this.goTo(event.detail.index, { animate: false });
-  private onViewerClose = () => this.resumeAutoplay();
+  private onViewerIndexChange = (event: CustomEvent<{ index: number }>) => {
+    if (CcSwiper.activeViewerOwner === this)
+      this.goTo(event.detail.index, { animate: false });
+  };
+  private onViewerClose = () => {
+    if (CcSwiper.activeViewerOwner !== this) return;
+    CcSwiper.activeViewerOwner = undefined;
+    this.viewerOpen = false;
+    this.resumeAutoplay();
+  };
 
   private onPointerDown(event: PointerEvent) {
     if ((event.target as HTMLElement).closest("button")) return;
@@ -249,16 +273,30 @@ export class CcSwiper extends ChuciElement {
     const dx = event.clientX - drag.x;
     const moved = drag.moved || Math.abs(dx) > FEEL.dragThresholdPx;
     this.drag = undefined;
-    if (!moved) void this.openViewer(drag.index);
+    if (!moved) {
+      this.updateLayout(true);
+      void this.openViewer(drag.index);
+    }
     else {
       const elapsed = Math.max(1, performance.now() - drag.startedAt);
-      const fast = Math.abs(dx) / elapsed > 0.35;
+      const fast = Math.abs(dx) / elapsed > FEEL.swipeVelocityPxPerMs;
       if (Math.abs(dx) >= this.width * FEEL.swipeCommitRatio || fast)
         this.goTo(
           stepIndex(this.index, dx < 0 ? 1 : -1, this.items.length, this.loop)
         );
       else this.updateLayout(true);
     }
+  }
+
+  private observeSlides() {
+    if (typeof MutationObserver === "undefined") return;
+    this.slidesObserver = new MutationObserver(() => {
+      this.currentIndex = normalizeIndex(this.currentIndex, this.items.length, this.loop);
+      this.buildSlides();
+      this.updateLayout(false);
+      if (!this.viewerOpen) this.startAutoplay();
+    });
+    this.slidesObserver.observe(this, { childList: true });
   }
 
   private observeSize() {
@@ -291,19 +329,22 @@ export class CcSwiper extends ChuciElement {
         panel.style.transform = `translateX(calc(${offset * 100}% + ${dragPx}px))`;
       });
     const caption = this.query<HTMLDivElement>("#caption");
-    if (caption)
+    if (caption) {
+      const model = captionBarModel(
+        this.items.length,
+        this.items[this.index]?.caption ?? "",
+        this.hasThumb
+      );
       renderCaptionBar(
         caption,
-        captionBarModel(
-          this.items.length,
-          this.items[this.index]?.caption ?? "",
-          this.hasThumb
-        ),
+        model,
         this.index,
         this.items.length,
         (i) => this.goTo(i),
         "slider"
       );
+      caption.hidden = !model.showBar;
+    }
     this.queryAll<HTMLImageElement>(".gallery-thumb").forEach((thumb, i) => {
       if (i === this.index) thumb.setAttribute("aria-current", "true");
       else thumb.removeAttribute("aria-current");
@@ -312,7 +353,6 @@ export class CcSwiper extends ChuciElement {
 
   goTo(index: number, opts: { animate?: boolean } = {}) {
     this.currentIndex = normalizeIndex(index, this.items.length, this.loop);
-    this.buildSlides();
     this.updateLayout(opts.animate ?? true);
     this.dispatch("cc-swiper-index-change", { index: this.index });
   }
@@ -325,7 +365,7 @@ export class CcSwiper extends ChuciElement {
   }
   private startAutoplay() {
     this.pauseAutoplay();
-    if (this.autoplay && this.items.length > 1)
+    if (!this.viewerOpen && this.autoplay && this.items.length > 1)
       this.timer = setInterval(
         () => this.goTo(stepIndex(this.index, 1, this.items.length, this.loop)),
         5000
@@ -333,6 +373,8 @@ export class CcSwiper extends ChuciElement {
   }
 
   async openViewer(index: number): Promise<void> {
+    CcSwiper.activeViewerOwner = this;
+    this.viewerOpen = true;
     this.pauseAutoplay();
     const tag = this.viewerTagName();
     let viewer = document.querySelector(tag) as (Element & ViewerLike) | null;

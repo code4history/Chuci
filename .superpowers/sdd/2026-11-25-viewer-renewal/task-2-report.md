@@ -34,3 +34,33 @@
 - 公開インターフェースと Swiper 依存の削除は要件どおり。外部由来値を HTML テンプレートへ差し込まず、DOM API で属性・テキストを設定している。
 - 全体試験は上記の旧 Swiper 期待2件が残るため完全成功ではない。コントローラ側でどちらの契約を優先するか判断が必要。
 - 指定により Quyuan と旧 cc-viewer は変更していない。push もしていない。
+
+---
+
+# Task 2 レビュー指摘（第 1 回）修正報告
+
+## 修正内容
+
+- `#gallery[hidden]` と `#caption[hidden]` を明示的に `display:none` にし、空のサムネイル列・キャプション帯が flex の行を占有しないようにした。
+- `goTo()` はパネルやサムネイルを再生成せず、既存ノードの位置と transition を更新する。小さな横移動でタップと判定した場合も、ビューアを開く前にスライド位置へ戻す。
+- ビューアを開いたインスタンスを所有者として記録し、そのインスタンスだけが番号変更・close 通知を処理する。再描画とスライド増減時は所有者状態を保ち、自動送りを再開しない。
+- スライド子要素の増減を `MutationObserver` で検知し、実 DOM の再構築・自動送りの開始停止を同期する。通常の番号移動ではタイマーを増やさない。
+- host および shadow root で pointer・wheel・click の伝播を止め、縦方向の既定操作を妨げない。
+- サムネイルの属性境界 payload を使う注入回帰試験を追加した。
+- スワイプ速度 `0.35` を `FEEL.swipeVelocityPxPerMs` に移し、旧版の SVG chevron を CSS mask で復元してナビゲーション色を CSS 変数に追従させた。
+
+## 検証
+
+- 関連試験: `node_modules/.bin/vitest run tests/cc-swiper.test.ts tests/template-interpolation-injection.test.ts` — 2 files / 30 tests passed。
+- 全体試験: `node_modules/.bin/vitest run` — 9 files / 116 tests passed。
+- 型検査: `node_modules/.bin/tsc --noEmit` — 成功。
+- lint: `node_modules/.bin/eslint src tests` — 成功。
+- 型検査の初回は試験から `protected` メソッドを直接呼んだ型エラーを検出した。試験の呼び出し方を修正し、再実行で成功した。
+
+## 変更ファイル
+
+- 変更: `src/components/swiper/cc-swiper.ts`、`src/core/feel.ts`、`tests/cc-swiper.test.ts`、`tests/template-interpolation-injection.test.ts`
+
+## 懸念
+
+- なし。push はしていない。
