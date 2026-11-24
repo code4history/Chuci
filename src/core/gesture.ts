@@ -17,10 +17,12 @@ export class GestureInterpreter {
   private primaryKind: "rotate" | "pan" = "rotate";
   private primaryStarted = false;
   private multiPointer = false;
+  private pinchStartDistance = 0;
+  private pinchStartCenter: PointerPosition | undefined;
   private pinchLastDistance = 0;
   private pinchLastCenter: PointerPosition | undefined;
   private pinchStarted = false;
-  private lastTouchTap = Number.NEGATIVE_INFINITY;
+  private lastTap = Number.NEGATIVE_INFINITY;
   private wheelTimer: ReturnType<typeof setTimeout> | undefined;
 
   constructor(
@@ -30,9 +32,9 @@ export class GestureInterpreter {
     target.addEventListener("pointerdown", this.onPointerDown);
     target.addEventListener("pointermove", this.onPointerMove);
     target.addEventListener("pointerup", this.onPointerUp);
-    target.addEventListener("pointercancel", this.onPointerUp);
+    target.addEventListener("pointercancel", this.onPointerCancel);
+    target.addEventListener("lostpointercapture", this.onLostPointerCapture);
     target.addEventListener("wheel", this.onWheel, { passive: false });
-    target.addEventListener("dblclick", this.onDoubleClick);
     target.addEventListener("contextmenu", this.onContextMenu);
   }
 
@@ -40,9 +42,9 @@ export class GestureInterpreter {
     this.target.removeEventListener("pointerdown", this.onPointerDown);
     this.target.removeEventListener("pointermove", this.onPointerMove);
     this.target.removeEventListener("pointerup", this.onPointerUp);
-    this.target.removeEventListener("pointercancel", this.onPointerUp);
+    this.target.removeEventListener("pointercancel", this.onPointerCancel);
+    this.target.removeEventListener("lostpointercapture", this.onLostPointerCapture);
     this.target.removeEventListener("wheel", this.onWheel);
-    this.target.removeEventListener("dblclick", this.onDoubleClick);
     this.target.removeEventListener("contextmenu", this.onContextMenu);
     if (this.wheelTimer !== undefined) clearTimeout(this.wheelTimer);
     this.wheelTimer = undefined;
@@ -57,6 +59,8 @@ export class GestureInterpreter {
       pointerType: event.pointerType,
       button: event.button
     });
+    if (typeof this.target.setPointerCapture === "function")
+      this.target.setPointerCapture(event.pointerId);
     if (this.pointers.size === 1) {
       this.primaryId = event.pointerId;
       this.primaryStart = position;
@@ -71,6 +75,8 @@ export class GestureInterpreter {
       const [first, second] = [...this.pointers.values()];
       this.pinchLastCenter = this.center(first, second);
       this.pinchLastDistance = this.distance(first, second);
+      this.pinchStartCenter = this.pinchLastCenter;
+      this.pinchStartDistance = this.pinchLastDistance;
       this.pinchStarted = false;
     }
   };
@@ -107,13 +113,24 @@ export class GestureInterpreter {
   };
 
   private readonly onPointerUp = (event: PointerEvent): void => {
+    this.finishPointer(event, false);
+  };
+
+  private readonly onPointerCancel = (event: PointerEvent): void => {
+    this.finishPointer(event, true);
+  };
+
+  private readonly onLostPointerCapture = (event: PointerEvent): void => {
+    this.finishPointer(event, true);
+  };
+
+  private finishPointer(event: PointerEvent, canceled: boolean): void {
     const pointer = this.pointers.get(event.pointerId);
     if (!pointer) return;
     this.pointers.delete(event.pointerId);
     if (this.pointers.size === 0) {
-      if (!this.multiPointer && !this.primaryStarted && pointer.button !== 2) {
-        if (pointer.pointerType === "touch") this.handleTouchTap();
-        else this.onGesture({ kind: "tap" });
+      if (!canceled && !this.multiPointer && !this.primaryStarted && pointer.button !== 2) {
+        this.handleTap();
       }
       this.resetPointerState();
     } else if (this.pointers.size === 1) {
@@ -121,11 +138,11 @@ export class GestureInterpreter {
       this.primaryId = remainingId;
       this.primaryStart = remaining;
       this.primaryLast = remaining;
-      this.primaryStarted = true;
+      this.primaryStarted = this.primaryStarted || this.pinchStarted;
       this.multiPointer = true;
       this.pinchStarted = false;
     }
-  };
+  }
 
   private readonly onWheel = (event: WheelEvent): void => {
     event.preventDefault();
@@ -143,11 +160,6 @@ export class GestureInterpreter {
     });
   };
 
-  private readonly onDoubleClick = (event: MouseEvent): void => {
-    event.preventDefault();
-    this.onGesture({ kind: "reset" });
-  };
-
   private readonly onContextMenu = (event: MouseEvent): void => {
     event.preventDefault();
   };
@@ -157,23 +169,24 @@ export class GestureInterpreter {
     const [first, second] = points;
     const center = this.center(first, second);
     const distance = this.distance(first, second);
-    const centerDelta = this.pinchLastCenter
-      ? { dx: center.x - this.pinchLastCenter.x, dy: center.y - this.pinchLastCenter.y }
+    const thresholdCenter = this.pinchStarted ? this.pinchLastCenter : this.pinchStartCenter;
+    const thresholdDistance = this.pinchStarted ? this.pinchLastDistance : this.pinchStartDistance;
+    const centerDelta = thresholdCenter
+      ? { dx: center.x - thresholdCenter.x, dy: center.y - thresholdCenter.y }
       : { dx: 0, dy: 0 };
-    const distanceDelta = Math.abs(distance - this.pinchLastDistance);
+    const distanceDelta = Math.abs(distance - thresholdDistance);
     if (!this.pinchStarted && Math.hypot(centerDelta.dx, centerDelta.dy) < FEEL.dragThresholdPx && distanceDelta < FEEL.dragThresholdPx) {
-      this.pinchLastCenter = center;
-      this.pinchLastDistance = distance;
       return;
     }
     if (!this.pinchStarted) {
       this.pinchStarted = true;
       this.onGesture({ kind: "start" });
     }
-    if (this.pinchLastDistance > 0 && distance !== this.pinchLastDistance) {
+    const previousDistance = this.pinchStarted ? this.pinchLastDistance : this.pinchStartDistance;
+    if (previousDistance > 0 && distance !== previousDistance) {
       this.onGesture({
         kind: "zoom",
-        factor: distance / this.pinchLastDistance,
+        factor: distance / previousDistance,
         cx: center.x,
         cy: center.y
       });
@@ -184,13 +197,13 @@ export class GestureInterpreter {
     this.pinchLastDistance = distance;
   }
 
-  private handleTouchTap(): void {
+  private handleTap(): void {
     const now = Date.now();
-    if (now - this.lastTouchTap <= FEEL.doubleTapMs) {
-      this.lastTouchTap = Number.NEGATIVE_INFINITY;
+    if (now - this.lastTap <= FEEL.doubleTapMs) {
+      this.lastTap = Number.NEGATIVE_INFINITY;
       this.onGesture({ kind: "reset" });
     } else {
-      this.lastTouchTap = now;
+      this.lastTap = now;
       this.onGesture({ kind: "tap" });
     }
   }
@@ -203,6 +216,8 @@ export class GestureInterpreter {
     this.multiPointer = false;
     this.pinchLastCenter = undefined;
     this.pinchLastDistance = 0;
+    this.pinchStartCenter = undefined;
+    this.pinchStartDistance = 0;
     this.pinchStarted = false;
   }
 

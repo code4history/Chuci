@@ -13,6 +13,6 @@ export const FEEL = {
 } as const;
 
 export const CONTROLS_HINT = {
-  ja: "ドラッグ：回転／移動　ホイール・ピンチ：拡大縮小　右ドラッグ・2 本指：平行移動　ダブルクリック：元に戻す",
-  en: "Drag: rotate / move  Wheel / pinch: zoom  Right-drag / two fingers: pan  Double-click: reset"
+  ja: "1 本指／左ドラッグ：回転／移動　2 本指／右ドラッグ：平行移動　ホイール／ピンチ：拡大縮小　ダブルクリック／ダブルタップ：初期表示に戻す",
+  en: "One finger / left drag: rotate / move  Two fingers / right drag: pan  Wheel / pinch: zoom  Double-click / double-tap: reset view"
 } as const;

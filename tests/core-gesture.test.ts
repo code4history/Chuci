@@ -52,6 +52,54 @@ describe("GestureInterpreter", () => {
     interpreter.dispose();
   });
 
+  test("small pinch movements accumulate from the two-pointer start", () => {
+    const { target, events, interpreter } = makeInterpreter();
+    pointer(target, "pointerdown", { pointerId: 1, pointerType: "touch", button: 0, clientX: 0, clientY: 0 });
+    pointer(target, "pointerdown", { pointerId: 2, pointerType: "touch", button: 0, clientX: 20, clientY: 0 });
+    pointer(target, "pointermove", { pointerId: 2, pointerType: "touch", clientX: 24, clientY: 0 });
+    pointer(target, "pointermove", { pointerId: 2, pointerType: "touch", clientX: 28, clientY: 0 });
+    pointer(target, "pointermove", { pointerId: 2, pointerType: "touch", clientX: 32, clientY: 0 });
+    expect(events[0]).toEqual({ kind: "start" });
+    expect(events.filter((event) => event.kind === "start")).toHaveLength(1);
+    const zoomFactor = events
+      .filter((event): event is Extract<GestureEvent, { kind: "zoom" }> => event.kind === "zoom")
+      .reduce((factor, event) => factor * event.factor, 1);
+    expect(zoomFactor).toBeCloseTo(1.6);
+    interpreter.dispose();
+  });
+
+  test("returning to one pointer before a gesture starts still uses the drag threshold", () => {
+    const { target, events, interpreter } = makeInterpreter();
+    pointer(target, "pointerdown", { pointerId: 1, pointerType: "touch", button: 0, clientX: 0, clientY: 0 });
+    pointer(target, "pointerdown", { pointerId: 2, pointerType: "touch", button: 0, clientX: 20, clientY: 0 });
+    pointer(target, "pointerup", { pointerId: 2, pointerType: "touch", button: 0, clientX: 20, clientY: 0 });
+    pointer(target, "pointermove", { pointerId: 1, pointerType: "touch", clientX: 1, clientY: 0 });
+    expect(events).toEqual([]);
+    pointer(target, "pointermove", { pointerId: 1, pointerType: "touch", clientX: 9, clientY: 0 });
+    expect(events).toEqual([{ kind: "start" }, { kind: "rotate", dx: 9, dy: 0 }]);
+    interpreter.dispose();
+  });
+
+  test("pointercancel does not emit tap or reset", () => {
+    const { target, events, interpreter } = makeInterpreter();
+    pointer(target, "pointerdown", { pointerId: 1, pointerType: "touch", button: 0, clientX: 0, clientY: 0 });
+    pointer(target, "pointercancel", { pointerId: 1, pointerType: "touch", button: 0, clientX: 0, clientY: 0 });
+    expect(events).toEqual([]);
+    interpreter.dispose();
+  });
+
+  test("pointer capture is requested and lost capture clears drag state", () => {
+    const { target, events, interpreter } = makeInterpreter();
+    const capture = vi.fn();
+    Object.defineProperty(target, "setPointerCapture", { value: capture });
+    pointer(target, "pointerdown", { pointerId: 1, pointerType: "mouse", button: 0, clientX: 0, clientY: 0 });
+    expect(capture).toHaveBeenCalledWith(1);
+    pointer(target, "lostpointercapture", { pointerId: 1, pointerType: "mouse", button: 0 });
+    pointer(target, "pointermove", { pointerId: 1, pointerType: "mouse", clientX: 20, clientY: 0 });
+    expect(events).toEqual([]);
+    interpreter.dispose();
+  });
+
   test("wheel deltaY<0 emits zoom factor>1 centred at pointer and prevents default", () => {
     const { target, events, interpreter } = makeInterpreter();
     const wheel = new WheelEvent("wheel", { bubbles: true, cancelable: true, deltaY: -100, clientX: 40, clientY: 50 });
@@ -76,11 +124,27 @@ describe("GestureInterpreter", () => {
     interpreter.dispose();
   });
 
-  test("double click within doubleTapMs emits reset", () => {
+  test("two pointer taps within doubleTapMs emit reset", () => {
     vi.useFakeTimers();
     const { target, events, interpreter } = makeInterpreter();
-    target.dispatchEvent(new MouseEvent("dblclick", { bubbles: true }));
-    expect(events).toEqual([{ kind: "reset" }]);
+    for (let pointerId = 1; pointerId <= 2; pointerId++) {
+      pointer(target, "pointerdown", { pointerId, pointerType: "mouse", button: 0, clientX: 4, clientY: 5 });
+      pointer(target, "pointerup", { pointerId, pointerType: "mouse", button: 0, clientX: 4, clientY: 5 });
+      if (pointerId === 1) vi.advanceTimersByTime(299);
+    }
+    expect(events).toEqual([{ kind: "tap" }, { kind: "reset" }]);
+    interpreter.dispose();
+  });
+
+  test("two pointer taps outside doubleTapMs remain separate taps", () => {
+    vi.useFakeTimers();
+    const { target, events, interpreter } = makeInterpreter();
+    for (let pointerId = 1; pointerId <= 2; pointerId++) {
+      pointer(target, "pointerdown", { pointerId, pointerType: "mouse", button: 0, clientX: 4, clientY: 5 });
+      pointer(target, "pointerup", { pointerId, pointerType: "mouse", button: 0, clientX: 4, clientY: 5 });
+      if (pointerId === 1) vi.advanceTimersByTime(301);
+    }
+    expect(events).toEqual([{ kind: "tap" }, { kind: "tap" }]);
     interpreter.dispose();
   });
 

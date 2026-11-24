@@ -40,4 +40,15 @@ describe("BarVisibility", () => {
     expect(changes).toEqual([true, false]);
     visibility.dispose();
   });
+
+  test("poked from hidden shows and hides after 3000 ms", () => {
+    vi.useFakeTimers();
+    const changes: boolean[] = [];
+    const visibility = new BarVisibility((visible) => changes.push(visible));
+    visibility.poked();
+    expect(changes).toEqual([true]);
+    vi.advanceTimersByTime(3000);
+    expect(changes).toEqual([true, false]);
+    visibility.dispose();
+  });
 });
