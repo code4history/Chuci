@@ -73,12 +73,14 @@ describe("CcSwiper", () => {
   });
 
   test("small tap movement returns the track to its slide position", () => {
+    vi.useFakeTimers({ toFake: ["requestAnimationFrame", "cancelAnimationFrame"] });
     const el = makeSwiper(2);
     vi.spyOn(el, "openViewer").mockResolvedValue();
     Reflect.set(el, "width", 100);
     const slide = el.shadowRoot!.querySelector<HTMLElement>('[data-index="0"]')!;
     slide.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true, pointerId: 2, clientX: 20 }));
     slide.dispatchEvent(new PointerEvent("pointermove", { bubbles: true, pointerId: 2, clientX: 24 }));
+    vi.advanceTimersToNextFrame();
     expect(slide.style.transform).toContain("4px");
     slide.dispatchEvent(new PointerEvent("pointerup", { bubbles: true, pointerId: 2, clientX: 24 }));
     expect(slide.style.transform).not.toContain("4px");
@@ -245,6 +247,7 @@ describe("CcSwiper", () => {
   });
 
   test.each([2, 3])( "swipe transition advances from drag position without reverse travel (%i slides)", (count) => {
+    vi.useFakeTimers({ toFake: ["requestAnimationFrame", "cancelAnimationFrame"] });
     const el = makeSwiper(count);
     Reflect.set(el, "width", 100);
     Reflect.get(el, "updateLayout").call(el, false);
@@ -259,6 +262,7 @@ describe("CcSwiper", () => {
     const pointerUp = new PointerEvent("pointerup", { bubbles: true, pointerId: 9, clientX: 40 });
     outgoing.dispatchEvent(pointerDown);
     outgoing.dispatchEvent(pointerMove);
+    vi.advanceTimersToNextFrame();
     const draggedOutgoing = outgoing.style.transform;
     const draggedIncoming = incoming.style.transform;
     outgoing.dispatchEvent(pointerUp);
@@ -278,6 +282,7 @@ describe("CcSwiper", () => {
   });
 
   test.each([2, 3, 4])("clamps a 120px swipe and transitions panels by visibility (%i slides)", (count) => {
+    vi.useFakeTimers({ toFake: ["requestAnimationFrame", "cancelAnimationFrame"] });
     const el = makeSwiper(count);
     Reflect.set(el, "width", 100);
     Reflect.get(el, "updateLayout").call(el, false);
@@ -294,6 +299,7 @@ describe("CcSwiper", () => {
       pointerId: 11,
       clientX: 30
     }));
+    vi.advanceTimersToNextFrame();
     const releasePositions = panels.map((panel) => translatedX(panel.style.transform));
     expect(releasePositions[0]).toBe(-100);
     expect(first.style.transform).not.toContain("-120px");
@@ -315,6 +321,57 @@ describe("CcSwiper", () => {
       if (!shouldTransition) return;
       expect(finalPosition).toBeLessThanOrEqual(releasePositions[index]);
     });
+  });
+
+  test("swipe release transitions from the last frame when a move is still pending", () => {
+    vi.useFakeTimers({ toFake: ["requestAnimationFrame", "cancelAnimationFrame"] });
+    const el = makeSwiper(4);
+    Reflect.set(el, "width", 100);
+    el.goTo(0, { animate: false });
+    const outgoing = el.shadowRoot!.querySelector<HTMLElement>(".cc-slide")!;
+    outgoing.dispatchEvent(new PointerEvent("pointerdown", {
+      bubbles: true,
+      pointerId: 12,
+      button: 0,
+      clientX: 150
+    }));
+    outgoing.dispatchEvent(new PointerEvent("pointermove", {
+      bubbles: true,
+      pointerId: 12,
+      clientX: 130
+    }));
+    vi.advanceTimersToNextFrame();
+    const startTransform = outgoing.style.transform;
+    expect(translatedX(startTransform)).toBe(-20);
+
+    const styles = new MutationObserver(() => {});
+    styles.observe(outgoing, { attributeFilter: ["style"], attributeOldValue: true });
+    try {
+      outgoing.dispatchEvent(new PointerEvent("pointermove", {
+        bubbles: true,
+        pointerId: 12,
+        clientX: 30
+      }));
+      outgoing.dispatchEvent(new PointerEvent("pointerup", {
+        bubbles: true,
+        pointerId: 12,
+        clientX: 30
+      }));
+
+      expect(el.index).toBe(1);
+      expect(outgoing.style.transition).toContain("250ms");
+      expect(translatedX(outgoing.style.transform)).toBe(-100);
+      const changes = styles.takeRecords();
+      expect(changes.length).toBeGreaterThan(0);
+      for (const { oldValue } of changes)
+        expect(oldValue).toContain(`transform: ${startTransform};`);
+
+      vi.advanceTimersToNextFrame();
+      expect(styles.takeRecords()).toHaveLength(0);
+      expect(translatedX(outgoing.style.transform)).toBe(-100);
+    } finally {
+      styles.disconnect();
+    }
   });
 
   test("opening the viewer on another swiper releases the previous autoplay owner", async () => {

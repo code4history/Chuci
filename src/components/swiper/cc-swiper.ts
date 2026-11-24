@@ -18,8 +18,7 @@ interface ViewerLike {
 interface DragState {
   pointerId: number;
   x: number;
-  y: number;
-  lastX: number;
+  displayPx: number;
   startedAt: number;
   moved: boolean;
   index: number;
@@ -31,6 +30,8 @@ export class CcSwiper extends ChuciElement {
   private timer?: ReturnType<typeof setInterval>;
   private observer?: ResizeObserver;
   private drag?: DragState;
+  private dragFrame?: number;
+  private readonly panelPositions = new WeakMap<HTMLElement, number>();
   private width = 0;
   private pointerHandlers?: AbortController;
   private slidesObserver?: MutationObserver;
@@ -102,6 +103,8 @@ export class CcSwiper extends ChuciElement {
   }
 
   private cleanup() {
+    this.cancelDragFrame();
+    this.drag = undefined;
     this.pointerHandlers?.abort();
     this.pointerHandlers = undefined;
     this.observer?.disconnect();
@@ -245,6 +248,7 @@ export class CcSwiper extends ChuciElement {
   private onPointerDown(event: PointerEvent) {
     if ((event.target as HTMLElement).closest("button")) return;
     if (event.button !== 0 && event.pointerType !== "touch") return;
+    this.cancelDragFrame();
     const viewport = this.query<HTMLElement>("#viewport");
     try {
       viewport?.setPointerCapture(event.pointerId);
@@ -254,8 +258,7 @@ export class CcSwiper extends ChuciElement {
     this.drag = {
       pointerId: event.pointerId,
       x: event.clientX,
-      y: event.clientY,
-      lastX: event.clientX,
+      displayPx: 0,
       startedAt: performance.now(),
       moved: false,
       index: Number(
@@ -266,17 +269,28 @@ export class CcSwiper extends ChuciElement {
     };
   }
   private onPointerMove(event: PointerEvent) {
-    if (!this.drag || event.pointerId !== this.drag.pointerId) return;
-    const dx = event.clientX - this.drag.x;
-    if (Math.abs(dx) > FEEL.dragThresholdPx) this.drag.moved = true;
-    this.drag.lastX = event.clientX;
-    this.updateLayout(false, this.displayDragPx(dx));
+    const drag = this.drag;
+    if (!drag || event.pointerId !== drag.pointerId) return;
+    const dx = event.clientX - drag.x;
+    if (Math.abs(dx) > FEEL.dragThresholdPx) drag.moved = true;
+    drag.displayPx = this.displayDragPx(dx);
+    if (this.dragFrame !== undefined) return;
+    this.dragFrame = requestAnimationFrame(() => {
+      this.dragFrame = undefined;
+      this.updateLayout(false, drag.displayPx);
+    });
+  }
+  private cancelDragFrame() {
+    if (this.dragFrame === undefined) return;
+    cancelAnimationFrame(this.dragFrame);
+    this.dragFrame = undefined;
   }
   private onPointerUp(event: PointerEvent) {
     const drag = this.drag;
     if (!drag || event.pointerId !== drag.pointerId) return;
     const dx = event.clientX - drag.x;
     const moved = drag.moved || Math.abs(dx) > FEEL.dragThresholdPx;
+    this.cancelDragFrame();
     this.drag = undefined;
     if (!moved) {
       this.updateLayout(true);
@@ -285,10 +299,8 @@ export class CcSwiper extends ChuciElement {
     else {
       const elapsed = Math.max(1, performance.now() - drag.startedAt);
       const fast = Math.abs(dx) / elapsed > FEEL.swipeVelocityPxPerMs;
-      const displayDx = this.displayDragPx(dx);
-      this.updateLayout(false, displayDx);
       if (Math.abs(dx) >= this.width * FEEL.swipeCommitRatio || fast)
-        this.commitSwipe(dx < 0 ? -1 : 1, displayDx);
+        this.commitSwipe(dx < 0 ? -1 : 1);
       else this.updateLayout(true);
     }
   }
@@ -337,6 +349,7 @@ export class CcSwiper extends ChuciElement {
   }
 
   private updateLayout(animate: boolean, dragPx = 0) {
+    this.cancelDragFrame();
     const panels = Array.from(this.queryAll<HTMLElement>(".cc-slide"));
     const offsets = slideOffsets(this.index, panels.length, this.loop);
     if (this.width > 0)
@@ -347,9 +360,14 @@ export class CcSwiper extends ChuciElement {
         panel.style.transition = animate
           ? `transform ${FEEL.slideTransitionMs}ms ease`
           : "none";
-        panel.style.transform = `translateX(calc(${offset * 100}% + ${dragPx}px))`;
+        this.setPanelPosition(panel, offset, dragPx);
       });
     this.updateChrome();
+  }
+
+  private setPanelPosition(panel: HTMLElement, offset: number, dragPx: number) {
+    panel.style.transform = `translateX(calc(${offset * 100}% + ${dragPx}px))`;
+    this.panelPositions.set(panel, offset * this.width + dragPx);
   }
 
   private updateChrome() {
@@ -384,7 +402,7 @@ export class CcSwiper extends ChuciElement {
     this.updateLayout(false);
   };
 
-  private commitSwipe(direction: -1 | 1, dragPx: number) {
+  private commitSwipe(direction: -1 | 1) {
     const previousIndex = this.index;
     this.currentIndex = stepIndex(
       this.index,
@@ -393,19 +411,17 @@ export class CcSwiper extends ChuciElement {
       this.loop
     );
     const panels = Array.from(this.queryAll<HTMLElement>(".cc-slide"));
-    const previousOffsets = slideOffsets(previousIndex, panels.length, this.loop);
     const nextOffsets = slideOffsets(this.index, panels.length, this.loop);
+    // Resolve the last written transforms before replacing them with the transition targets.
+    panels[0]?.getBoundingClientRect();
     panels.forEach((panel, index) => {
-      const previousOffset =
-        panels.length === 2 && dragPx > 0 && index !== previousIndex
-          ? -1
-          : previousOffsets[index];
-      const fromX = previousOffset * this.width + dragPx;
+      const fromX = this.panelPositions.get(panel);
       const targetOffset = panels.length === 2 && index === previousIndex
         ? direction
         : nextOffsets[index];
       const toX = targetOffset * this.width;
-      const shouldTransition = Math.abs(fromX) < this.width || Math.abs(toX) < this.width;
+      const wasVisible = fromX !== undefined && Math.abs(fromX) < this.width;
+      const shouldTransition = wasVisible || Math.abs(toX) < this.width;
       panel.removeEventListener("transitionend", this.finishSwipeTransition);
       if (shouldTransition) {
         panel.addEventListener("transitionend", this.finishSwipeTransition);
@@ -413,7 +429,7 @@ export class CcSwiper extends ChuciElement {
       } else {
         panel.style.transition = "none";
       }
-      panel.style.transform = `translateX(calc(${targetOffset * 100}% + 0px))`;
+      this.setPanelPosition(panel, targetOffset, 0);
     });
     this.updateChrome();
     this.dispatch("cc-swiper-index-change", { index: this.index });

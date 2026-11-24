@@ -118,3 +118,31 @@
 
 - 試験で2・3・4枚の境界ケースと可視パネルの transition 判定を確認した。全体試験・型検査は通過。
 - lint はコード上のwarningを報告後に解消したが、指定の1回制限に従い修正後の再実行をしていない。push はしていない。
+
+# Task 2 レビュー指摘（第 4 回）修正報告
+
+## 修正内容
+
+- ドラッグ中の座標を `pointermove` で従来どおり ±幅に制限し、フレームごとに最新の値を DOM に書く。指を離した時は保留中のフレームを取り消し、リリース座標は送りの方向と確定条件に使う。
+- 各パネルの横位置を transform の書き込み時に記録し、最後に書いた位置と送り後の位置のどちらかが `|x| < 幅` を満たす場合に transition を付ける。リリース時に開始位置を再計算すると未描画の入力が混ざるため、記録済みの位置を共通の書き込み処理から取得する。遷移先を書く直前にブラウザーへ開始位置のスタイル計算を促す。
+- 幅100px・4枚で −20px を1フレーム表示し、−120px の move と up を同じフレーム内で送る回帰試験を追加した。退出パネルの transition、開始座標が −20px のまま遷移先を設定したこと、次のフレームで保留されていた座標が書かれないことを確認した。
+
+## 検証
+
+- RED　`node_modules/.bin/vitest run tests/cc-swiper.test.ts` — 23件成功、追加した1件が失敗。退出パネルの transition で `expected 'none' to contain '250ms'` を確認。
+- GREEN　`node_modules/.bin/vitest run tests/cc-swiper.test.ts` — `1 passed (1)` ファイル、`24 passed (24)` 件。40px・120px のドラッグ、所有者、子孫監視、切り離しの既存試験を含む。
+- ローカル Chrome の追加確認　esbuild でコンポーネントを一時ディレクトリに束ね、`node <一時ディレクトリ>/verify-swipe.mjs` で同じ操作を実行。計算済み transform の X 座標は遷移開始時 −20px、125ms 時点 −84.1923px、250ms 時点 −100px。送り後のインデックスは1。
+- 全体　`node_modules/.bin/vitest run` — `9 passed (9)` ファイル、`125 passed (125)` 件。jsdom の環境作成時間に関する案内が出力された。
+- 型検査　`node_modules/.bin/tsc --noEmit` — 終了コード0、出力なし。
+- lint　`node_modules/.bin/eslint src tests` — 終了コード0、出力なし。
+- 差分形式　`git diff --check` — 終了コード0、出力なし。
+
+## 変更ファイル
+
+- `src/components/swiper/cc-swiper.ts`
+- `tests/cc-swiper.test.ts`
+- `.superpowers/sdd/2026-11-25-viewer-renewal/task-2-report.md`
+
+## 自己レビュー
+
+- 指を離す場合、キャンセルで通常配置に戻す場合、再描画・切り離しで後処理する場合に保留フレームが取り消されることを差分で確認した。追加の懸念なし。
