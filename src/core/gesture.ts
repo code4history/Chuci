@@ -23,6 +23,7 @@ export class GestureInterpreter {
   private pinchLastCenter: PointerPosition | undefined;
   private pinchStarted = false;
   private lastTap = Number.NEGATIVE_INFINITY;
+  private lastTapPosition: PointerPosition | undefined;
   private wheelTimer: ReturnType<typeof setTimeout> | undefined;
 
   constructor(
@@ -130,7 +131,7 @@ export class GestureInterpreter {
     this.pointers.delete(event.pointerId);
     if (this.pointers.size === 0) {
       if (!canceled && !this.multiPointer && !this.primaryStarted && pointer.button !== 2) {
-        this.handleTap();
+        this.handleTap(pointer);
       }
       this.resetPointerState();
     } else if (this.pointers.size === 1) {
@@ -197,13 +198,21 @@ export class GestureInterpreter {
     this.pinchLastDistance = distance;
   }
 
-  private handleTap(): void {
+  private handleTap(position: PointerPosition): void {
     const now = Date.now();
-    if (now - this.lastTap <= FEEL.doubleTapMs) {
+    const previous = this.lastTapPosition;
+    const isDoubleTap =
+      previous !== undefined &&
+      now - this.lastTap <= FEEL.doubleTapMs &&
+      previous.pointerType === position.pointerType &&
+      Math.hypot(position.x - previous.x, position.y - previous.y) <= FEEL.doubleTapSlopPx;
+    if (isDoubleTap) {
       this.lastTap = Number.NEGATIVE_INFINITY;
+      this.lastTapPosition = undefined;
       this.onGesture({ kind: "reset" });
     } else {
       this.lastTap = now;
+      this.lastTapPosition = position;
       this.onGesture({ kind: "tap" });
     }
   }

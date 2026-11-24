@@ -9,6 +9,7 @@ export const FEEL = {
   panSpeed: 1,
   wheelZoomStep: 0.0015,
   doubleTapMs: 300,
+  doubleTapSlopPx: 24,
   barHideDelayMs: 3000
 } as const;
 

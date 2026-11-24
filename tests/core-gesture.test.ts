@@ -136,6 +136,21 @@ describe("GestureInterpreter", () => {
     interpreter.dispose();
   });
 
+  test("taps far apart or from different pointer types are not a double tap", () => {
+    vi.useFakeTimers();
+    const { target, events, interpreter } = makeInterpreter();
+    pointer(target, "pointerdown", { pointerId: 1, pointerType: "mouse", button: 0, clientX: 4, clientY: 5 });
+    pointer(target, "pointerup", { pointerId: 1, pointerType: "mouse", button: 0, clientX: 4, clientY: 5 });
+    vi.advanceTimersByTime(150);
+    pointer(target, "pointerdown", { pointerId: 2, pointerType: "mouse", button: 0, clientX: 484, clientY: 5 });
+    pointer(target, "pointerup", { pointerId: 2, pointerType: "mouse", button: 0, clientX: 484, clientY: 5 });
+    vi.advanceTimersByTime(150);
+    pointer(target, "pointerdown", { pointerId: 3, pointerType: "touch", button: 0, clientX: 484, clientY: 5 });
+    pointer(target, "pointerup", { pointerId: 3, pointerType: "touch", button: 0, clientX: 484, clientY: 5 });
+    expect(events).toEqual([{ kind: "tap" }, { kind: "tap" }, { kind: "tap" }]);
+    interpreter.dispose();
+  });
+
   test("two pointer taps outside doubleTapMs remain separate taps", () => {
     vi.useFakeTimers();
     const { target, events, interpreter } = makeInterpreter();
