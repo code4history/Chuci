@@ -64,3 +64,31 @@
 ## 懸念
 
 - なし。push はしていない。
+
+# Task 2 レビュー指摘（第 2 回）修正報告
+
+## 修正内容
+
+- スワイプ確定時、ドラッグ中の配置を起点にして、出ていくパネルはスワイプ方向へ、次のパネルは 0% へ transition するよう変更した。3 枚以上で間に合わないパネルは transition を `none` にして新しい配置へ移す。transition 完了時は正規の `slideOffsets` 配置へ transition なしで整える。
+- 別のスライダーが同じビューアを開いた場合、前の所有者の `viewerOpen` を解除して自動送りを再開する。ビューアの close 後は新しい所有者も再開する。
+- スライド監視を `subtree: true` にし、列挙されるスライド要素の配列が変わった場合だけ再構築する。スライド以外の子要素追加ではサムネイル設定や自動送りタイマーを更新しない。
+- 所有中のスライダーが DOM から切断された場合、disconnect 時に viewer ownership を解除する。再接続時には viewerOpen が残らず、自動送りを開始できる。
+- 2 枚・3 枚のスワイプ遷移、ビューア所有者の順次切替、ラッパー内の 1→2→1 枚変更と span 追加、ビューア表示中の切断・close・再接続を回帰試験に追加した。
+
+## 検証
+
+- RED: `node_modules/.bin/vitest run tests/cc-swiper.test.ts` — 新規回帰試験を含む 20 件中 5 件が失敗。逆走・余分なパネルの transition・所有者移譲・子孫監視・disconnect 後の自動送り再開が未実装であるための失敗を確認。
+- GREEN: `node_modules/.bin/vitest run tests/cc-swiper.test.ts` — 1 file / 20 tests passed。
+- 全体: `node_modules/.bin/vitest run` — 9 files / 121 tests passed。Vitest は jsdom 環境の生成時間に関する案内を出力したが、失敗・警告はなし。
+- 型検査: `node_modules/.bin/tsc --noEmit` — 成功。
+- lint: `node_modules/.bin/eslint src tests` — 成功。
+- 差分形式: `git diff --check` — 成功。
+
+## 変更ファイル
+
+- 変更: `src/components/swiper/cc-swiper.ts`、`tests/cc-swiper.test.ts`
+
+## 自己レビュー・懸念
+
+- 指摘 2・3・5 と新規 Important の再現試験を追加し、指摘のタイマー状態・DOM パネル数・遷移先も検査した。
+- 追加の懸念なし。push はしていない。

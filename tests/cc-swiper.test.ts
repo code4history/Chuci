@@ -19,6 +19,15 @@ function makeSwiper(count = 3, attrs: Record<string, string> = {}): CcSwiper {
   return el;
 }
 
+function stubViewerOpen() {
+  let viewer = document.querySelector("cc-viewer") as (Element & { open: (...args: unknown[]) => void }) | null;
+  if (!viewer) {
+    viewer = document.createElement("cc-viewer") as Element & { open: (...args: unknown[]) => void };
+    document.body.append(viewer);
+  }
+  vi.spyOn(viewer, "open").mockImplementation(() => {});
+}
+
 afterEach(() => {
   vi.useRealTimers();
   document.body.innerHTML = "";
@@ -227,6 +236,100 @@ describe("CcSwiper", () => {
     expect(first.index).toBe(0);
     expect(second.index).toBe(2);
     document.dispatchEvent(new CustomEvent("cc-viewer-close"));
+  });
+
+  test.each([2, 3])( "swipe transition advances from drag position without reverse travel (%i slides)", (count) => {
+    const el = makeSwiper(count);
+    Reflect.set(el, "width", 100);
+    Reflect.get(el, "updateLayout").call(el, false);
+    const panels = Array.from(el.shadowRoot!.querySelectorAll<HTMLElement>(".cc-slide"));
+    const outgoing = panels[0];
+    const incoming = panels[1];
+    const skipped = count === 3 ? panels[2] : undefined;
+    const startOutgoing = outgoing.style.transform;
+    const startIncoming = incoming.style.transform;
+    const pointerDown = new PointerEvent("pointerdown", { bubbles: true, pointerId: 9, button: 0, clientX: 80 });
+    const pointerMove = new PointerEvent("pointermove", { bubbles: true, pointerId: 9, clientX: 40 });
+    const pointerUp = new PointerEvent("pointerup", { bubbles: true, pointerId: 9, clientX: 40 });
+    outgoing.dispatchEvent(pointerDown);
+    outgoing.dispatchEvent(pointerMove);
+    const draggedOutgoing = outgoing.style.transform;
+    const draggedIncoming = incoming.style.transform;
+    outgoing.dispatchEvent(pointerUp);
+
+    expect(draggedOutgoing).toContain("-40px");
+    expect(draggedIncoming).toContain("100% + -40px");
+    expect(startOutgoing).toContain("0%");
+    expect(startIncoming).toContain("100%");
+    expect(outgoing.style.transform).toContain("-100%");
+    expect(incoming.style.transform).toContain("0%");
+    expect(outgoing.style.transition).toContain("250ms");
+    expect(incoming.style.transition).toContain("250ms");
+    if (skipped) {
+      expect(skipped.style.transition).toBe("none");
+      expect(skipped.style.transform).toContain("100%");
+    }
+  });
+
+  test("opening the viewer on another swiper releases the previous autoplay owner", async () => {
+    vi.useFakeTimers();
+    const first = makeSwiper(2, { autoplay: "" });
+    const second = makeSwiper(2, { autoplay: "" });
+    stubViewerOpen();
+    first.pauseAutoplay();
+    second.pauseAutoplay();
+    await first.openViewer(0);
+    expect(vi.getTimerCount()).toBe(0);
+    await second.openViewer(0);
+    expect(vi.getTimerCount()).toBe(1);
+    document.dispatchEvent(new CustomEvent("cc-viewer-close"));
+    expect(vi.getTimerCount()).toBe(2);
+  });
+
+  test("observes nested slide changes but ignores unrelated child additions", async () => {
+    vi.useFakeTimers();
+    const el = makeSwiper(1, { autoplay: "", "has-thumb": "" });
+    const wrapper = document.createElement("div");
+    const slide = el.querySelector("cc-swiper-slide")!;
+    wrapper.append(slide);
+    el.append(wrapper);
+    await Promise.resolve();
+    expect(el.items).toHaveLength(1);
+    const second = document.createElement("cc-swiper-slide");
+    second.setAttribute("image-url", "https://example.com/2.jpg");
+    wrapper.append(second);
+    await Promise.resolve();
+    expect(el.items).toHaveLength(2);
+    expect(el.shadowRoot!.querySelectorAll(".cc-slide")).toHaveLength(2);
+    expect(vi.getTimerCount()).toBe(1);
+    Reflect.get(el, "setThumbnailSource").call(el, 1, "https://example.com/generated.jpg");
+    vi.advanceTimersByTime(2000);
+    wrapper.append(document.createElement("span"));
+    await Promise.resolve();
+    expect(el.shadowRoot!.querySelector<HTMLImageElement>('[data-thumb-index="1"]')!.getAttribute("src"))
+      .toBe("https://example.com/generated.jpg");
+    vi.advanceTimersByTime(3000);
+    expect(el.index).toBe(1);
+    wrapper.removeChild(second);
+    await Promise.resolve();
+    expect(el.items).toHaveLength(1);
+    expect(el.shadowRoot!.querySelectorAll(".cc-slide")).toHaveLength(1);
+    expect(vi.getTimerCount()).toBe(0);
+  });
+
+  test("restarts autoplay after viewer closes while swiper is disconnected", async () => {
+    vi.useFakeTimers();
+    const el = makeSwiper(2, { autoplay: "" });
+    stubViewerOpen();
+    el.pauseAutoplay();
+    await el.openViewer(0);
+    expect(vi.getTimerCount()).toBe(0);
+    el.remove();
+    document.dispatchEvent(new CustomEvent("cc-viewer-close"));
+    document.body.append(el);
+    expect(vi.getTimerCount()).toBe(1);
+    vi.advanceTimersByTime(5000);
+    expect(el.index).toBe(1);
   });
 
   test("recomputes layout when width becomes non-zero", () => {

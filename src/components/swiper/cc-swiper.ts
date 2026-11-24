@@ -34,6 +34,7 @@ export class CcSwiper extends ChuciElement {
   private width = 0;
   private pointerHandlers?: AbortController;
   private slidesObserver?: MutationObserver;
+  private observedSlides: Element[] = [];
   private viewerOpen = false;
   private stopHostPropagation = (event: Event) => event.stopPropagation();
 
@@ -117,6 +118,10 @@ export class CcSwiper extends ChuciElement {
 
   disconnectedCallback() {
     this.cleanup();
+    if (CcSwiper.activeViewerOwner === this) {
+      CcSwiper.activeViewerOwner = undefined;
+      this.viewerOpen = false;
+    }
     super.disconnectedCallback();
   }
 
@@ -281,22 +286,28 @@ export class CcSwiper extends ChuciElement {
       const elapsed = Math.max(1, performance.now() - drag.startedAt);
       const fast = Math.abs(dx) / elapsed > FEEL.swipeVelocityPxPerMs;
       if (Math.abs(dx) >= this.width * FEEL.swipeCommitRatio || fast)
-        this.goTo(
-          stepIndex(this.index, dx < 0 ? 1 : -1, this.items.length, this.loop)
-        );
+        this.commitSwipe(dx < 0 ? -1 : 1);
       else this.updateLayout(true);
     }
   }
 
   private observeSlides() {
     if (typeof MutationObserver === "undefined") return;
+    this.observedSlides = this.slides;
     this.slidesObserver = new MutationObserver(() => {
+      const slides = this.slides;
+      if (
+        slides.length === this.observedSlides.length &&
+        slides.every((slide, index) => slide === this.observedSlides[index])
+      )
+        return;
+      this.observedSlides = slides;
       this.currentIndex = normalizeIndex(this.currentIndex, this.items.length, this.loop);
       this.buildSlides();
       this.updateLayout(false);
       if (!this.viewerOpen) this.startAutoplay();
     });
-    this.slidesObserver.observe(this, { childList: true });
+    this.slidesObserver.observe(this, { childList: true, subtree: true });
   }
 
   private observeSize() {
@@ -328,6 +339,10 @@ export class CcSwiper extends ChuciElement {
           : "none";
         panel.style.transform = `translateX(calc(${offset * 100}% + ${dragPx}px))`;
       });
+    this.updateChrome();
+  }
+
+  private updateChrome() {
     const caption = this.query<HTMLDivElement>("#caption");
     if (caption) {
       const model = captionBarModel(
@@ -349,6 +364,46 @@ export class CcSwiper extends ChuciElement {
       if (i === this.index) thumb.setAttribute("aria-current", "true");
       else thumb.removeAttribute("aria-current");
     });
+  }
+
+  private finishSwipeTransition = (event: TransitionEvent) => {
+    if (event.propertyName !== "transform") return;
+    (event.currentTarget as HTMLElement).removeEventListener(
+      "transitionend",
+      this.finishSwipeTransition
+    );
+    this.updateLayout(false);
+  };
+
+  private commitSwipe(direction: -1 | 1) {
+    const previousIndex = this.index;
+    this.currentIndex = stepIndex(
+      this.index,
+      direction === -1 ? 1 : -1,
+      this.items.length,
+      this.loop
+    );
+    const panels = Array.from(this.queryAll<HTMLElement>(".cc-slide"));
+    const offsets = slideOffsets(this.index, panels.length, this.loop);
+    const nextPanel = panels[this.index];
+    const previousPanel = panels[previousIndex];
+    panels.forEach((panel, index) => {
+      if (panel === previousPanel || panel === nextPanel) return;
+      panel.style.transition = "none";
+      panel.style.transform = `translateX(calc(${offsets[index] * 100}% + 0px))`;
+    });
+    if (previousPanel) {
+      previousPanel.removeEventListener("transitionend", this.finishSwipeTransition);
+      previousPanel.addEventListener("transitionend", this.finishSwipeTransition);
+      previousPanel.style.transition = `transform ${FEEL.slideTransitionMs}ms ease`;
+      previousPanel.style.transform = `translateX(calc(${direction * 100}% + 0px))`;
+    }
+    if (nextPanel) {
+      nextPanel.style.transition = `transform ${FEEL.slideTransitionMs}ms ease`;
+      nextPanel.style.transform = "translateX(calc(0% + 0px))";
+    }
+    this.updateChrome();
+    this.dispatch("cc-swiper-index-change", { index: this.index });
   }
 
   goTo(index: number, opts: { animate?: boolean } = {}) {
@@ -373,6 +428,11 @@ export class CcSwiper extends ChuciElement {
   }
 
   async openViewer(index: number): Promise<void> {
+    const previousOwner = CcSwiper.activeViewerOwner;
+    if (previousOwner && previousOwner !== this) {
+      previousOwner.viewerOpen = false;
+      previousOwner.resumeAutoplay();
+    }
     CcSwiper.activeViewerOwner = this;
     this.viewerOpen = true;
     this.pauseAutoplay();
