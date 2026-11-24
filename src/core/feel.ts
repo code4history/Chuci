@@ -8,6 +8,8 @@ export const FEEL = {
   rotateSpeed: 1,
   panSpeed: 1,
   wheelZoomStep: 0.0015,
+  imageMinZoom: 0.25,
+  imageMaxZoom: 8,
   doubleTapMs: 300,
   doubleTapSlopPx: 24,
   barHideDelayMs: 3000

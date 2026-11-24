@@ -25,9 +25,6 @@ importers:
       three:
         specifier: ^0.186.1
         version: 0.186.1
-      viewerjs:
-        specifier: ^1.11.7
-        version: 1.15.2
     devDependencies:
       '@eslint/js':
         specifier: ^10.0.1
@@ -1487,9 +1484,6 @@ packages:
   uri-js@4.4.1:
     resolution: {integrity: sha512-7rKUyy33Q1yc98pQ1DAmLtwX109F7TIfWlW1Ydo8Wl1ii1SeHieeh0HHfPeL2fMXK6z0s8ecKs9frCuLJvndBg==}
 
-  viewerjs@1.15.2:
-    resolution: {integrity: sha512-CYEqSFfPUSnmn1PjrhYxXOScaUC7n8+NpSqI+MrOSM8wcKPe35MlwQYwksuD5rjFkYv/ePmY5NsUa51uRNN2jA==}
-
   vite-plugin-dts@5.1.2:
     resolution: {integrity: sha512-1bXUz836sWq6ewEMQre3ZtNFVfZk/92DppgCCKP8tWx/NWwV2wHuXlRHb2TztHjbikPxvyAGLGu7hVh94Plwww==}
     peerDependencies:
@@ -2920,8 +2914,6 @@ snapshots:
   uri-js@4.4.1:
     dependencies:
       punycode: 2.3.1
-
-  viewerjs@1.15.2: {}
 
   vite-plugin-dts@5.1.2(@microsoft/api-extractor@7.59.4(@types/node@26.6.5))(esbuild@0.28.2)(rollup@4.64.5)(supports-color@8.1.1)(typescript@6.0.3)(vite@7.3.7(@types/node@26.6.5)):
     dependencies:
