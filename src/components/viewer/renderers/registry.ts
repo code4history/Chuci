@@ -1,6 +1,7 @@
 import type { MediaType } from "@/core/media-item";
 import type { MediaRenderer } from "./types";
 import { ImageRenderer } from "./image-renderer";
+import { ModelRenderer } from "./model-renderer";
 import { VideoRenderer } from "./video-renderer";
 import { YoutubeRenderer } from "./youtube-renderer";
 
@@ -22,6 +23,8 @@ export async function createRenderer(type: MediaType): Promise<MediaRenderer> {
       return new VideoRenderer();
     case "youtube":
       return new YoutubeRenderer();
+    case "3dmodel":
+      return new ModelRenderer();
     default:
       return new UnsupportedRenderer(type);
   }

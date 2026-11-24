@@ -5,6 +5,7 @@ export const FEEL = {
   swipeVelocityPxPerMs: 0.35,
   slideTransitionMs: 250,
   dampingFactor: 0.9,
+  dampingReferenceHz: 60,
   rotateSpeed: 1,
   panSpeed: 1,
   wheelZoomStep: 0.0015,

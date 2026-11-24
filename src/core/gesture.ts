@@ -8,8 +8,10 @@ export type GestureEvent =
   | { kind: "start" };
 
 type PointerPosition = { x: number; y: number; pointerType: string; button: number };
+type GestureListener = (event: GestureEvent) => void;
 
 export class GestureInterpreter {
+  private readonly listeners = new Set<GestureListener>();
   private readonly pointers = new Map<number, PointerPosition>();
   private primaryId: number | undefined;
   private primaryStart: PointerPosition | undefined;
@@ -29,9 +31,10 @@ export class GestureInterpreter {
 
   constructor(
     private readonly target: HTMLElement,
-    private readonly onGesture: (event: GestureEvent) => void,
+    onGesture: GestureListener,
     private readonly options: { observeOnly?: boolean } = {}
   ) {
+    this.listeners.add(onGesture);
     if (!options.observeOnly) {
       // 余白から始めたタッチでもブラウザのスクロールに奪われないよう、受け手全体で既定のタッチ操作を止める
       this.previousTouchAction = target.style.touchAction;
@@ -49,6 +52,19 @@ export class GestureInterpreter {
     }
   }
 
+  get viewportHeight(): number {
+    return this.target.getBoundingClientRect().height;
+  }
+
+  subscribe(listener: GestureListener): () => void {
+    this.listeners.add(listener);
+    return () => { this.listeners.delete(listener); };
+  }
+
+  private onGesture(event: GestureEvent): void {
+    for (const listener of this.listeners) listener(event);
+  }
+
   dispose(): void {
     if (this.previousTouchAction !== undefined) {
       this.target.style.touchAction = this.previousTouchAction;
@@ -64,6 +80,7 @@ export class GestureInterpreter {
     if (this.wheelTimer !== undefined) clearTimeout(this.wheelTimer);
     this.wheelTimer = undefined;
     this.pointers.clear();
+    this.listeners.clear();
   }
 
   private readonly onPointerDown = (event: PointerEvent): void => {
