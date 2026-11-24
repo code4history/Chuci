@@ -1,6 +1,6 @@
 import {
   AmbientLight, Box3, DirectionalLight, Group, LoadingManager, Material, MathUtils,
-  Matrix4, Mesh, MeshPhongMaterial, Object3D, PerspectiveCamera, Vector3,
+  Matrix4, Mesh, MeshPhongMaterial, Object3D, PerspectiveCamera, Texture, Vector3,
 } from "three";
 import { MTLLoader } from "three/examples/jsm/loaders/MTLLoader.js";
 import { OBJLoader } from "three/examples/jsm/loaders/OBJLoader.js";
@@ -52,33 +52,56 @@ async function fetchText(url: string, signal: AbortSignal): Promise<string> {
   return response.text();
 }
 
-function preloadMaterials(
-  materials: MTLLoader.MaterialCreator,
-  manager: LoadingManager,
+async function loadModelMaterials(
+  url: string,
+  baseURI: string,
+  signal: AbortSignal,
+): Promise<MTLLoader.MaterialCreator | undefined> {
+  try {
+    const source = await fetchText(url, signal);
+    const resolvedUrl = new URL(url, baseURI);
+    const basePath = resolvedUrl.protocol === "data:" || resolvedUrl.protocol === "blob:"
+      ? "" : new URL(".", resolvedUrl).href;
+    return new MTLLoader(new LoadingManager()).parse(source, basePath);
+  } catch {
+    signal.throwIfAborted();
+    return undefined;
+  }
+}
+
+function trackMaterialTextures(materials: MTLLoader.MaterialCreator) {
+  const pending: Promise<void>[] = [];
+  const failed = new Set<Texture>();
+  const loadTexture = materials.loadTexture.bind(materials);
+  materials.loadTexture = (url, mapping) => {
+    let complete!: (loaded: boolean) => void;
+    const loaded = new Promise<boolean>((resolve) => { complete = resolve; });
+    let texture: Texture;
+    try {
+      texture = loadTexture(url, mapping, () => complete(true), undefined, () => complete(false));
+    } catch {
+      texture = new Texture();
+      complete(false);
+    }
+    pending.push(loaded.then((success) => {
+      if (!success) failed.add(texture);
+    }));
+    return texture;
+  };
+  return { pending, failed };
+}
+
+function waitForTextures(
+  pending: Promise<void>[],
   signal: AbortSignal,
 ): Promise<void> {
-  return new Promise((resolve, reject) => {
-    const finish = (error?: unknown) => {
-      signal.removeEventListener("abort", abort);
-      manager.onLoad = () => {};
-      manager.onError = () => {};
-      if (error !== undefined) reject(error);
-      else resolve();
+  return new Promise((resolve) => {
+    const finish = () => {
+      signal.removeEventListener("abort", finish);
+      resolve();
     };
-    const abort = () => finish(signal.reason);
-    signal.addEventListener("abort", abort, { once: true });
-    manager.onLoad = () => finish();
-    manager.onError = (url) => finish(new Error(`Failed to load model texture: ${url}`));
-    // Keep the manager busy until preload has queued every texture.
-    const batch = "materials";
-    manager.itemStart(batch);
-    try {
-      materials.preload();
-    } catch (error) {
-      finish(error);
-    } finally {
-      manager.itemEnd(batch);
-    }
+    signal.addEventListener("abort", finish, { once: true });
+    void Promise.all(pending).then(finish);
   });
 }
 
@@ -98,31 +121,27 @@ export async function prepareModelScene(
   signal.throwIfAborted();
   if (!item.url) throw new Error("No model URL provided");
   const { materialUrl } = item;
-  const [source, materialSource] = await Promise.all([
+  const { baseURI } = stage.renderer.domElement;
+  const [source, materials] = await Promise.all([
     fetchText(item.url, signal),
-    materialUrl ? fetchText(materialUrl, signal) : undefined,
+    materialUrl ? loadModelMaterials(materialUrl, baseURI, signal) : undefined,
   ]);
   signal.throwIfAborted();
 
   const loader = new OBJLoader();
+  const textures = materials && trackMaterialTextures(materials);
+  if (materials) loader.setMaterials(materials);
   const retainedMaterials = new Set<Material>();
   let object: Group | undefined;
   try {
-    if (materialUrl && materialSource !== undefined) {
-      const manager = new LoadingManager();
-      const url = new URL(materialUrl, stage.renderer.domElement.baseURI);
-      const basePath = url.protocol === "data:" || url.protocol === "blob:"
-        ? "" : new URL(".", url).href;
-      const materials = new MTLLoader(manager).parse(materialSource, basePath);
-      try {
-        await preloadMaterials(materials, manager, signal);
-      } finally {
+    try {
+      // OBJLoader creates only the materials referenced by the geometry.
+      object = loader.parse(source);
+    } finally {
+      if (materials) {
         for (const material of Object.values(materials.materials)) retainedMaterials.add(material);
       }
-      signal.throwIfAborted();
-      loader.setMaterials(materials);
     }
-    object = loader.parse(source);
     normalizeModel(object);
 
     const position = parseVec3(item.cameraPosition);
@@ -140,12 +159,36 @@ export async function prepareModelScene(
     });
     const untextured = new MeshPhongMaterial({ color: 0xcccccc });
     retainedMaterials.add(untextured);
+    const missingMaterials = Boolean(materialUrl && !materials);
+    let texturesReady = !textures?.pending.length;
+    let textureOn = item.showTexture !== false;
+    const displayMaterial = (material: Material): Material =>
+      Object.values(material).some((value) => value instanceof Texture && textures?.failed.has(value))
+        ? untextured : material;
     const setTexture = (on: boolean): void => {
+      textureOn = on;
       for (const [mesh, material] of originalMaterials) {
-        mesh.material = on ? material : untextured;
+        if (!on || missingMaterials || !texturesReady) {
+          mesh.material = untextured;
+        } else if (!textures?.failed.size) {
+          mesh.material = material;
+        } else {
+          mesh.material = Array.isArray(material) ? material.map(displayMaterial) : displayMaterial(material);
+        }
       }
     };
-    setTexture(item.showTexture !== false);
+    setTexture(textureOn);
+    signal.throwIfAborted();
+    if (textures && !texturesReady) {
+      const ready = waitForTextures(textures.pending, signal).then(() => {
+        if (signal.aborted) return;
+        texturesReady = true;
+        if (textureOn) setTexture(true);
+      });
+      // Wait only if the initial view (including a thumbnail capture) needs the textures.
+      if (textureOn) await ready;
+      signal.throwIfAborted();
+    }
 
     const light = new DirectionalLight(0xffffff, 1);
     light.position.set(1, 1, 1);

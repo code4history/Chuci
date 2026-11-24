@@ -175,7 +175,7 @@ export class CcViewer extends ChuciElement {
           font: 26px/1 sans-serif;
           cursor: pointer;
         }
-        .bar-hidden .nav-button { opacity: .25; }
+        .bar-hidden :is(.nav-prev, .nav-next, .nav-close) { opacity: .25; }
         .nav-prev, .nav-next { top: 50%; transform: translateY(-50%); }
         .nav-prev { left: 12px; }
         .nav-next, .nav-close { right: 12px; }

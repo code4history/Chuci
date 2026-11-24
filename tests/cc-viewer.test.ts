@@ -349,6 +349,24 @@ describe("cc-viewer", () => {
     expect(button.isConnected).toBe(false);
   });
 
+  test("dims only previous, next and close when the caption bar is hidden", async () => {
+    vi.useFakeTimers();
+    const button = document.createElement("button");
+    createRenderer.mockResolvedValueOnce({ ...fakeRenderer(), mediaControls: () => [button] });
+    viewer.open([item, item], 0, { loop: true });
+    await flush();
+    vi.advanceTimersByTime(FEEL.barHideDelayMs);
+
+    expect(el(".caption").hidden).toBe(true);
+    const selector = el("style").textContent!
+      .match(/([^{}]+)\{\s*opacity:\s*\.25;\s*\}/)?.[1].trim();
+    expect(selector).toBeDefined();
+    expect([...root.querySelectorAll(selector!)]).toEqual([
+      el(".nav-prev"), el(".nav-next"), el(".nav-close")
+    ]);
+    expect(button.isConnected).toBe(true);
+  });
+
   test("hides previous and next for a single item even in loop mode", () => {
     viewer.open([item], 0, { loop: true });
     expect(el(".nav-prev").hidden).toBe(true);

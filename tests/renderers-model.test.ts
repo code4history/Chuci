@@ -1,21 +1,41 @@
 import { afterEach, expect, test, vi } from "vitest";
 import {
   Box3, BoxGeometry, Group, Mesh, MeshPhongMaterial, ShaderMaterial, Texture, TextureLoader,
-  Vector3, type LoadingManager, type WebGLRenderer,
+  Vector3, type BufferGeometry, type LoadingManager, type Scene, type WebGLRenderer,
 } from "three";
 import { OBJLoader } from "three/examples/jsm/loaders/OBJLoader.js";
 import type { MediaItem } from "../src/core/media-item";
-import { prepareModelScene } from "../src/components/viewer/renderers/model-renderer";
+import { ModelRenderer, prepareModelScene } from "../src/components/viewer/renderers/model-renderer";
 import { ThreeStage } from "../src/components/viewer/renderers/three-stage";
+
+const { render } = vi.hoisted(() => ({ render: vi.fn<(scene: Scene) => void>() }));
+vi.mock("three", async (importOriginal) => ({
+  ...await importOriginal<typeof import("three")>(),
+  WebGLRenderer: class {
+    readonly domElement: HTMLCanvasElement;
+    readonly render = render;
+    readonly setPixelRatio = vi.fn();
+    readonly setSize = vi.fn();
+    readonly dispose = vi.fn();
+    readonly forceContextLoss = vi.fn();
+
+    constructor({ canvas }: { canvas: HTMLCanvasElement }) {
+      this.domElement = canvas;
+    }
+  },
+}));
 
 const item: MediaItem = {
   type: "3dmodel", url: "/model.obj", caption: "", thumbnailUrl: "",
   fitToContainer: false, debugMode: false,
 };
 const stages: ThreeStage[] = [];
+const modelRenderers: ModelRenderer[] = [];
 
 afterEach(() => {
   for (const stage of stages.splice(0)) stage.dispose();
+  for (const renderer of modelRenderers.splice(0)) renderer.unmount();
+  render.mockClear();
   vi.restoreAllMocks();
   vi.unstubAllGlobals();
 });
@@ -48,6 +68,41 @@ function fakeModel() {
   vi.spyOn(OBJLoader.prototype, "parse").mockReturnValue(object);
   vi.stubGlobal("fetch", vi.fn(async () => new Response("# OBJ")));
   return { mesh, object, original };
+}
+
+const materialUrl = "https://example.test/models/scene.mtl";
+const paintedTexture = "https://example.test/models/painted.png";
+const missingTexture = "https://example.test/models/missing.png";
+const paintedFace = "v 0 0 0\nv 2 0 0\nv 0 2 0\nv 0 0 2\nusemtl painted\nf 1 2 3";
+const secondFace = "\nusemtl second\nf 1 3 4";
+const modelMaterials = "newmtl painted\nmap_Kd painted.png\nnewmtl second\nmap_Kd missing.png";
+
+function serveModelFiles(obj: string, mtl?: string) {
+  vi.stubGlobal("fetch", vi.fn(async (url: string) => {
+    if (url === item.url) return new Response(obj);
+    if (url === materialUrl && mtl !== undefined) return new Response(mtl);
+    return new Response(null, { status: 404 });
+  }));
+}
+
+function mountModel(overrides: Partial<MediaItem> = {}) {
+  const renderer = new ModelRenderer();
+  modelRenderers.push(renderer);
+  const host = document.createElement("div");
+  document.body.append(host);
+  const mounted = renderer.mount(host, { ...item, materialUrl, ...overrides }, {
+    signal: new AbortController().signal,
+    reportInteraction: vi.fn(),
+    reportError: vi.fn(),
+    requestDebugRefresh: vi.fn(),
+  });
+  return { renderer, mounted };
+}
+
+function renderedMesh() {
+  const mesh = render.mock.lastCall?.[0].getObjectByProperty("isMesh", true);
+  expect(mesh).toBeInstanceOf(Mesh);
+  return mesh as Mesh<BufferGeometry, MeshPhongMaterial | MeshPhongMaterial[]>;
 }
 
 test("explicit camera coordinates take priority over fit-to-container", async () => {
@@ -130,6 +185,76 @@ test("show-texture=false starts gray and restores the same original material", a
   expect(releaseTexture).toHaveBeenCalledOnce();
 });
 
+test.each([
+  { name: "unused", useSecond: false },
+  { name: "used", useSecond: true },
+])("mount renders the OBJ when a texture is missing ($name material)", async ({ useSecond }) => {
+  serveModelFiles(useSecond ? paintedFace + secondFace : paintedFace, modelMaterials);
+  const requestImage = vi.spyOn(HTMLImageElement.prototype, "src", "set").mockImplementation(function (
+    this: HTMLImageElement, url,
+  ) {
+    queueMicrotask(() => this.dispatchEvent(new Event(url === missingTexture ? "error" : "load")));
+  });
+  const { mounted } = mountModel();
+  await expect(mounted).resolves.toBeUndefined();
+  await vi.waitFor(renderedMesh);
+  const materials = [renderedMesh().material].flat();
+  expect(materials[0].name).toBe("painted");
+  expect(materials[0].map?.image).toBeInstanceOf(HTMLImageElement);
+  if (useSecond) {
+    expect(requestImage).toHaveBeenCalledWith(missingTexture);
+    expect(materials).toHaveLength(2);
+    expect(materials[1].map).toBeNull();
+    expect(materials[1].color.getHex()).toBe(0xcccccc);
+  } else {
+    expect(requestImage).not.toHaveBeenCalledWith(missingTexture);
+  }
+});
+
+test("mount renders the OBJ in gray when the MTL returns 404", async () => {
+  serveModelFiles(paintedFace);
+  const { mounted, renderer } = mountModel();
+  await expect(mounted).resolves.toBeUndefined();
+  await vi.waitFor(renderedMesh);
+  const [gray] = [renderedMesh().material].flat();
+  expect(gray.map).toBeNull();
+  expect(gray.color.getHex()).toBe(0xcccccc);
+  renderer.mediaControls()[0].click();
+  renderer.mediaControls()[0].click();
+  expect(renderedMesh().material).toBe(gray);
+});
+
+test("mount with show-texture=false renders before the requested image finishes", async () => {
+  serveModelFiles(paintedFace, modelMaterials);
+  let image: HTMLImageElement | undefined;
+  vi.spyOn(HTMLImageElement.prototype, "src", "set").mockImplementation(function (
+    this: HTMLImageElement, url,
+  ) {
+    if (url === paintedTexture) image = this;
+  });
+  const { mounted, renderer } = mountModel({ showTexture: false });
+  void mounted.catch(() => {});
+  await vi.waitFor(() => expect(renderer.mediaControls()).toHaveLength(1));
+  await expect(mounted).resolves.toBeUndefined();
+  await vi.waitFor(renderedMesh);
+  const mesh = renderedMesh();
+  const [gray] = [mesh.material].flat();
+  expect(gray.map).toBeNull();
+  expect(gray.color.getHex()).toBe(0xcccccc);
+  const [button] = renderer.mediaControls();
+  button.click();
+  image!.dispatchEvent(new Event("load"));
+  await vi.waitFor(() => expect(mesh.material).not.toBe(gray));
+  const [painted] = [mesh.material].flat();
+  expect(painted.map?.image).toBe(image);
+});
+
+test("mount still rejects when the OBJ returns 404", async () => {
+  serveModelFiles(paintedFace, modelMaterials);
+  const { mounted } = mountModel({ url: "/missing.obj" });
+  await expect(mounted).rejects.toThrow("Failed to load /missing.obj (HTTP 404)");
+});
+
 test("an aborted load does not install the model in the scene", async () => {
   fakeModel();
   const { stage } = setup();
@@ -141,12 +266,8 @@ test("an aborted load does not install the model in the scene", async () => {
 });
 
 test("closing during texture load releases pending MTL textures", async () => {
-  fakeModel();
   const { stage } = setup();
-  const materialUrl = "https://example.test/models/scene.mtl";
-  vi.stubGlobal("fetch", vi.fn(async (url: string) => new Response(
-    url === materialUrl ? "newmtl base\nmap_Kd color.png" : "# OBJ",
-  )));
+  serveModelFiles(paintedFace, modelMaterials);
   const texture = new Texture<HTMLImageElement>();
   const releaseTexture = vi.spyOn(texture, "dispose");
   let manager: LoadingManager | undefined;
@@ -160,12 +281,11 @@ test("closing during texture load releases pending MTL textures", async () => {
   });
   const controller = new AbortController();
   const pending = prepareModelScene(stage, { ...item, materialUrl }, controller.signal);
-  await vi.waitFor(() => expect(load).toHaveBeenCalledWith(
-    "https://example.test/models/color.png", undefined, undefined, undefined,
-  ));
+  await vi.waitFor(() => expect(load.mock.calls[0]?.[0]).toBe(paintedTexture));
   controller.abort();
   await expect(pending).rejects.toMatchObject({ name: "AbortError" });
-  manager!.itemEnd("https://example.test/models/color.png");
+  load.mock.calls[0][1]?.(texture);
+  manager!.itemEnd(paintedTexture);
   expect(stage.scene.children).toEqual([]);
   expect(releaseTexture).toHaveBeenCalledOnce();
 });
