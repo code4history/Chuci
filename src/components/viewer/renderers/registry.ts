@@ -2,6 +2,7 @@ import type { MediaType } from "@/core/media-item";
 import type { MediaRenderer } from "./types";
 import { ImageRenderer } from "./image-renderer";
 import { ModelRenderer } from "./model-renderer";
+import { PanoramaRenderer } from "./panorama-renderer";
 import { VideoRenderer } from "./video-renderer";
 import { YoutubeRenderer } from "./youtube-renderer";
 
@@ -19,6 +20,8 @@ export async function createRenderer(type: MediaType): Promise<MediaRenderer> {
   switch (type) {
     case "image":
       return new ImageRenderer();
+    case "panorama":
+      return new PanoramaRenderer();
     case "video":
       return new VideoRenderer();
     case "youtube":
