@@ -8,11 +8,7 @@
 //   したがって本テストは **属性へ直接 payload を置く**。送り手が守ってくれるという
 //   前提を置かないことが是正の趣旨そのものである。
 //
-// 対象シンク（S1〜S7 のうち cc-swiper 配下の4件）:
-//   S1 cc-swiper.ts:237 img の src="${thumbnailUrl}"        … HTML 属性
-//   S2 cc-swiper.ts:237 img の data-image-url="${imageUrl}" … HTML 属性
-//   S3 cc-swiper.ts:246 style="background-image: url('…')"  … CSS
-//   S7 cc-swiper.ts:238 <p class="slider-caption">${caption}</p> … HTML コンテンツ
+// cc-swiper の生成 DOM に対して、外部由来値が HTML として解釈されないことを確認する。
 
 import { describe, test, expect, beforeEach } from "vitest";
 import "../src/index";
@@ -50,7 +46,7 @@ describe("cc-swiper の注入対策", () => {
 
   test("S1: thumbnail-url が img の src を破って別属性を注入できない", () => {
     const el = buildSwiper({ "thumbnail-url": ATTR_PAYLOAD });
-    const img = shadow(el).querySelector("img.viewer");
+    const img = shadow(el).querySelector(".cc-slide img");
     expect(img, "スライドの img が生成されていること").not.toBeNull();
     // 属性ブレイクアウトが成立していれば onmouseover 属性が生えている
     expect(img!.hasAttribute("onmouseover")).toBe(false);
@@ -60,31 +56,20 @@ describe("cc-swiper の注入対策", () => {
 
   test("S2: image-url が img の data-image-url を破って別属性を注入できない", () => {
     const el = buildSwiper({ "image-url": ATTR_PAYLOAD });
-    const img = shadow(el).querySelector("img.viewer");
+    const img = shadow(el).querySelector(".cc-slide img");
     expect(img).not.toBeNull();
     expect(img!.hasAttribute("onmouseover")).toBe(false);
     expect(img!.getAttribute("data-image-url")).toBe(ATTR_PAYLOAD);
   });
 
-  test("S3: thumbnail-url が gallery の background-image を破って別宣言を注入できない", () => {
+  test("S3: thumbnail-url がサムネイル要素へ HTML を注入できない", () => {
+    // S3 の安全性は「外部値が HTML として解釈されず、値を属性値として保持する」こと。
     const el = buildSwiper({ "thumbnail-url": CSS_PAYLOAD });
-    const thumb = shadow(el).querySelector<HTMLElement>(".gallery-thumb");
+    const thumb = shadow(el).querySelector<HTMLImageElement>(".gallery-thumb");
     expect(thumb, "gallery のサムネイルが生成されていること").not.toBeNull();
-    // S3 の安全性は「**別の CSS 宣言が注入されていない**」ことである。
-    // 宣言の件数で直接測る。注入が成立していれば background 等が増える。
-    //
-    // 注意: payload 自体が `url('` という文字列を含むため、値の中の "url(" を
-    // 数える測り方は誤りである（是正済みでも 2 件と数えてしまう）。
-    expect(
-      Array.from(thumb!.style),
-      "設定されている CSS 宣言は background-image の1件だけであること"
-    ).toEqual(["background-image"]);
-    expect(thumb!.style.getPropertyValue("background")).toBe("");
-    // 値は url("…") ひとつで、中身は payload そのもの（欠落も分割もしていない）
-    const bgImage = thumb!.style.getPropertyValue("background-image");
-    expect(bgImage.startsWith('url("')).toBe(true);
-    expect(bgImage.endsWith('")')).toBe(true);
-    expect(bgImage.slice(5, -2)).toBe(CSS_PAYLOAD);
+    expect(thumb!.getAttribute("onerror")).toBeNull();
+    expect(thumb!.getAttribute("src")).toBe(CSS_PAYLOAD);
+    expect(shadow(el).querySelectorAll(".gallery-thumb img")).toHaveLength(0);
   });
 
   test("S7: caption が HTML として解釈されない", () => {
@@ -93,11 +78,15 @@ describe("cc-swiper の注入対策", () => {
     // 注入が成立していれば caption 由来の img が生える。
     // スライド本体の img.viewer は正規のものなので除外して数える。
     const injected = Array.from(root.querySelectorAll("img")).filter(
-      (i) => !i.classList.contains("viewer")
+      (i) =>
+        !i.classList.contains("viewer") &&
+        !i.classList.contains("gallery-thumb")
     );
-    expect(injected.length, "caption 由来の img が生成されていないこと").toBe(0);
+    expect(injected.length, "caption 由来の img が生成されていないこと").toBe(
+      0
+    );
     // テキストとしては保持されること
-    const p = root.querySelector(".slider-caption");
+    const p = root.querySelector(".cc-bar-caption");
     expect(p, "caption の要素が生成されていること").not.toBeNull();
     expect(p!.textContent).toBe(HTML_PAYLOAD);
   });
@@ -110,20 +99,18 @@ describe("cc-swiper の注入対策", () => {
       caption: "普通のキャプション"
     });
     const root = shadow(el);
-    const img = root.querySelector("img.viewer");
+    const img = root.querySelector(".cc-slide img");
     expect(img).not.toBeNull();
     expect(img!.getAttribute("src")).toBe(BENIGN_URL);
     expect(img!.getAttribute("data-image-url")).toBe(BENIGN_URL);
     expect(img!.getAttribute("data-image-type")).toBe("panorama");
     expect(img!.getAttribute("data-index")).toBe("0");
 
-    const p = root.querySelector(".slider-caption");
+    const p = root.querySelector(".cc-bar-caption");
     expect(p!.textContent).toBe("普通のキャプション");
 
-    const thumb = root.querySelector<HTMLElement>(".gallery-thumb");
-    const bgImage = thumb!.style.getPropertyValue("background-image");
-    // URL が欠けたり壊れたりしていないこと（CSS.escape を使うとここが落ちる）
-    expect(bgImage).toContain(BENIGN_URL);
+    const thumb = root.querySelector<HTMLImageElement>(".gallery-thumb");
+    expect(thumb!.getAttribute("src")).toBe(BENIGN_URL);
   });
 });
 
@@ -135,7 +122,7 @@ describe("cc-swiper の注入対策", () => {
 // したがって image-type の値しだいで同じ POI 由来値がここへ到達する。
 //
 // open() は doOpen を microtask 後に render するため、assert の前に待つ。
-const flush = () => new Promise<void>(r => setTimeout(r, 0));
+const flush = () => new Promise<void>((r) => setTimeout(r, 0));
 
 describe("各ビューアの注入対策", () => {
   beforeEach(() => {
@@ -186,12 +173,17 @@ describe("各ビューアの注入対策", () => {
 
     const err = shadow(el).querySelector(".video-error");
     expect(err, "エラー表示が出ていること").not.toBeNull();
-    expect(err!.querySelectorAll("img").length, "payload が img として生成されていないこと").toBe(0);
+    expect(
+      err!.querySelectorAll("img").length,
+      "payload が img として生成されていないこと"
+    ).toBe(0);
     expect(err!.textContent).toContain(HTML_PAYLOAD);
   });
 
   test("正系: 通常の URL で youtube / video が従来どおり描画される", async () => {
-    const yt = document.createElement("cc-viewer-youtube") as HTMLElement & { open(u: string): void };
+    const yt = document.createElement("cc-viewer-youtube") as HTMLElement & {
+      open(u: string): void;
+    };
     document.body.appendChild(yt);
     yt.open("https://www.youtube.com/watch?v=abc123XYZ");
     await flush();
@@ -199,11 +191,15 @@ describe("各ビューアの注入対策", () => {
       "https://www.youtube.com/embed/abc123XYZ"
     );
 
-    const vd = document.createElement("cc-viewer-video") as HTMLElement & { open(u: string): void };
+    const vd = document.createElement("cc-viewer-video") as HTMLElement & {
+      open(u: string): void;
+    };
     document.body.appendChild(vd);
     vd.open(BENIGN_URL);
     await flush();
-    expect(shadow(vd).querySelector("video")!.getAttribute("src")).toBe(BENIGN_URL);
+    expect(shadow(vd).querySelector("video")!.getAttribute("src")).toBe(
+      BENIGN_URL
+    );
   });
 });
 
@@ -227,7 +223,7 @@ describe("panorama の srcdoc 契約（S4）と SRI", () => {
     el.setAttribute("show", "true");
     document.body.appendChild(el);
     el.open(url);
-    await new Promise<void>(r => setTimeout(r, 10));
+    await new Promise<void>((r) => setTimeout(r, 10));
     return el;
   };
 
@@ -288,7 +284,7 @@ describe("panorama の postMessage 送信元検証", () => {
     el.setAttribute("show", "true");
     document.body.appendChild(el);
     el.open(BENIGN_URL);
-    await new Promise<void>(r => setTimeout(r, 10));
+    await new Promise<void>((r) => setTimeout(r, 10));
     const iframe = shadow(el).querySelector<HTMLIFrameElement>("iframe.iframe");
     return iframe!.getAttribute("srcdoc") || "";
   };

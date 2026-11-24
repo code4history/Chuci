@@ -1,7 +1,7 @@
 {
   "name": "@c4h/chuci",
   "version": "1.0.2",
-  "description": "Standalone multimedia swiper and viewer web components",
+  "description": "Standalone multimedia carousel and viewer web components",
   "type": "module",
   "private": false,
   "main": "./dist/chuci.umd.js",
@@ -41,7 +41,6 @@
   },
   "dependencies": {
     "gsplat": "^1.2.9",
-    "swiper": "^12.1.2",
     "three": "^0.186.1",
     "viewerjs": "^1.11.7"
   },
@@ -67,7 +66,7 @@
     "vitest": "^5.0.4"
   },
   "keywords": [
-    "swiper",
+    "carousel",
     "viewer",
     "webcomponents",
     "multimedia",
