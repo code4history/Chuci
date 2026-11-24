@@ -11,7 +11,7 @@
 // cc-swiper の生成 DOM に対して、外部由来値が HTML として解釈されないことを確認する。
 
 import { describe, test, expect, beforeEach } from "vitest";
-import "../src/index";
+import { readMediaItem } from "../src/index";
 
 /** 属性文脈用の payload。ダブルクォートで属性を閉じて別属性を注入する */
 const ATTR_PAYLOAD = 'x" onmouseover="alert(1)';
@@ -123,191 +123,85 @@ describe("cc-swiper の注入対策", () => {
   });
 });
 
-// ─────────────────────────────────────────────────────────────
-// S5 / S6: 各ビューアが URL を生補間するシンク
-//
-// 配線（実測）: cc-swiper が getAttribute で読んだ値を
-// openViewer → ccView.open → 各ビューアの doOpen(url) へ渡す。
-// したがって image-type の値しだいで同じ POI 由来値がここへ到達する。
-//
-// open() は doOpen を microtask 後に render するため、assert の前に待つ。
-const flush = () => new Promise<void>((r) => setTimeout(r, 0));
+// スライド属性から読み取った値を、共通外枠を通して描画部へ渡す。
+const flush = () => new Promise<void>((resolve) => setTimeout(resolve, 0));
 
-describe("各ビューアの注入対策", () => {
-  beforeEach(() => {
-    document.body.innerHTML = "";
-  });
+function openViewer(type: string, url: string, caption = "") {
+  const slide = document.createElement("cc-swiper-slide");
+  slide.setAttribute("image-type", type);
+  slide.setAttribute("image-url", url);
+  slide.setAttribute("caption", caption);
+  const viewer = document.createElement("cc-viewer");
+  document.body.append(viewer);
+  viewer.open([readMediaItem(slide)], 0);
+  return shadow(viewer);
+}
 
+describe("共通ビューアと描画部の注入対策", () => {
   test("S5: youtube の iframe src が属性を破って別属性を注入できない", async () => {
-    const el = document.createElement("cc-viewer-youtube") as HTMLElement & {
-      open(url: string): void;
-    };
-    document.body.appendChild(el);
-    // 解釈できない値は src を付けない（A2-C-1）
-    el.open(ATTR_PAYLOAD);
+    const root = openViewer("youtube", ATTR_PAYLOAD);
     await flush();
 
-    const iframe = shadow(el).querySelector("iframe.iframe");
+    const iframe = root.querySelector("iframe");
     expect(iframe, "iframe が生成されていること").not.toBeNull();
     expect(iframe!.hasAttribute("onmouseover")).toBe(false);
-    expect(iframe!.getAttribute("src")).toBeNull();
+    expect(iframe!.hasAttribute("src")).toBe(false);
+    expect(root.querySelector<HTMLElement>(".viewer-error")!.hidden).toBe(false);
   });
 
   test("S6: video の src が属性を破って別属性を注入できない", async () => {
-    const el = document.createElement("cc-viewer-video") as HTMLElement & {
-      open(url: string): void;
-    };
-    document.body.appendChild(el);
-    el.open(ATTR_PAYLOAD);
+    const root = openViewer("video", ATTR_PAYLOAD);
     await flush();
 
-    const video = shadow(el).querySelector("video");
+    const video = root.querySelector("video");
     expect(video, "video が生成されていること").not.toBeNull();
     expect(video!.hasAttribute("onmouseover")).toBe(false);
     expect(video!.getAttribute("src")).toBe(ATTR_PAYLOAD);
   });
 
-  test("S6(:95): video のエラー表示が HTML として解釈されない", async () => {
-    const el = document.createElement("cc-viewer-video") as HTMLElement & {
-      open(url: string): void;
-    };
-    document.body.appendChild(el);
-    el.open(HTML_PAYLOAD);
+  test("S6: video のエラー表示が HTML として解釈されない", async () => {
+    const root = openViewer("video", HTML_PAYLOAD);
     await flush();
 
-    const video = shadow(el).querySelector("video");
+    const video = root.querySelector("video");
     expect(video).not.toBeNull();
-    // 読み込み失敗を発火させてエラー表示経路へ入る
     video!.dispatchEvent(new Event("error"));
+    await flush();
 
-    const err = shadow(el).querySelector(".video-error");
-    expect(err, "エラー表示が出ていること").not.toBeNull();
-    expect(
-      err!.querySelectorAll("img").length,
-      "payload が img として生成されていないこと"
-    ).toBe(0);
-    expect(err!.textContent).toContain(HTML_PAYLOAD);
+    const error = root.querySelector<HTMLElement>(".viewer-error");
+    expect(error, "エラー表示が出ていること").not.toBeNull();
+    expect(error!.hidden).toBe(false);
+    expect(error!.querySelectorAll("img")).toHaveLength(0);
+    expect(error!.textContent).toContain(HTML_PAYLOAD);
+  });
+
+  test("外枠の caption が HTML として解釈されない", () => {
+    const root = openViewer("video", BENIGN_URL, HTML_PAYLOAD);
+    expect(root.querySelector(".cc-bar-caption")!.textContent).toBe(HTML_PAYLOAD);
+    expect(root.querySelector(".cc-bar-caption img")).toBeNull();
   });
 
   test("正系: 通常の URL で youtube / video が従来どおり描画される", async () => {
-    const yt = document.createElement("cc-viewer-youtube") as HTMLElement & {
-      open(u: string): void;
-    };
-    document.body.appendChild(yt);
-    yt.open("https://www.youtube.com/watch?v=abc123XYZ");
+    const yt = openViewer("youtube", "https://www.youtube.com/watch?v=abc123XYZ");
     await flush();
-    expect(shadow(yt).querySelector("iframe.iframe")!.getAttribute("src")).toBe(
+    expect(yt.querySelector("iframe")!.getAttribute("src")).toBe(
       "https://www.youtube.com/embed/abc123XYZ"
     );
 
-    const vd = document.createElement("cc-viewer-video") as HTMLElement & {
-      open(u: string): void;
-    };
-    document.body.appendChild(vd);
-    vd.open(BENIGN_URL);
+    const vd = openViewer("video", BENIGN_URL);
     await flush();
-    expect(shadow(vd).querySelector("video")!.getAttribute("src")).toBe(
-      BENIGN_URL
-    );
-  });
-});
-
-// ─────────────────────────────────────────────────────────────
-// S4: panorama の iframe srcdoc
-//
-// 契約（S4）: **srcdoc に外部由来値を一切埋めない**。
-// 値の受け渡しは postMessage に確定している（contentDocument は採らない。
-// sandbox="allow-scripts" では opaque origin になり遮断されるため）。
-//
-// onAfterRender は setTimeout(…, 0) 経由なので待つ。
-describe("panorama の srcdoc 契約（S4）と SRI", () => {
-  beforeEach(() => {
-    document.body.innerHTML = "";
+    expect(vd.querySelector("video")!.getAttribute("src")).toBe(BENIGN_URL);
   });
 
-  const openPanorama = async (url: string) => {
-    const el = document.createElement("cc-viewer-panorama") as HTMLElement & {
-      open(u: string): void;
-    };
-    el.setAttribute("show", "true");
-    document.body.appendChild(el);
-    el.open(url);
-    await new Promise<void>((r) => setTimeout(r, 10));
-    return el;
-  };
+  test.each([ATTR_PAYLOAD, BENIGN_URL])(
+    "S4: panorama は URL %s から iframe やスクリプトを生成しない",
+    async (url) => {
+      const root = openViewer("panorama", url);
+      await flush();
 
-  test("S4: srcdoc に外部由来値が一切含まれない", async () => {
-    const el = await openPanorama(ATTR_PAYLOAD);
-    const iframe = shadow(el).querySelector<HTMLIFrameElement>("iframe.iframe");
-    expect(iframe, "iframe が生成されていること").not.toBeNull();
-    const srcdoc = iframe!.getAttribute("srcdoc") || "";
-    expect(srcdoc.length, "srcdoc が組み立てられていること").toBeGreaterThan(0);
-    // payload の断片すら現れないこと（分割して埋めていないことも見る）
-    expect(srcdoc).not.toContain(ATTR_PAYLOAD);
-    expect(srcdoc).not.toContain("onmouseover");
-  });
-
-  test("S4: 正常な URL でも srcdoc には埋めない（契約は値によらない）", async () => {
-    const el = await openPanorama(BENIGN_URL);
-    const iframe = shadow(el).querySelector<HTMLIFrameElement>("iframe.iframe");
-    const srcdoc = iframe!.getAttribute("srcdoc") || "";
-    expect(srcdoc).not.toContain(BENIGN_URL);
-  });
-
-  test("aframe の script に integrity と crossorigin が付与されている", async () => {
-    const el = await openPanorama(BENIGN_URL);
-    const iframe = shadow(el).querySelector<HTMLIFrameElement>("iframe.iframe");
-    const srcdoc = iframe!.getAttribute("srcdoc") || "";
-    expect(srcdoc).toContain("aframe.min.js");
-    expect(srcdoc).toContain(
-      "sha384-rrkicQnp5c3ysj7SGZ2b/wF2W7mu6NQQMy4w63/dfRnMLkCL1d0IX4i3IOkYi2pj"
-    );
-    expect(srcdoc).toContain('crossorigin="anonymous"');
-  });
-});
-
-// ─────────────────────────────────────────────────────────────
-// postMessage の送信元検証
-//
-// 起票元: 実装レビューの指摘（Info）
-//
-// S4 で導入した postMessage 契約は、親 → iframe の方向だけ
-// 送信元を照合していなかった。同一ページの別スクリプトが
-// cc-panorama-src を投げるとパノラマ画像を差し替えられる。
-//
-// 深刻度は低い（終端は setAttribute であり属性ブレイクアウトには繋がらない）が、
-// 「呼び出し側が正しいはず」という前提を受け手が置かないという上の
-// 方針は片方向でも成立しない。窓口を開けた側が送信元を見る。
-//
-// jsdom は srcdoc の script を実行しないため、リスナの動作そのものは
-// 実機で確認する。ここでは guard がソースに存在することを固定する。
-describe("panorama の postMessage 送信元検証", () => {
-  beforeEach(() => {
-    document.body.innerHTML = "";
-  });
-
-  const getSrcdoc = async () => {
-    const el = document.createElement("cc-viewer-panorama") as HTMLElement & {
-      open(u: string): void;
-    };
-    el.setAttribute("show", "true");
-    document.body.appendChild(el);
-    el.open(BENIGN_URL);
-    await new Promise<void>((r) => setTimeout(r, 10));
-    const iframe = shadow(el).querySelector<HTMLIFrameElement>("iframe.iframe");
-    return iframe!.getAttribute("srcdoc") || "";
-  };
-
-  test("iframe 側リスナが送信元を親に限定している", async () => {
-    const srcdoc = await getSrcdoc();
-    // origin ではなく source で照合する。sandbox を付けると opaque origin になり
-    // e.origin が "null" になるため（実測）
-    expect(srcdoc).toMatch(/e\.source\s*!==\s*parent/);
-  });
-
-  test("既存の型ガードが維持されている", async () => {
-    const srcdoc = await getSrcdoc();
-    expect(srcdoc).toContain("cc-panorama-src");
-    expect(srcdoc).toMatch(/typeof\s+d\.src\s*!==\s*'string'/);
-  });
+      const host = root.querySelector(".renderer-host");
+      expect(host).not.toBeNull();
+      expect(host!.querySelector("iframe, [srcdoc], script, img, [onmouseover]")).toBeNull();
+    }
+  );
 });

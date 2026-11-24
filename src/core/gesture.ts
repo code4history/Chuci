@@ -28,15 +28,19 @@ export class GestureInterpreter {
 
   constructor(
     private readonly target: HTMLElement,
-    private readonly onGesture: (event: GestureEvent) => void
+    private readonly onGesture: (event: GestureEvent) => void,
+    private readonly options: { observeOnly?: boolean } = {}
   ) {
     target.addEventListener("pointerdown", this.onPointerDown);
     target.addEventListener("pointermove", this.onPointerMove);
     target.addEventListener("pointerup", this.onPointerUp);
     target.addEventListener("pointercancel", this.onPointerCancel);
     target.addEventListener("lostpointercapture", this.onLostPointerCapture);
-    target.addEventListener("wheel", this.onWheel, { passive: false });
-    target.addEventListener("contextmenu", this.onContextMenu);
+    // The viewer shell observes taps without interfering with renderer input.
+    if (!options.observeOnly) {
+      target.addEventListener("wheel", this.onWheel, { passive: false });
+      target.addEventListener("contextmenu", this.onContextMenu);
+    }
   }
 
   dispose(): void {
@@ -60,7 +64,7 @@ export class GestureInterpreter {
       pointerType: event.pointerType,
       button: event.button
     });
-    if (typeof this.target.setPointerCapture === "function")
+    if (!this.options.observeOnly && typeof this.target.setPointerCapture === "function")
       this.target.setPointerCapture(event.pointerId);
     if (this.pointers.size === 1) {
       this.primaryId = event.pointerId;

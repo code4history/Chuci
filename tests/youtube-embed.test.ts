@@ -11,7 +11,7 @@
 
 import { describe, it, test, expect, beforeEach } from "vitest";
 import { toYouTubeIframeSrc } from "../src/utils/youtube-embed";
-import "../src/index";
+import { readMediaItem } from "../src/index";
 
 const EMBED = "https://www.youtube.com/embed/abc123XYZ";
 
@@ -76,23 +76,24 @@ describe("通す（YouTube でない https は解釈後の値のまま）", () =
   });
 });
 
-// cc-viewer-youtube への結線。open() は microtask 後に render するので待つ
+// 共通ビューアと YouTube 描画部への結線。描画部の生成を待つ。
 const flush = () => new Promise<void>((r) => setTimeout(r, 0));
 
 function openYoutube(url: string): HTMLElement {
-  const el = document.createElement("cc-viewer-youtube") as HTMLElement & {
-    open(url: string): void;
-  };
-  document.body.appendChild(el);
-  el.open(url);
+  const slide = document.createElement("cc-swiper-slide");
+  slide.setAttribute("image-type", "youtube");
+  slide.setAttribute("image-url", url);
+  const el = document.createElement("cc-viewer");
+  document.body.append(el);
+  el.open([readMediaItem(slide)], 0);
   return el;
 }
 
 function iframeOf(el: Element): HTMLIFrameElement | null {
-  return el.shadowRoot!.querySelector("iframe.iframe");
+  return el.shadowRoot!.querySelector("iframe");
 }
 
-describe("結線（cc-viewer-youtube の iframe src）", () => {
+describe("結線（cc-viewer の YouTube iframe src）", () => {
   beforeEach(() => {
     document.body.innerHTML = "";
   });

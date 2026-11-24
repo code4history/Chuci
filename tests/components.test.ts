@@ -1,5 +1,5 @@
 import { describe, test, expect, beforeAll } from 'vitest';
-import '../src/index';
+import { readMediaItem, type MediaItem, type MediaType } from '../src/index';
 
 describe('Web Components Registration', () => {
   beforeAll(() => {
@@ -17,30 +17,6 @@ describe('Web Components Registration', () => {
   test('cc-viewer should be defined', () => {
     expect(customElements.get('cc-viewer')).toBeDefined();
   });
-
-  test('cc-viewer-image should be defined', () => {
-    expect(customElements.get('cc-viewer-image')).toBeDefined();
-  });
-
-  test('cc-viewer-video should be defined', () => {
-    expect(customElements.get('cc-viewer-video')).toBeDefined();
-  });
-
-  test('cc-viewer-youtube should be defined', () => {
-    expect(customElements.get('cc-viewer-youtube')).toBeDefined();
-  });
-
-  test('cc-viewer-panorama should be defined', () => {
-    expect(customElements.get('cc-viewer-panorama')).toBeDefined();
-  });
-
-  test('cc-viewer-3dmodel should be defined', () => {
-    expect(customElements.get('cc-viewer-3dmodel')).toBeDefined();
-  });
-
-  test('cc-viewer-gaussian should be defined', () => {
-    expect(customElements.get('cc-viewer-gaussian')).toBeDefined();
-  });
 });
 
 describe('Component Creation', () => {
@@ -55,4 +31,12 @@ describe('Component Creation', () => {
     expect(element).toBeInstanceOf(HTMLElement);
     expect(element.tagName.toLowerCase()).toBe('cc-viewer');
   });
+});
+
+test('entry point exports the media item type and reader', () => {
+  const slide = document.createElement('cc-swiper-slide');
+  const type: MediaType = 'video';
+  slide.setAttribute('image-type', type);
+  const item: MediaItem = readMediaItem(slide);
+  expect(item.type).toBe(type);
 });
