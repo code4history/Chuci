@@ -39,7 +39,7 @@
 個別のスライドコンポーネント。
 
 **属性:**
-- `thumbnail-url`: サムネイル画像の URL（必須）
+- `thumbnail-url`: サムネイル画像の URL（省略可。省略時は元メディアから生成）
 - `image-url`: フルメディアの URL（必須）
 - `image-type`: メディアタイプ（上記のサポートされるタイプを参照）（必須）
 - `caption`: オプションのキャプションテキスト
@@ -145,6 +145,29 @@ swiper.addEventListener('slidechange', (e) => {
 ```
 
 YouTube の URL（`youtube.com`・`youtu.be`・`youtube-nocookie.com`。http・https とも）は https の埋め込み形式に変換する。それ以外の https の URL はそのまま埋め込む。https でない URL は表示しない（`javascript:` や、`www.youtube.com/watch?v=...` のようなスキームの無い URL を含む）。
+
+---
+
+## サムネイル生成 API
+
+`generateThumbnail` は、ビューアと同じ初期表示から `Blob` を生成します。カルーセル自身だけでなく、ブラウザ上の作成ツールからも利用できます。
+
+```javascript
+import { generateThumbnail, readMediaItem } from '@c4h/chuci';
+
+const slide = document.querySelector('cc-swiper-slide');
+const item = readMediaItem(slide); // MediaItem
+const controller = new AbortController();
+const blob = await generateThumbnail(item, {
+  maxSize: 256, // 省略可。既定は長辺 256 px
+  signal: controller.signal // 省略可。中断に使用
+});
+```
+
+- `image`・`video` は WebP、`panorama`・`3dmodel`・`gaussian` は PNG を出力します。`youtube` は公開サムネイルの Blob を返します。
+- 動画は 0.5 秒の位置（短い動画ではその直前の利用可能なコマ）を使います。
+- canvas への取り出しが必要なメディアでは、配信元の CORS 許可が必要です。360 度・3D モデル・Gaussian は WebGL が必要で、Node だけの環境では利用できません。
+- `thumbnail-url` がない場合、カルーセルは IndexedDB（`chuci-thumbnails`）を先に調べ、なければ表示中のスライドを優先して裏で 1 件ずつ生成します。失敗時は種類のアイコンのままとし、失敗はページの寿命の間だけ記憶します。
 
 ---
 

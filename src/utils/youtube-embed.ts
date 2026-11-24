@@ -7,7 +7,7 @@ const SHORT_HOST = 'youtu.be'
 const VIDEO_ID = /^[A-Za-z0-9_-]+$/
 
 /** URL のホストとパスから動画 ID を取り出す。YouTube の URL でなければ null */
-function extractVideoId(url: URL): { id: string; nocookie: boolean } | null {
+export function extractVideoId(url: URL): { id: string; nocookie: boolean } | null {
   const host = url.hostname
   const segments = url.pathname.split('/').filter(s => s !== '')
   let id: string | null = null

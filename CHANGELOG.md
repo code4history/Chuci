@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### 追加
+- 元メディアからサムネイルを生成する `generateThumbnail` API を追加。`thumbnail-url` がないスライドでは IndexedDB の保存済みサムネイルを使い、なければ裏で 1 件ずつ生成する。
+
+### Added
+- Added the `generateThumbnail` API for creating thumbnails from source media. Slides without `thumbnail-url` use cached thumbnails from IndexedDB or generate them sequentially in the background.
+
 ### 修正
 - 1.0.2 の「既知の問題」で告知し、次の月次で直すと約束していた不具合を修正（#28）。`cc-swiper` を「前へ」で 1 回戻したあと `cc-viewer` で画像を送ると裏の `realIndex` が 1 つずれ、閉じたときに別の画像が表示される問題で、ループ中は `slideToLoop` を使うようになり、サムネイルクリックで起きる余分な移動もなくなった。
 

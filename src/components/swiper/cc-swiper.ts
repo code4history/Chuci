@@ -7,6 +7,10 @@ import {
   captionBarStyles
 } from "@/core/caption-bar";
 import { FEEL } from "@/core/feel";
+import { thumbnailCacheKey } from "@/thumbnails/cache";
+import { DEFAULT_THUMBNAIL_SIZE } from "@/thumbnails/generate";
+import { mediaTypeIcon } from "@/thumbnails/icons";
+import { ThumbnailQueue } from "@/thumbnails/queue";
 
 export function escapeCssUrl(value: string): string {
   return value.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
@@ -37,6 +41,9 @@ export class CcSwiper extends ChuciElement {
   private slidesObserver?: MutationObserver;
   private observedSlides: Element[] = [];
   private viewerOpen = false;
+  private readonly thumbnailQueue = new ThumbnailQueue();
+  private readonly thumbnailSources = new Map<Element, string>();
+  private readonly pendingThumbnails = new Map<Element, string>();
   private stopHostPropagation = (event: Event) => event.stopPropagation();
 
   static get observedAttributes() {
@@ -67,6 +74,8 @@ export class CcSwiper extends ChuciElement {
   protected setThumbnailSource(index: number, src: string): void {
     const img = this.query<HTMLImageElement>(`[data-thumb-index="${index}"]`);
     if (img) img.setAttribute("src", src);
+    const viewer = this.query<HTMLImageElement>(`.viewer[data-index="${index}"]`);
+    if (viewer) viewer.setAttribute("src", src);
   }
 
   protected render() {
@@ -120,6 +129,7 @@ export class CcSwiper extends ChuciElement {
   }
 
   disconnectedCallback() {
+    this.releaseThumbnailSources();
     this.cleanup();
     if (CcSwiper.activeViewerOwner === this) {
       CcSwiper.activeViewerOwner = undefined;
@@ -132,16 +142,18 @@ export class CcSwiper extends ChuciElement {
     const track = this.query<HTMLDivElement>("#track");
     const gallery = this.query<HTMLDivElement>("#gallery");
     if (!track || !gallery) return;
+    this.resetThumbnailSources();
     track.replaceChildren();
     gallery.replaceChildren();
     this.slides.forEach((slide, index) => {
       const item = readMediaItem(slide);
+      const src = item.thumbnailUrl || this.thumbnailSources.get(slide) || mediaTypeIcon(item.type);
       const panel = document.createElement("div");
       panel.className = "cc-slide";
       panel.dataset.index = String(index);
       const image = document.createElement("img");
       image.className = "viewer";
-      image.setAttribute("src", item.thumbnailUrl || item.url);
+      image.setAttribute("src", src);
       image.setAttribute("data-image-url", item.url);
       image.setAttribute("data-image-type", item.type);
       image.setAttribute("data-index", String(index));
@@ -152,13 +164,76 @@ export class CcSwiper extends ChuciElement {
         const thumb = document.createElement("img");
         thumb.className = "gallery-thumb";
         thumb.dataset.thumbIndex = String(index);
-        thumb.setAttribute("src", item.thumbnailUrl || item.url);
+        thumb.setAttribute("src", src);
         thumb.setAttribute("alt", item.caption);
         thumb.addEventListener("click", () => this.goTo(index));
         gallery.append(thumb);
       }
     });
     gallery.hidden = !this.hasThumb;
+    this.requestThumbnails();
+  }
+
+  private resetThumbnailSources(): void {
+    const slides = new Set(this.slides);
+    for (const [slide, src] of this.thumbnailSources) {
+      if (src.startsWith("blob:") || !slides.has(slide)) {
+        this.revokeThumbnailUrl(src);
+        this.thumbnailSources.delete(slide);
+      }
+    }
+  }
+
+  private releaseThumbnailSources(): void {
+    for (const src of this.thumbnailSources.values()) this.revokeThumbnailUrl(src);
+    this.thumbnailSources.clear();
+  }
+
+  private revokeThumbnailUrl(src: string | null): void {
+    if (src?.startsWith("blob:") && typeof URL.revokeObjectURL === "function") {
+      URL.revokeObjectURL(src);
+    }
+  }
+
+  private requestThumbnails(): void {
+    const slides = this.slides;
+    const count = slides.length;
+    const requests = slides
+      .map((slide, index) => ({ slide, index, item: readMediaItem(slide) }))
+      .filter(({ slide, item }) => !item.thumbnailUrl && !this.thumbnailSources.has(slide))
+      .sort((a, b) => {
+        const aPriority = (a.index - this.index + count) % count;
+        const bPriority = (b.index - this.index + count) % count;
+        return aPriority - bPriority;
+      });
+    for (const { slide, item } of requests) {
+      const key = thumbnailCacheKey(item, DEFAULT_THUMBNAIL_SIZE);
+      if (this.pendingThumbnails.get(slide) === key) continue;
+      this.pendingThumbnails.set(slide, key);
+      const priority = (slides.indexOf(slide) - this.index + count) % count;
+      void this.thumbnailQueue.request(item, priority).then((src) => {
+        if (this.pendingThumbnails.get(slide) !== key) {
+          this.revokeThumbnailUrl(src);
+          return;
+        }
+        this.pendingThumbnails.delete(slide);
+        if (!src) return;
+        const index = this.slides.indexOf(slide);
+        const currentItem = index >= 0 ? readMediaItem(slide) : undefined;
+        if (
+          !this.isConnected ||
+          !currentItem ||
+          thumbnailCacheKey(currentItem, DEFAULT_THUMBNAIL_SIZE) !== key
+        ) {
+          this.revokeThumbnailUrl(src);
+          return;
+        }
+        const previous = this.thumbnailSources.get(slide);
+        if (previous !== src) this.revokeThumbnailUrl(previous ?? null);
+        this.thumbnailSources.set(slide, src);
+        this.setThumbnailSource(index, src);
+      });
+    }
   }
 
   private bindEvents() {

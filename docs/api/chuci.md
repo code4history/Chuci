@@ -40,7 +40,7 @@ Main carousel component.
 Individual slide component.
 
 **Attributes:**
-- `thumbnail-url`: URL for thumbnail image (required)
+- `thumbnail-url`: URL for thumbnail image (optional; generated from the media when omitted)
 - `image-url`: URL for full media (required)
 - `image-type`: Media type (see supported types above) (required)
 - `caption`: Optional caption text
@@ -146,6 +146,29 @@ swiper.addEventListener('slidechange', (e) => {
 ```
 
 YouTube URLs (`youtube.com`, `youtu.be`, `youtube-nocookie.com`; http or https) are converted to the https embed form. Any other https URL is embedded as is; other non-https URLs are not displayed (including `javascript:` and URLs without a scheme such as `www.youtube.com/watch?v=...`).
+
+---
+
+## Thumbnail Generation API
+
+`generateThumbnail` creates a `Blob` from the same initial view used by the viewer. It is available to browser-based authoring tools as well as to the carousel itself.
+
+```javascript
+import { generateThumbnail, readMediaItem } from '@c4h/chuci';
+
+const slide = document.querySelector('cc-swiper-slide');
+const item = readMediaItem(slide); // MediaItem
+const controller = new AbortController();
+const blob = await generateThumbnail(item, {
+  maxSize: 256, // optional; default: 256 pixels on the longest side
+  signal: controller.signal // optional cancellation
+});
+```
+
+- `image` and `video` produce WebP; `panorama`, `3dmodel`, and `gaussian` produce PNG. `youtube` returns the public YouTube thumbnail Blob.
+- Video thumbnails use the frame at 0.5 seconds (or the nearest available earlier frame).
+- The media server must permit CORS access when canvas extraction is required. Panorama, 3D model, and Gaussian thumbnails require WebGL; this API is not available in Node-only environments.
+- When `thumbnail-url` is omitted, the carousel uses IndexedDB (`chuci-thumbnails`) before generating in the background. The current slide is generated first, one item at a time. Failures remain as type icons and are remembered only for the page lifetime.
 
 ---
 

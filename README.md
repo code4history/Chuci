@@ -28,6 +28,7 @@ Chuci is open-source under the MIT License.
 - Framework-agnostic: pure Web Components, works with any framework or vanilla JS
 - Touch-enabled carousel built on Swiper.js
 - Multiple media types: images, panoramas, videos, YouTube, 3D models, Gaussian splats
+- Automatic thumbnails generated from the original media and cached in IndexedDB
 - Zero dependencies: all dependencies bundled (no Lit dependency)
 - Lightweight with tree-shaking support and full TypeScript definitions
 

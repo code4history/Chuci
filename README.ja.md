@@ -25,6 +25,7 @@ Chuci は MIT License のオープンソースソフトウェアです。
 - フレームワーク非依存: 純粋な Web Components・任意のフレームワークやバニラ JS で動作
 - Swiper.js ベースのタッチ対応カルーセル
 - 複数メディアタイプ: 画像・パノラマ・動画・YouTube・3Dモデル・Gaussian スプラット
+- 元メディアから自動生成し、IndexedDB に保存するサムネイル
 - ゼロ依存関係: すべての依存関係がバンドル済み（Lit 依存なし）
 - 軽量・tree-shaking サポート・完全な TypeScript 型定義
 
