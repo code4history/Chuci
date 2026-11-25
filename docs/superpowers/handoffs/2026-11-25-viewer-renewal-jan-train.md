@@ -58,7 +58,7 @@
 - Chuci：単体試験 251 件、型検査、lint、package build。
 - Quyuan：単体試験 176 件、e2e（chromium）22 件、CI 設定の e2e 3 件、型検査、lint、package build。
 - 実ブラウザでの目視：作り直し前後の初期画面（3D メッシュ・360 度・Gaussian）、6 種類のサムネイルの自動生成、Leaflet のポップアップ内のスワイプ。
-- セキュリティレビュー：§7 を参照。
+- セキュリティレビュー：§7 を参照（Medium 4 件は合流前に対処）。
 
 ## 7. セキュリティレビュー（2026-11-25、Codex gpt-6.2-sol）
 
