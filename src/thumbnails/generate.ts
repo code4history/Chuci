@@ -43,8 +43,8 @@ async function generateImage(item: MediaItem, maxSize: number, signal: AbortSign
   const response = await fetch(item.url, { signal });
   if (!response.ok) throw new Error(`Failed to load image (HTTP ${response.status})`);
   const bitmap = await createImageBitmap(await response.blob());
-  signal.throwIfAborted();
   try {
+    signal.throwIfAborted();
     const { width, height } = outputSize(bitmap.width, bitmap.height, maxSize);
     const canvas = drawingCanvas(width, height);
     const context = canvas.getContext("2d");
@@ -177,7 +177,10 @@ async function generateThreeThumbnail(item: MediaItem, maxSize: number, signal: 
     if (item.type === "panorama") {
       await preparePanoramaScene(stage, item, signal);
     } else if (item.type === "3dmodel") {
-      await prepareModelScene(stage, item, signal);
+      const scene = await prepareModelScene(stage, item, signal);
+      if (item.showTexture !== false && scene.textureLoadFailed) {
+        throw new Error("Failed to load a required model texture");
+      }
     } else {
       const { prepareGaussianScene } = await import("@/components/viewer/renderers/gaussian-renderer");
       await prepareGaussianScene(stage, item, signal);

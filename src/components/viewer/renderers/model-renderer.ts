@@ -11,7 +11,7 @@ import { disposeThreeResources, ThreeStage } from "./three-stage";
 import type { DebugEntry, MediaRenderer, RendererContext } from "./types";
 
 type HomeView = { position: Vector3; target: Vector3 };
-type ModelScene = { home: HomeView; setTexture(on: boolean): void };
+type ModelScene = { home: HomeView; setTexture(on: boolean): void; textureLoadFailed: boolean };
 
 const defaultPosition = new Vector3(3, 3, 3);
 
@@ -197,7 +197,11 @@ export async function prepareModelScene(
     stage.camera.updateMatrixWorld();
     stage.scene.add(new AmbientLight(0x404040, 2), light, object);
     for (const material of retainedMaterials) stage.retainMaterial(material);
-    return { home, setTexture };
+    return {
+      home,
+      setTexture,
+      textureLoadFailed: missingMaterials || Boolean(textures?.failed.size),
+    };
   } catch (error) {
     disposeThreeResources(object, retainedMaterials);
     throw error;

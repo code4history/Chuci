@@ -24,16 +24,17 @@ export interface ThumbnailQueueOptions {
 /** Serial generation queue. Lower priority values run first. */
 export class ThumbnailQueue {
   private readonly generate: Generator;
-  private readonly cache: Promise<ThumbnailCache>;
+  private readonly cache: Promise<ThumbnailCache | undefined>;
   private readonly maxSize: number;
   private readonly tasks: Task[] = [];
   private readonly byKey = new Map<string, Task>();
+  private readonly blobs = new Map<string, Blob>();
   private readonly failedKeys = new Set<string>();
   private draining = false;
 
   constructor(options: ThumbnailQueueOptions = {}) {
     this.generate = options.generate ?? generateThumbnail;
-    this.cache = Promise.resolve(options.cache ?? ThumbnailCache.open());
+    this.cache = Promise.resolve(options.cache ?? ThumbnailCache.open()).catch(() => undefined);
     this.maxSize = options.maxSize ?? DEFAULT_THUMBNAIL_SIZE;
   }
 
@@ -57,6 +58,11 @@ export class ThumbnailQueue {
     return result;
   }
 
+  updatePriority(item: MediaItem, priority: number): void {
+    const task = this.byKey.get(thumbnailCacheKey(item, this.maxSize));
+    if (task && this.tasks.includes(task)) task.priority = priority;
+  }
+
   private startDrain(): void {
     if (this.draining) return;
     this.draining = true;
@@ -68,7 +74,6 @@ export class ThumbnailQueue {
       this.tasks.sort((a, b) => a.priority - b.priority);
       const task = this.tasks.shift()!;
       await this.run(task);
-      this.byKey.delete(task.key);
     }
     this.draining = false;
   }
@@ -77,24 +82,28 @@ export class ThumbnailQueue {
     const cache = await this.cache;
     let blob: Blob | undefined;
     try {
-      blob = await cache.get(task.key);
+      blob = await cache?.get(task.key);
     } catch {
       blob = undefined;
     }
+    blob ??= this.blobs.get(task.key);
     if (!blob) {
       try {
         blob = await this.generate(task.item, { maxSize: this.maxSize });
         try {
-          await cache.put(task.key, blob);
+          await cache?.put(task.key, blob);
         } catch {
           // A generated picture remains usable when persistent storage fails.
         }
       } catch {
         this.failedKeys.add(task.key);
+        this.byKey.delete(task.key);
         for (const waiter of task.waiters) waiter.resolve(this.failureFallback(task.item));
         return;
       }
     }
+    this.blobs.set(task.key, blob);
+    this.byKey.delete(task.key);
     for (const waiter of task.waiters) {
       try {
         waiter.resolve(URL.createObjectURL(blob));
@@ -108,3 +117,6 @@ export class ThumbnailQueue {
     return item.type === "youtube" ? youtubeThumbnailUrl(item.url) : null;
   }
 }
+
+/** Page-wide queue: generation, memory cache, and failure memory are shared by all sliders. */
+export const sharedThumbnailQueue = new ThumbnailQueue();

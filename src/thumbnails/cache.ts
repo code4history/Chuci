@@ -35,7 +35,6 @@ export class ThumbnailCache {
   ) {}
 
   static async open(limitBytes = DEFAULT_LIMIT_BYTES): Promise<ThumbnailCache> {
-    if (typeof indexedDB === "undefined") return new ThumbnailCache(undefined, limitBytes);
     return new Promise((resolve) => {
       let settled = false;
       const fallback = () => {
@@ -44,6 +43,10 @@ export class ThumbnailCache {
         resolve(new ThumbnailCache(undefined, limitBytes));
       };
       try {
+        if (typeof indexedDB === "undefined") {
+          fallback();
+          return;
+        }
         const request = indexedDB.open(DATABASE_NAME, 1);
         request.onupgradeneeded = () => {
           const db = request.result;

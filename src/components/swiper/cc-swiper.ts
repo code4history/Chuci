@@ -10,7 +10,7 @@ import { FEEL } from "@/core/feel";
 import { thumbnailCacheKey } from "@/thumbnails/cache";
 import { DEFAULT_THUMBNAIL_SIZE } from "@/thumbnails/generate";
 import { mediaTypeIcon } from "@/thumbnails/icons";
-import { ThumbnailQueue } from "@/thumbnails/queue";
+import { sharedThumbnailQueue } from "@/thumbnails/queue";
 
 export function escapeCssUrl(value: string): string {
   return value.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
@@ -41,9 +41,10 @@ export class CcSwiper extends ChuciElement {
   private slidesObserver?: MutationObserver;
   private observedSlides: Element[] = [];
   private viewerOpen = false;
-  private readonly thumbnailQueue = new ThumbnailQueue();
+  private readonly thumbnailQueue = sharedThumbnailQueue;
   private readonly thumbnailSources = new Map<Element, string>();
   private readonly pendingThumbnails = new Map<Element, string>();
+  private readonly thumbnailTargets = new WeakMap<HTMLImageElement, { slide: Element; key: string }>();
   private stopHostPropagation = (event: Event) => event.stopPropagation();
 
   static get observedAttributes() {
@@ -71,7 +72,14 @@ export class CcSwiper extends ChuciElement {
   protected viewerTagName(): string {
     return "cc-viewer";
   }
-  protected setThumbnailSource(index: number, src: string): void {
+  protected setThumbnailSource(index: number, src: string, slide?: Element, key?: string): void {
+    if (slide && key) {
+      for (const image of this.queryAll<HTMLImageElement>(".viewer, .gallery-thumb")) {
+        const target = this.thumbnailTargets.get(image);
+        if (target?.slide === slide && target.key === key) image.setAttribute("src", src);
+      }
+      return;
+    }
     const img = this.query<HTMLImageElement>(`[data-thumb-index="${index}"]`);
     if (img) img.setAttribute("src", src);
     const viewer = this.query<HTMLImageElement>(`.viewer[data-index="${index}"]`);
@@ -147,6 +155,8 @@ export class CcSwiper extends ChuciElement {
     gallery.replaceChildren();
     this.slides.forEach((slide, index) => {
       const item = readMediaItem(slide);
+      const key = thumbnailCacheKey(item, DEFAULT_THUMBNAIL_SIZE);
+      const target = { slide, key };
       const src = item.thumbnailUrl || this.thumbnailSources.get(slide) || mediaTypeIcon(item.type);
       const panel = document.createElement("div");
       panel.className = "cc-slide";
@@ -158,6 +168,7 @@ export class CcSwiper extends ChuciElement {
       image.setAttribute("data-image-type", item.type);
       image.setAttribute("data-index", String(index));
       image.setAttribute("alt", item.caption);
+      this.thumbnailTargets.set(image, target);
       panel.append(image);
       track.append(panel);
       if (this.hasThumb) {
@@ -166,6 +177,7 @@ export class CcSwiper extends ChuciElement {
         thumb.dataset.thumbIndex = String(index);
         thumb.setAttribute("src", src);
         thumb.setAttribute("alt", item.caption);
+        this.thumbnailTargets.set(thumb, target);
         thumb.addEventListener("click", () => this.goTo(index));
         gallery.append(thumb);
       }
@@ -231,9 +243,20 @@ export class CcSwiper extends ChuciElement {
         const previous = this.thumbnailSources.get(slide);
         if (previous !== src) this.revokeThumbnailUrl(previous ?? null);
         this.thumbnailSources.set(slide, src);
-        this.setThumbnailSource(index, src);
+        this.setThumbnailSource(index, src, slide, key);
       });
     }
+  }
+
+  private updateThumbnailPriorities(): void {
+    const slides = this.slides;
+    const count = slides.length;
+    if (!count) return;
+    slides.forEach((slide, index) => {
+      if (!this.pendingThumbnails.has(slide)) return;
+      const priority = (index - this.index + count) % count;
+      this.thumbnailQueue.updatePriority(readMediaItem(slide), priority);
+    });
   }
 
   private bindEvents() {
@@ -507,12 +530,14 @@ export class CcSwiper extends ChuciElement {
       this.setPanelPosition(panel, targetOffset, 0);
     });
     this.updateChrome();
+    this.updateThumbnailPriorities();
     this.dispatch("cc-swiper-index-change", { index: this.index });
   }
 
   goTo(index: number, opts: { animate?: boolean } = {}) {
     this.currentIndex = normalizeIndex(index, this.items.length, this.loop);
     this.updateLayout(opts.animate ?? true);
+    this.updateThumbnailPriorities();
     this.dispatch("cc-swiper-index-change", { index: this.index });
   }
   pauseAutoplay() {

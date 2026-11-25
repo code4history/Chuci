@@ -211,6 +211,29 @@ test.each([
   }
 });
 
+test("prepareModelScene reports a required texture failure but keeps the gray fallback", async () => {
+  serveModelFiles(paintedFace, modelMaterials);
+  vi.spyOn(HTMLImageElement.prototype, "src", "set").mockImplementation(function (
+    this: HTMLImageElement,
+  ) {
+    queueMicrotask(() => this.dispatchEvent(new Event("error")));
+  });
+  const { stage } = setup();
+  const scene = await prepareModelScene(stage, { ...item, materialUrl }, new AbortController().signal);
+
+  expect(scene.textureLoadFailed).toBe(true);
+  const mesh = stage.scene.getObjectByProperty("isMesh", true) as Mesh<BufferGeometry, MeshPhongMaterial>;
+  expect(mesh.material.map).toBeNull();
+  expect(mesh.material.color.getHex()).toBe(0xcccccc);
+});
+
+test("prepareModelScene reports an MTL failure without rejecting the viewer scene", async () => {
+  serveModelFiles(paintedFace);
+  const { stage } = setup();
+  const scene = await prepareModelScene(stage, { ...item, materialUrl }, new AbortController().signal);
+  expect(scene.textureLoadFailed).toBe(true);
+});
+
 test("mount renders the OBJ in gray when the MTL returns 404", async () => {
   serveModelFiles(paintedFace);
   const { mounted, renderer } = mountModel();
