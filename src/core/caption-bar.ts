@@ -128,6 +128,8 @@ export const captionBarStyles = `
   padding: 0;
   border: none;
   border-radius: 50%;
+  /* button の既定の文字色（黒）ではなく、帯の文字色を受け継ぐ。スライダーは自前で主題色を指定する */
+  color: inherit;
   background: currentColor;
   opacity: 0.35;
   cursor: pointer;
