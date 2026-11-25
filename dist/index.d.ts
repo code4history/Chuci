@@ -50,6 +50,7 @@ export declare class CcSwiper extends ChuciElement {
     private observeSize;
     private updateLayout;
     private readPanelPositions;
+    private dragStartPositions;
     private drawDrag;
     private setPanelPosition;
     private updateChrome;

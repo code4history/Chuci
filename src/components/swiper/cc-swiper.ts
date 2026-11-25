@@ -509,13 +509,35 @@ export class CcSwiper extends ChuciElement {
     });
   }
 
+  private dragStartPositions(panels: HTMLElement[], index: number): number[] {
+    const { width, loop } = this;
+    const positions = this.readPanelPositions(panels, slideOffsets(index, panels.length, loop));
+    const visible = positions.filter((x) => Math.abs(x) < width - 0.01);
+    if (visible.length === 0) return positions;
+
+    // Offscreen panels can still be at their resting offsets while the
+    // visible ones are animating. Line up each hidden edge with the painted
+    // strip before dragging, so an entering panel cannot overlap its neighbor.
+    for (const side of [-1, 1]) {
+      let edge = side === -1 ? Math.min(...visible) : Math.max(...visible);
+      const hidden = positions
+        .map((x, i) => ({ x, i }))
+        .filter(({ x }) => side * x >= width - 0.01)
+        .sort((a, b) => side * (a.x - b.x));
+      for (const { i } of hidden) {
+        edge = side * Math.max(width, side * edge + width);
+        positions[i] = edge;
+      }
+    }
+    return positions;
+  }
+
   private drawDrag(drag: DragState) {
     const { width } = this;
     if (width <= 0) return;
     const index = this.index;
     const panels = Array.from(this.queryAll<HTMLElement>(".cc-slide"));
-    const offsets = slideOffsets(index, panels.length, this.loop);
-    const positions = drag.positions ??= this.readPanelPositions(panels, offsets);
+    const positions = drag.positions ??= this.dragStartPositions(panels, index);
     const source = positions[index] ?? 0;
     const dx = this.loop
       ? Math.max(-width - source, Math.min(width - source, drag.displayPx))
@@ -588,10 +610,17 @@ export class CcSwiper extends ChuciElement {
     const offsets = slideOffsets(index, panels.length, this.loop);
     const visible = (x: number) => Math.abs(x) < width - 0.01;
     if (previous !== index && !visible(positions[index])) {
-      const entry = step ?? Math.sign(oldOffsets[index]);
-      // A hidden incoming panel can wrap. Align it beside the outgoing
-      // panel if that keeps it offscreen, including on consecutive swipes.
-      positions[index] = entry * Math.max(width, width + entry * positions[previous]);
+      let entry = step ?? Math.sign(oldOffsets[index]);
+      const painted = positions.filter(visible);
+      const neighbor = positions.find((x, i) => i !== previous && visible(x));
+      const source = positions[previous];
+      // If a previous transition still straddles the viewport, enter next
+      // to its visible source instead of cutting across the other panel.
+      if (visible(source) && neighbor !== undefined)
+        entry = Math.sign(source - neighbor) || entry;
+      const edge = painted.length > 0 ? Math.max(...painted.map((x) => entry * x)) : 0;
+      // Reposition only the hidden incoming panel, before the new animation.
+      positions[index] = entry * Math.max(width, width + edge);
     }
     const incoming = positions[index];
     const targets = positions.map((x, i) => {
