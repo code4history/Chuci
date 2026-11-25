@@ -138,8 +138,8 @@ function openViewer(type: string, url: string, caption = "") {
 }
 
 describe("共通ビューアと描画部の注入対策", () => {
-  test("S5: youtube の iframe src が属性を破って別属性を注入できない", async () => {
-    const root = openViewer("youtube", ATTR_PAYLOAD);
+  test.each([ATTR_PAYLOAD, BENIGN_URL])("S5: youtube は不正な URL %s を iframe に設定しない", async (url) => {
+    const root = openViewer("youtube", url);
     await flush();
 
     const iframe = root.querySelector("iframe");

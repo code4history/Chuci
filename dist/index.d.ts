@@ -36,7 +36,6 @@ export declare class CcSwiper extends ChuciElement {
     private releaseThumbnailSources;
     private revokeThumbnailUrl;
     private requestThumbnails;
-    private updateThumbnailPriorities;
     private bindEvents;
     private onKeyDown;
     private onViewerIndexChange;
@@ -166,9 +165,16 @@ export declare type MediaType = 'image' | 'panorama' | 'youtube' | 'video' | '3d
  */
 export declare function readMediaItem(el: Element): MediaItem;
 
-export declare const THUMBNAIL_GENERATOR_VERSION = 3;
+export declare const THUMBNAIL_GENERATOR_VERSION = 4;
 
 export { }
+
+
+declare global {
+    interface HTMLElementTagNameMap {
+        "cc-viewer": CcViewer;
+    }
+}
 
 
 declare global {
@@ -181,12 +187,5 @@ declare global {
 declare global {
     interface HTMLElementTagNameMap {
         'cc-swiper-slide': CcSwiperSlide;
-    }
-}
-
-
-declare global {
-    interface HTMLElementTagNameMap {
-        "cc-viewer": CcViewer;
     }
 }

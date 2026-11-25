@@ -3,8 +3,10 @@ import { prepareModelScene } from "@/components/viewer/renderers/model-renderer"
 import { preparePanoramaScene } from "@/components/viewer/renderers/panorama-renderer";
 import { ThreeStage } from "@/components/viewer/renderers/three-stage";
 import { extractVideoId } from "@/utils/youtube-embed";
+import { fetchThumbnailSource, loadThumbnailImage } from "./source";
+import { resolveThumbnailItem } from "./urls";
 
-export const THUMBNAIL_GENERATOR_VERSION = 3;
+export const THUMBNAIL_GENERATOR_VERSION = 4;
 export const DEFAULT_THUMBNAIL_SIZE = 256;
 const GAUSSIAN_THUMBNAIL_CSS_HEIGHT = 720;
 
@@ -41,9 +43,7 @@ async function generateImage(item: MediaItem, maxSize: number, signal: AbortSign
   if (typeof createImageBitmap !== "function" || typeof OffscreenCanvas === "undefined") {
     throw new Error("Image thumbnail APIs are unavailable");
   }
-  const response = await fetch(item.url, { signal });
-  if (!response.ok) throw new Error(`Failed to load image (HTTP ${response.status})`);
-  const bitmap = await createImageBitmap(await response.blob());
+  const bitmap = await createImageBitmap(await fetchThumbnailSource(item.url, signal));
   try {
     signal.throwIfAborted();
     const { width, height } = outputSize(bitmap.width, bitmap.height, maxSize);
@@ -83,13 +83,16 @@ function waitForMediaEvent(target: HTMLMediaElement, name: string, signal: Abort
 }
 
 async function generateVideo(item: MediaItem, maxSize: number, signal: AbortSignal): Promise<Blob> {
+  const source = await fetchThumbnailSource(item.url, signal);
+  signal.throwIfAborted();
   const video = document.createElement("video");
   video.crossOrigin = "anonymous";
   video.preload = "auto";
   video.muted = true;
+  const url = URL.createObjectURL(source);
   try {
     const loaded = waitForMediaEvent(video, "loadeddata", signal);
-    video.setAttribute("src", item.url);
+    video.setAttribute("src", url);
     video.load();
     await loaded;
     signal.throwIfAborted();
@@ -111,56 +114,25 @@ async function generateVideo(item: MediaItem, maxSize: number, signal: AbortSign
     video.pause();
     video.removeAttribute("src");
     video.load();
+    URL.revokeObjectURL(url);
   }
 }
 
 export function youtubeThumbnailUrl(url: string): string | null {
-  try {
-    const video = extractVideoId(new URL(url));
-    return video ? `https://i.ytimg.com/vi/${video.id}/hqdefault.jpg` : null;
-  } catch {
-    return null;
-  }
+  const video = extractVideoId(url);
+  return video ? `https://i.ytimg.com/vi/${video.id}/hqdefault.jpg` : null;
 }
 
 async function generateYouTube(item: MediaItem, signal: AbortSignal): Promise<Blob> {
   const url = youtubeThumbnailUrl(item.url);
   if (!url) throw new Error("No YouTube video ID provided");
-  const response = await fetch(url, { signal });
-  if (!response.ok) throw new Error(`Failed to load YouTube thumbnail (HTTP ${response.status})`);
-  return response.blob();
-}
-
-function loadPanoramaAspect(url: string, signal: AbortSignal): Promise<number> {
-  const image = document.createElement("img");
-  image.crossOrigin = "anonymous";
-  return new Promise((resolve, reject) => {
-    const cleanup = () => {
-      image.onload = null;
-      image.onerror = null;
-      signal.removeEventListener("abort", aborted);
-    };
-    const aborted = () => {
-      cleanup();
-      image.removeAttribute("src");
-      reject(signal.reason);
-    };
-    image.onload = () => {
-      const aspect = image.naturalWidth / image.naturalHeight;
-      cleanup();
-      Number.isFinite(aspect) && aspect > 0 ? resolve(aspect) : reject(new Error("Invalid panorama dimensions"));
-    };
-    image.onerror = () => {
-      cleanup();
-      reject(new Error("Failed to load panorama"));
-    };
-    signal.addEventListener("abort", aborted, { once: true });
-    image.setAttribute("src", url);
-  });
+  return fetchThumbnailSource(url, signal);
 }
 
 async function generateThreeThumbnail(item: MediaItem, maxSize: number, signal: AbortSignal): Promise<Blob> {
-  const aspect = item.type === "panorama" ? await loadPanoramaAspect(item.url, signal) : 1;
+  const panorama = item.type === "panorama" ? await loadThumbnailImage(document, item.url, signal) : undefined;
+  const aspect = panorama ? panorama.naturalWidth / panorama.naturalHeight : 1;
+  if (!Number.isFinite(aspect) || aspect <= 0) throw new Error("Invalid panorama dimensions");
   signal.throwIfAborted();
   const { width, height } = outputSize(maxSize * aspect, maxSize, maxSize);
   const host = document.createElement("div");
@@ -187,16 +159,16 @@ async function generateThreeThumbnail(item: MediaItem, maxSize: number, signal: 
     const captureStage = new ThreeStage(host);
     stage = captureStage;
     if (item.type === "panorama") {
-      await preparePanoramaScene(captureStage, item, signal);
+      await preparePanoramaScene(captureStage, item, signal, panorama);
     } else if (item.type === "3dmodel") {
-      const scene = await prepareModelScene(captureStage, item, signal);
+      const scene = await prepareModelScene(captureStage, item, signal, true);
       if (item.showTexture !== false && scene.textureLoadFailed) {
         throw new Error("Failed to load a required model texture");
       }
     } else {
       const { prepareGaussianScene } = await import("@/components/viewer/renderers/gaussian-renderer");
       signal.throwIfAborted();
-      await prepareGaussianScene(captureStage, item, signal, GAUSSIAN_THUMBNAIL_CSS_HEIGHT);
+      await prepareGaussianScene(captureStage, item, signal, GAUSSIAN_THUMBNAIL_CSS_HEIGHT, fetchThumbnailSource);
     }
     signal.throwIfAborted();
     const blob = await captureStage.capture(maxSize);
@@ -211,18 +183,29 @@ async function generateThreeThumbnail(item: MediaItem, maxSize: number, signal: 
 /** Generate a thumbnail with the same initial scene setup used by the viewer. */
 export async function generateThumbnail(item: MediaItem, opts: GenerateOptions = {}): Promise<Blob> {
   const maxSize = checkedSize(opts.maxSize);
-  const signal = opts.signal ?? new AbortController().signal;
-  signal.throwIfAborted();
-  switch (item.type) {
-    case "image":
-      return generateImage(item, maxSize, signal);
-    case "video":
-      return generateVideo(item, maxSize, signal);
-    case "youtube":
-      return generateYouTube(item, signal);
-    case "panorama":
-    case "3dmodel":
-    case "gaussian":
-      return generateThreeThumbnail(item, maxSize, signal);
+  const source = resolveThumbnailItem(item);
+  const controller = new AbortController();
+  const { signal } = controller;
+  const abort = () => controller.abort(opts.signal?.reason);
+  opts.signal?.throwIfAborted();
+  opts.signal?.addEventListener("abort", abort, { once: true });
+  try {
+    switch (source.type) {
+      case "image":
+        return await generateImage(source, maxSize, signal);
+      case "video":
+        return await generateVideo(source, maxSize, signal);
+      case "youtube":
+        return await generateYouTube(source, signal);
+      case "panorama":
+      case "3dmodel":
+      case "gaussian":
+        return await generateThreeThumbnail(source, maxSize, signal);
+    }
+    throw new Error("Unsupported media type");
+  } finally {
+    opts.signal?.removeEventListener("abort", abort);
+    // A failed source can leave another model request in flight.
+    controller.abort();
   }
 }

@@ -162,6 +162,40 @@ test("OBJ can use an embedded MTL without external textures", async () => {
   }, new AbortController().signal)).resolves.toHaveProperty("home");
 });
 
+test.each(["obj", "mtl", "texture"])("applies the byte limit to the thumbnail %s path", async (oversized) => {
+  const { stage } = setup();
+  const responses = new Map([
+    [item.url, { kind: "obj", source: paintedFace }],
+    [materialUrl, { kind: "mtl", source: modelMaterials }],
+    [paintedTexture, { kind: "texture", source: "unused" }],
+  ]);
+  const fetch = vi.fn(async (url: string) => {
+    const resource = responses.get(url)!;
+    return new Response(resource.source, {
+      headers: resource.kind === oversized ? { "Content-Length": String(64 * 1024 * 1024 + 1) } : {},
+    });
+  });
+  vi.stubGlobal("fetch", fetch);
+  const signal = new AbortController().signal;
+  const thumbnail = prepareModelScene(stage, { ...item, materialUrl }, signal, true);
+
+  if (oversized === "texture") {
+    await expect(thumbnail).resolves.toHaveProperty("textureLoadFailed", true);
+    expect(fetch).toHaveBeenCalledWith(paintedTexture, { signal });
+    expect(fetch).not.toHaveBeenCalledWith(missingTexture, { signal });
+  } else {
+    await expect(thumbnail).rejects.toThrow("64 MiB");
+  }
+});
+
+test("leaves model fetching uncapped when opening the viewer", async () => {
+  const { stage } = setup();
+  vi.stubGlobal("fetch", vi.fn(async () => new Response(paintedFace, {
+    headers: { "Content-Length": String(64 * 1024 * 1024 + 1) },
+  })));
+  await expect(prepareModelScene(stage, item, new AbortController().signal)).resolves.toHaveProperty("home");
+});
+
 test("show-texture=false starts gray and restores the same original material", async () => {
   const { mesh, original } = fakeModel();
   const { stage } = setup();

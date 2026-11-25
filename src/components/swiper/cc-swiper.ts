@@ -11,6 +11,7 @@ import { thumbnailCacheKey } from "@/thumbnails/cache";
 import { DEFAULT_THUMBNAIL_SIZE } from "@/thumbnails/generate";
 import { mediaTypeIcon } from "@/thumbnails/icons";
 import { sharedThumbnailQueue } from "@/thumbnails/queue";
+import { readThumbnailItem } from "@/thumbnails/urls";
 
 export function escapeCssUrl(value: string): string {
   return value.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
@@ -46,8 +47,10 @@ export class CcSwiper extends ChuciElement {
   private viewerOpen = false;
   private viewerIndex = 0;
   private readonly thumbnailQueue = sharedThumbnailQueue;
-  private readonly thumbnailSources = new Map<Element, string>();
-  private readonly pendingThumbnails = new Map<Element, { key: string; controller: AbortController }>();
+  private readonly thumbnailSources = new Map<Element, { key: string; src: string }>();
+  private readonly pendingThumbnails = new Map<Element, {
+    key: string; controller: AbortController; generate: boolean
+  }>();
   private readonly thumbnailTargets = new WeakMap<HTMLImageElement, { slide: Element; key: string }>();
   private stopHostPropagation = (event: Event) => event.stopPropagation();
 
@@ -163,19 +166,22 @@ export class CcSwiper extends ChuciElement {
     track.replaceChildren();
     gallery.replaceChildren();
     this.slides.forEach((slide, index) => {
-      const item = readMediaItem(slide);
+      const item = readThumbnailItem(slide);
       const key = thumbnailCacheKey(item, DEFAULT_THUMBNAIL_SIZE);
       const target = { slide, key };
+      if (this.thumbnailSources.get(slide)?.key !== key || item.thumbnailUrl) {
+        this.thumbnailSources.delete(slide);
+      }
       const memorySrc = item.thumbnailUrl ? null : this.thumbnailQueue.getMemoryUrl(item);
-      if (memorySrc) this.thumbnailSources.set(slide, memorySrc);
-      const src = item.thumbnailUrl || this.thumbnailSources.get(slide) || mediaTypeIcon(item.type);
+      if (memorySrc) this.thumbnailSources.set(slide, { key, src: memorySrc });
+      const src = item.thumbnailUrl || this.thumbnailSources.get(slide)?.src || mediaTypeIcon(item.type);
       const panel = document.createElement("div");
       panel.className = "cc-slide";
       panel.dataset.index = String(index);
       const image = document.createElement("img");
       image.className = "viewer";
       image.setAttribute("src", src);
-      image.setAttribute("data-image-url", item.url);
+      image.setAttribute("data-image-url", slide.getAttribute("image-url") ?? "");
       image.setAttribute("data-image-type", item.type);
       image.setAttribute("data-index", String(index));
       image.setAttribute("alt", item.caption);
@@ -194,12 +200,12 @@ export class CcSwiper extends ChuciElement {
       }
     });
     gallery.hidden = !this.hasThumb;
-    this.requestThumbnails();
+    this.requestThumbnails(true);
   }
 
   private resetThumbnailSources(): void {
     const slides = new Set(this.slides);
-    for (const [slide, src] of this.thumbnailSources) {
+    for (const [slide, { src }] of this.thumbnailSources) {
       if (src.startsWith("blob:") || !slides.has(slide)) {
         this.revokeThumbnailUrl(src);
         this.thumbnailSources.delete(slide);
@@ -208,7 +214,7 @@ export class CcSwiper extends ChuciElement {
   }
 
   private releaseThumbnailSources(): void {
-    for (const src of this.thumbnailSources.values()) this.revokeThumbnailUrl(src);
+    for (const { src } of this.thumbnailSources.values()) this.revokeThumbnailUrl(src);
     this.thumbnailSources.clear();
   }
 
@@ -218,28 +224,52 @@ export class CcSwiper extends ChuciElement {
     }
   }
 
-  private requestThumbnails(): void {
+  private requestThumbnails(restoreDistant = false): void {
+    if (!this.isConnected) return;
     const slides = this.slides;
     const count = slides.length;
     const first = this.index;
-    const requests = slides
-      .map((slide, index) => ({
-        slide,
-        item: readMediaItem(slide),
-        priority: (index - first + count) % count
-      }))
-      .filter(({ slide, item }) => !item.thumbnailUrl && !this.thumbnailSources.has(slide))
-      .sort((a, b) => a.priority - b.priority);
-    const stale = new Map(this.pendingThumbnails);
-    for (const { slide, item, priority } of requests) {
-      const key = thumbnailCacheKey(item, DEFAULT_THUMBNAIL_SIZE);
-      if (this.pendingThumbnails.get(slide)?.key === key) {
-        stale.delete(slide);
-        continue;
+    const nearby = new Map<number, number>();
+    if (count) {
+      const loop = this.loop;
+      for (const offset of [0, 1, -1]) {
+        const index = normalizeIndex(first + offset, count, loop);
+        if (!nearby.has(index)) nearby.set(index, nearby.size);
       }
-      const pending = { key, controller: new AbortController() };
+    }
+    const requests = Array.from(nearby, ([index, priority]) => ({ slide: slides[index], priority }));
+    // Cache-only reads for other slides are independent of the generation queue.
+    if (restoreDistant) {
+      slides.forEach((slide, index) => {
+        if (!nearby.has(index)) requests.push({ slide, priority: Infinity });
+      });
+    }
+
+    const stale = new Map(this.pendingThumbnails);
+    if (!restoreDistant) {
+      for (const [slide, pending] of stale) {
+        if (!pending.generate) stale.delete(slide);
+      }
+    }
+    const priorities = new Map<string, { item: MediaItem; priority: number }>();
+    for (const { slide, priority } of requests) {
+      const item = readThumbnailItem(slide);
+      const key = thumbnailCacheKey(item, DEFAULT_THUMBNAIL_SIZE);
+      if (item.thumbnailUrl || this.thumbnailSources.get(slide)?.key === key) continue;
+      const generate = Number.isFinite(priority);
+      if (generate && !priorities.has(key)) priorities.set(key, { item, priority });
+
+      const existing = this.pendingThumbnails.get(slide);
+      stale.delete(slide);
+      if (existing?.key === key && existing.generate === generate) continue;
+      const pending = { key, controller: new AbortController(), generate };
       this.pendingThumbnails.set(slide, pending);
-      void this.thumbnailQueue.request(item, priority, pending.controller.signal).then((src) => {
+      existing?.controller.abort();
+      const signal = pending.controller.signal;
+      const request = generate
+        ? this.thumbnailQueue.request(item, priority, signal)
+        : this.thumbnailQueue.getCachedUrl(item, signal);
+      void request.then((src) => {
         if (this.pendingThumbnails.get(slide) !== pending) {
           this.revokeThumbnailUrl(src);
           return;
@@ -247,18 +277,19 @@ export class CcSwiper extends ChuciElement {
         this.pendingThumbnails.delete(slide);
         if (!src) return;
         const index = this.slides.indexOf(slide);
-        const currentItem = index >= 0 ? readMediaItem(slide) : undefined;
+        const currentItem = index >= 0 ? readThumbnailItem(slide) : undefined;
         if (
           !this.isConnected ||
           !currentItem ||
+          currentItem.thumbnailUrl ||
           thumbnailCacheKey(currentItem, DEFAULT_THUMBNAIL_SIZE) !== key
         ) {
           this.revokeThumbnailUrl(src);
           return;
         }
-        const previous = this.thumbnailSources.get(slide);
+        const previous = this.thumbnailSources.get(slide)?.src;
         if (previous !== src) this.revokeThumbnailUrl(previous ?? null);
-        this.thumbnailSources.set(slide, src);
+        this.thumbnailSources.set(slide, { key, src });
         this.setThumbnailSource(index, src, slide, key);
       });
     }
@@ -266,22 +297,6 @@ export class CcSwiper extends ChuciElement {
       if (this.pendingThumbnails.get(slide) === pending) this.pendingThumbnails.delete(slide);
       pending.controller.abort();
     }
-  }
-
-  private updateThumbnailPriorities(): void {
-    const slides = this.slides;
-    const count = slides.length;
-    if (!count) return;
-    const priorities = new Map<string, { item: MediaItem; priority: number }>();
-    slides.forEach((slide, index) => {
-      if (!this.pendingThumbnails.has(slide)) return;
-      const item = readMediaItem(slide);
-      const key = thumbnailCacheKey(item, DEFAULT_THUMBNAIL_SIZE);
-      const priority = (index - this.index + count) % count;
-      const current = priorities.get(key);
-      if (current) current.priority = Math.min(current.priority, priority);
-      else priorities.set(key, { item, priority });
-    });
     for (const { item, priority } of priorities.values()) {
       this.thumbnailQueue.updatePriority(item, priority);
     }
@@ -663,7 +678,7 @@ export class CcSwiper extends ChuciElement {
 
   private selectSlide(index: number, animate: boolean, step?: -1 | 1) {
     this.moveTo(index, animate, step);
-    this.updateThumbnailPriorities();
+    this.requestThumbnails();
     this.dispatch("cc-swiper-index-change", { index: this.index });
   }
 

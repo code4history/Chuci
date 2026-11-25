@@ -1,4 +1,4 @@
-// cc-viewer-youtube の <iframe src> に入れる値を決める（https なら通す）。
+// YouTube の動画 URL を HTTPS の埋め込み先に正規化する。
 // 公開 API にしない（src/index.ts から export しない）。
 
 const YOUTUBE_HOSTS = new Set(['youtube.com', 'www.youtube.com', 'm.youtube.com'])
@@ -7,7 +7,15 @@ const SHORT_HOST = 'youtu.be'
 const VIDEO_ID = /^[A-Za-z0-9_-]+$/
 
 /** URL のホストとパスから動画 ID を取り出す。YouTube の URL でなければ null */
-export function extractVideoId(url: URL): { id: string; nocookie: boolean } | null {
+export function extractVideoId(input: string): { id: string; nocookie: boolean } | null {
+  let url: URL
+  try {
+    url = new URL(input)
+  } catch {
+    return null
+  }
+  if (url.protocol !== 'http:' && url.protocol !== 'https:') return null
+
   const host = url.hostname
   const segments = url.pathname.split('/').filter(s => s !== '')
   let id: string | null = null
@@ -37,24 +45,9 @@ export function extractVideoId(url: URL): { id: string; nocookie: boolean } | nu
  * 返り値は https の URL か null。null のときは src を付けない。
  */
 export function toYouTubeIframeSrc(input: string): string | null {
-  let url: URL
-  try {
-    // 基点を渡さない。基点（location.href）を渡すと相対 URL が通ってしまう
-    url = new URL(input)
-  } catch {
-    return null
-  }
-
-  if (url.protocol === 'http:' || url.protocol === 'https:') {
-    const video = extractVideoId(url)
-    if (video) {
-      // 元が http: でも iframe に入る値は https の埋め込み形式にする
-      return video.nocookie
-        ? `https://www.youtube-nocookie.com/embed/${video.id}`
-        : `https://www.youtube.com/embed/${video.id}`
-    }
-  }
-
-  if (url.protocol === 'https:') return url.href
-  return null
+  const video = extractVideoId(input)
+  if (!video) return null
+  return video.nocookie
+    ? `https://www.youtube-nocookie.com/embed/${video.id}`
+    : `https://www.youtube.com/embed/${video.id}`
 }

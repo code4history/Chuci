@@ -73,11 +73,15 @@ export async function prepareGaussianScene(
   item: MediaItem,
   signal: AbortSignal,
   referenceHeightCssPx?: number,
+  fetchSource?: (url: string, signal: AbortSignal) => Promise<Blob>,
 ): Promise<GaussianScene> {
   signal.throwIfAborted();
   if (!item.url) throw new Error("No Gaussian splat URL provided");
 
-  const fileBytes = await fetchSplatBytes(item.url, signal);
+  // Spark receives bytes, so its worker has no source URL to fetch independently.
+  const fileBytes = fetchSource
+    ? new Uint8Array(await (await fetchSource(item.url, signal)).arrayBuffer())
+    : await fetchSplatBytes(item.url, signal);
   signal.throwIfAborted();
 
   const fileType = !getSplatFileType(fileBytes) && !hasKnownSplatExtension(item.url)

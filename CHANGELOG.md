@@ -13,6 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - メディア別の `cc-viewer-base`・`cc-viewer-image`・`cc-viewer-panorama`・`cc-viewer-youtube`・`cc-viewer-video`・`cc-viewer-3dmodel`・`cc-viewer-gaussian` 要素を削除し、全メディアで `cc-viewer` に統一した。
 - `cc-viewer.open(url, type, attributes)` を `open(items, index, { loop })` に変更した。`setSwiper`・`setCurrentSlideIndex` と、基盤の Swiper を返す `cc-swiper.slider` を削除した。`cc-swiper.openViewer` は `openViewer(index)` となり、スライド変更イベントは `slidechange` から `cc-swiper-index-change`（`detail.index`）へ変わった。ビューアの連携には `cc-viewer-index-change`・`cc-viewer-close` を使う。
 - カルーセルと画像・360 度ビューアを自前の実装へ替え、Gaussian の描画を Spark へ移した。これに伴い Swiper・viewer.js・gsplat と A-Frame の CDN 読み込みをなくし、`@sparkjsdev/spark` を追加した。three.js は引き続き使う。
+- `youtube` 種別は YouTube の動画だけを表示する。以前は YouTube と判定できない HTTPS ページもそのまま枠に表示していた。
 
 #### 2.0 の追加
 - 元メディアからサムネイルを生成する `generateThumbnail` API を追加。`thumbnail-url` がないスライドでは IndexedDB の保存済みサムネイルを使い、なければ裏で 1 件ずつ生成する。ブラウザ上の作成ツールからも同じ API を呼べる。
@@ -30,6 +31,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Removed the media-specific `cc-viewer-base`, `cc-viewer-image`, `cc-viewer-panorama`, `cc-viewer-youtube`, `cc-viewer-video`, `cc-viewer-3dmodel`, and `cc-viewer-gaussian` elements. All media now use `cc-viewer`.
 - Replaced `cc-viewer.open(url, type, attributes)` with `open(items, index, { loop })`. Removed `setSwiper`, `setCurrentSlideIndex`, and `cc-swiper.slider`, which exposed the underlying Swiper instance. `cc-swiper.openViewer` is now `openViewer(index)`, and the slide-change event is `cc-swiper-index-change` (`detail.index`) instead of `slidechange`. Use `cc-viewer-index-change` and `cc-viewer-close` for viewer integration.
 - Replaced the carousel and image/panorama viewers with Chuci's own implementations and moved Gaussian rendering to Spark. Removed Swiper, viewer.js, gsplat, and the A-Frame CDN dependency; added `@sparkjsdev/spark`. three.js remains in use.
+- The `youtube` type now displays YouTube videos only. Previously it embedded other HTTPS pages directly in the frame.
 
 #### 2.0 added
 - Added the `generateThumbnail` API for creating thumbnails from source media. Slides without `thumbnail-url` use cached thumbnails from IndexedDB or generate them sequentially in the background. Browser-based authoring tools can call the same API.

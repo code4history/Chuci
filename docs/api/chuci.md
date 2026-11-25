@@ -6,7 +6,7 @@ Web Components and browser APIs provided by `@c4h/chuci`.
 
 - **image**: Regular images (JPEG, PNG, GIF, etc.). Unknown `image-type` values are also treated as `image`.
 - **panorama**: 360° equirectangular images rendered with three.js.
-- **youtube**: YouTube videos or other HTTPS iframe content.
+- **youtube**: YouTube videos.
 - **video**: HTML5 videos (MP4, WebM, etc.) with native playback controls.
 - **3dmodel**: OBJ models with an optional MTL material.
 - **gaussian**: Gaussian splatting files rendered with Spark, loaded on demand.
@@ -221,10 +221,10 @@ document.addEventListener('cc-viewer-close', () => {
 </cc-swiper-slide>
 ```
 
-YouTube URLs (`youtube.com`, `youtu.be`, and `youtube-nocookie.com`, using HTTP
-or HTTPS) are converted to HTTPS embed URLs. Any other HTTPS URL is embedded as
-is. Non-HTTPS URLs, including `javascript:` and URLs without a scheme, are not
-displayed.
+The `youtube` type extracts a video ID from an HTTP or HTTPS URL on `youtube.com`,
+`youtu.be`, or `youtube-nocookie.com` and converts it to an HTTPS embed URL.
+If no valid ID can be extracted, the viewer shows its shared error panel and the
+automatic thumbnail remains a media-type icon.
 
 ## Thumbnail Generation API
 
@@ -268,13 +268,28 @@ await appendSlideWithThumbnail(swiper, slide, storeBlob, controller.signal);
 - The media server must permit CORS whenever media pixels are fetched or copied to a canvas. This includes cross-origin images, video frames, textures, models, and splats. YouTube's public thumbnail must also be fetchable from the page.
 - Gaussian generation loads Spark on demand, just like Gaussian viewing.
 
-When `thumbnail-url` is omitted, the carousel checks IndexedDB
-(`chuci-thumbnails`), temporarily shows a media-type icon if necessary, and
-generates missing thumbnails in the background. The current slide has priority,
-and generation proceeds one item at a time. After a failed YouTube fetch, the
-carousel uses the public thumbnail URL directly when a video ID is available;
-other failures leave the media-type icon in place. Failures are remembered only
-for the page lifetime.
+An explicit `thumbnail-url` takes precedence, followed by cached results from IndexedDB
+(`chuci-thumbnails`). The carousel generates missing thumbnails one at a time for the
+current slide and its immediate neighbors. Other slides become eligible as you navigate.
+The cache key and fetch use the same absolute source and material URLs, resolved against
+the document's base URL.
+
+Thumbnail generation limits each fetched response to 64 MiB, including OBJ, MTL, and
+texture responses. Over-limit sources keep the media-type icon and are never stored in
+IndexedDB. If fetching a YouTube thumbnail fails because of CORS or a similar error,
+the carousel can use the public image URL directly when a video ID is available.
+Other failures leave the media-type icon in place. Failures are remembered for the
+page lifetime.
+
+## Content Security Policy
+
+If the host page sets a CSP, add the source expressions needed by the features you use.
+
+- Gaussian (Spark) uses `'wasm-unsafe-eval'` in `script-src` and `blob:` in `worker-src`. If creating the Blob worker throws, Spark tries a `data:` worker. Allow `data:` in `worker-src` only if you need that fallback.
+- Automatic thumbnails use `blob:` for generated images and `data:` for media-type icons in `img-src`. The panorama and model texture decoders also use Blob images. Video thumbnail generation uses `blob:` in `media-src`.
+- YouTube playback uses `frame-src https://www.youtube.com https://www.youtube-nocookie.com`. For YouTube thumbnails, allow `https://i.ytimg.com` in `connect-src` for the fetch and in `img-src` for the direct-image fallback.
+- Allow the origins that serve the package and its lazy-loaded chunks in `script-src`, fetched media in `connect-src`, and directly loaded images and video in `img-src` and `media-src` respectively. Use the actual source scheme for any `blob:` or `data:` media you supply.
+- The components insert inline `<style>` blocks in their shadow roots. Permit those blocks in `style-src-elem` (or `style-src` if it governs style elements), for example by allowing hashes that match the bundled style text.
 
 ## Viewer and Carousel Controls
 

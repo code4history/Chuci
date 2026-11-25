@@ -1,14 +1,3 @@
-// cc-viewer-youtube が <iframe src> に入れる値を https に限る
-//
-// 起票元: リリース前のセキュリティレビューの指摘
-// 決定: 「緩い案: https なら通す」
-//
-// 規則:
-//   1. new URL(input)（基点なし）で解釈できなければ null
-//   2. protocol が http: / https: で、ホストが YouTube、動画 ID が ^[A-Za-z0-9_-]+$ なら https の埋め込み形式
-//   3. 2 に当たらず protocol が https: なら url.href
-//   4. それ以外は null
-
 import { describe, it, test, expect, beforeEach } from "vitest";
 import { toYouTubeIframeSrc } from "../src/utils/youtube-embed";
 import { readMediaItem } from "../src/index";
@@ -60,19 +49,16 @@ describe("変換（YouTube の URL は https の埋め込み形式へ）", () =>
   });
 });
 
-describe("通す（YouTube でない https は解釈後の値のまま）", () => {
+describe("有効な YouTube 動画 ID が取れない HTTPS は拒否", () => {
   it.each([
     ["https://example.com/"],
     ["https://evil.example/youtube.com/watch?v=abc"],
     ["https://www.youtube.com.evil.example/watch?v=abc"],
     ['https://www.youtube.com/watch?v=a"b'],
     ["https://www.youtube.com/"],
-  ])("%s → new URL(input).href", (input) => {
-    expect(toYouTubeIframeSrc(input)).toBe(new URL(input).href);
-  });
-
-  test("先頭に空白のある https は解釈後の値", () => {
-    expect(toYouTubeIframeSrc(" https://example.com/")).toBe("https://example.com/");
+    [" https://example.com/"],
+  ])("%s → null", (input) => {
+    expect(toYouTubeIframeSrc(input)).toBeNull();
   });
 });
 
@@ -106,9 +92,10 @@ describe("結線（cc-viewer の YouTube iframe src）", () => {
     expect(iframe!.getAttribute("src")).toBeNull();
   });
 
-  test("https の任意のページはそのまま src にする", async () => {
+  test("YouTube 以外の HTTPS ページは共通のエラー表示になる", async () => {
     const el = openYoutube("https://example.com/");
     await flush();
-    expect(iframeOf(el)!.getAttribute("src")).toBe("https://example.com/");
+    expect(iframeOf(el)?.getAttribute("src") ?? null).toBeNull();
+    expect(el.shadowRoot!.querySelector<HTMLElement>(".viewer-error")!.hidden).toBe(false);
   });
 });

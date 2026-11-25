@@ -6,6 +6,7 @@ import { MTLLoader } from "three/examples/jsm/loaders/MTLLoader.js";
 import { OBJLoader } from "three/examples/jsm/loaders/OBJLoader.js";
 import { GestureInterpreter } from "@/core/gesture";
 import type { MediaItem } from "@/core/media-item";
+import { fetchThumbnailSource, loadThumbnailImage, ThumbnailSourceTooLargeError } from "@/thumbnails/source";
 import { OrbitRig, parseVec3 } from "./orbit-rig";
 import { disposeThreeResources, ThreeStage } from "./three-stage";
 import type { DebugEntry, MediaRenderer, RendererContext } from "./types";
@@ -56,24 +57,43 @@ async function loadModelMaterials(
   url: string,
   baseURI: string,
   signal: AbortSignal,
+  readText: (url: string) => Promise<string>,
 ): Promise<MTLLoader.MaterialCreator | undefined> {
   try {
-    const source = await fetchText(url, signal);
+    const source = await readText(url);
     const resolvedUrl = new URL(url, baseURI);
     const basePath = resolvedUrl.protocol === "data:" || resolvedUrl.protocol === "blob:"
       ? "" : new URL(".", resolvedUrl).href;
     return new MTLLoader(new LoadingManager()).parse(source, basePath);
-  } catch {
+  } catch (error) {
     signal.throwIfAborted();
+    if (error instanceof ThumbnailSourceTooLargeError) throw error;
     return undefined;
   }
 }
 
-function trackMaterialTextures(materials: MTLLoader.MaterialCreator) {
+function trackMaterialTextures(
+  materials: MTLLoader.MaterialCreator,
+  thumbnail?: { document: Document; signal: AbortSignal; showTexture: boolean },
+) {
   const pending: Promise<void>[] = [];
   const failed = new Set<Texture>();
   const loadTexture = materials.loadTexture.bind(materials);
   materials.loadTexture = (url, mapping) => {
+    if (thumbnail) {
+      const texture = new Texture();
+      if (mapping !== undefined) texture.mapping = mapping;
+      if (thumbnail.showTexture) {
+        pending.push(loadThumbnailImage(thumbnail.document, url, thumbnail.signal).then(
+          (image) => {
+            texture.image = image;
+            texture.needsUpdate = true;
+          },
+          () => { failed.add(texture); },
+        ));
+      }
+      return texture;
+    }
     let complete!: (loaded: boolean) => void;
     const loaded = new Promise<boolean>((resolve) => { complete = resolve; });
     let texture: Texture;
@@ -117,19 +137,25 @@ export async function prepareModelScene(
   stage: ThreeStage,
   item: MediaItem,
   signal: AbortSignal,
+  forThumbnail = false,
 ): Promise<ModelScene> {
   signal.throwIfAborted();
   if (!item.url) throw new Error("No model URL provided");
   const { materialUrl } = item;
-  const { baseURI } = stage.renderer.domElement;
+  const { ownerDocument, baseURI } = stage.renderer.domElement;
+  const readText = async (url: string) => forThumbnail
+    ? (await fetchThumbnailSource(url, signal)).text()
+    : fetchText(url, signal);
   const [source, materials] = await Promise.all([
-    fetchText(item.url, signal),
-    materialUrl ? loadModelMaterials(materialUrl, baseURI, signal) : undefined,
+    readText(item.url),
+    materialUrl ? loadModelMaterials(materialUrl, baseURI, signal, readText) : undefined,
   ]);
   signal.throwIfAborted();
 
   const loader = new OBJLoader();
-  const textures = materials && trackMaterialTextures(materials);
+  const textures = materials && trackMaterialTextures(materials, forThumbnail
+    ? { document: ownerDocument, signal, showTexture: item.showTexture !== false }
+    : undefined);
   if (materials) loader.setMaterials(materials);
   const retainedMaterials = new Set<Material>();
   let object: Group | undefined;

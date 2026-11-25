@@ -33,6 +33,7 @@ function makeSwiper(input: MediaItem | MediaItem[]): CcSwiper {
     const slide = document.createElement("cc-swiper-slide");
     slide.setAttribute("image-url", item.url);
     slide.setAttribute("image-type", item.type);
+    if (item.materialUrl) slide.setAttribute("material-url", item.materialUrl);
     if (item.thumbnailUrl) slide.setAttribute("thumbnail-url", item.thumbnailUrl);
     el.append(slide);
   }
@@ -70,8 +71,19 @@ afterEach(() => {
 });
 
 describe("thumbnailCacheKey", () => {
+  test("resolves both source URLs against the supplying document", () => {
+    const item = makeItem({ url: "model.obj", materialUrl: "../model.mtl" });
+    const first = thumbnailCacheKey(item, 256, "https://example.com/first/models/");
+    const second = thumbnailCacheKey(item, 256, "https://example.com/second/models/");
+    expect(first).not.toBe(second);
+    expect(first).toBe(thumbnailCacheKey(makeItem({
+      url: "https://example.com/first/models/model.obj",
+      materialUrl: "https://example.com/first/model.mtl",
+    }), 256));
+  });
+
   test("thumbnailCacheKey changes when camera-position changes and when version changes", async () => {
-    expect(THUMBNAIL_GENERATOR_VERSION).toBe(3);
+    expect(THUMBNAIL_GENERATOR_VERSION).toBe(4);
     const item = makeItem({ cameraPosition: "1,2,3" });
     const original = thumbnailCacheKey(item, 256);
     expect(thumbnailCacheKey({ ...item, cameraPosition: "4,5,6" }, 256)).not.toBe(original);
@@ -317,17 +329,52 @@ describe("thumbnail slider integration", () => {
     expect(queues.size).toBe(1);
   });
 
-  test("goTo reprioritizes thumbnail requests around the visible slide", async () => {
-    vi.spyOn(ThumbnailQueue.prototype, "request").mockReturnValue(new Promise(() => {}));
-    const updatePriority = vi.spyOn(ThumbnailQueue.prototype, "updatePriority");
-    const items = ["a", "b", "c"].map((name) => makeItem({ url: `https://example.com/${name}.jpg` }));
+  test("generates only the current slide and its two looping neighbors", () => {
+    const request = vi.spyOn(ThumbnailQueue.prototype, "request").mockReturnValue(new Promise(() => {}));
+    const items = ["a", "b", "c", "d", "e"].map((name) => makeItem({ url: `https://example.com/${name}.jpg` }));
     const el = makeSwiper(items);
+    expect(request.mock.calls.map(([item]) => item.url)).toEqual([items[0].url, items[1].url, items[4].url]);
+    const originalSignals = request.mock.calls.map(([, , signal]) => signal);
 
     el.goTo(2);
 
-    expect(updatePriority).toHaveBeenCalledWith(items[2], 0);
-    expect(updatePriority).toHaveBeenCalledWith(items[0], 1);
-    expect(updatePriority).toHaveBeenCalledWith(items[1], 2);
+    expect(request.mock.calls.slice(3).map(([item]) => item.url)).toEqual([items[2].url, items[3].url]);
+    expect(originalSignals.map((signal) => signal?.aborted)).toEqual([true, false, true]);
+  });
+
+  test("restores a distant IndexedDB thumbnail while nearby generation is pending", async () => {
+    const cache = await ThumbnailCache.open();
+    const originalCache = Reflect.get(sharedThumbnailQueue, "cache");
+    const request = vi.spyOn(ThumbnailQueue.prototype, "request").mockReturnValue(new Promise(() => {}));
+    const items = ["a", "b", "c", "d", "e"].map((name) =>
+      makeItem({ url: `https://example.com/distant-${name}.jpg` })
+    );
+    await cache.put(thumbnailCacheKey(items[2], 256), new Blob(["cached"]));
+    Reflect.set(sharedThumbnailQueue, "cache", Promise.resolve(cache));
+    try {
+      const el = makeSwiper(items);
+      const image = el.shadowRoot!.querySelector('.viewer[data-index="2"]')!;
+      await vi.waitFor(() => expect(image.getAttribute("src")).toMatch(/^blob:/));
+      expect(request.mock.calls.map(([item]) => item.url)).not.toContain(items[2].url);
+    } finally {
+      Reflect.set(sharedThumbnailQueue, "cache", originalCache);
+    }
+  });
+
+  test("passes slide-relative URLs through to generation as absolute URLs", async () => {
+    const base = document.createElement("base");
+    base.href = "https://example.com/gallery/";
+    document.head.append(base);
+    const request = vi.spyOn(ThumbnailQueue.prototype, "request").mockResolvedValue(null);
+    try {
+      makeSwiper(makeItem({ url: "scene.obj", materialUrl: "../scene.mtl", type: "3dmodel" }));
+      expect(request.mock.calls[0][0]).toMatchObject({
+        url: "https://example.com/gallery/scene.obj",
+        materialUrl: "https://example.com/scene.mtl"
+      });
+    } finally {
+      base.remove();
+    }
   });
 
   test("duplicate slides keep their highest priority for a shared thumbnail key", async () => {
@@ -385,11 +432,11 @@ describe("thumbnail slider integration", () => {
     await vi.waitFor(() => expect(image.getAttribute("src")).toBe("blob:generated"));
   });
 
-  test("youtube url without video id keeps icon", async () => {
+  test.each(["https://www.youtube.com/watch", "https://example.com/"])("invalid YouTube URL %s keeps the icon", async (url) => {
     const fetchSpy = vi.spyOn(globalThis, "fetch");
     const el = makeSwiper(makeItem({
       type: "youtube",
-      url: "https://www.youtube.com/watch"
+      url
     }));
     const image = el.shadowRoot!.querySelector<HTMLImageElement>(".viewer")!;
     const icon = image.getAttribute("src");
@@ -563,6 +610,47 @@ describe("thumbnail slider integration", () => {
 });
 
 describe("generateThumbnail", () => {
+  test("rejects an oversized Content-Length without reading the body", async () => {
+    const pull = vi.fn();
+    const cancel = vi.fn();
+    const body = new ReadableStream({ pull, cancel }, { highWaterMark: 0 });
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response(body, {
+      headers: { "Content-Length": String(64 * 1024 * 1024 + 1) }
+    }));
+
+    await expect(generateThumbnail(makeItem({
+      type: "youtube", url: "https://youtu.be/abc123"
+    }))).rejects.toThrow("64 MiB");
+    expect(pull).not.toHaveBeenCalled();
+    expect(cancel).toHaveBeenCalledOnce();
+  });
+
+  test("cancels an oversized stream without storing or showing a direct YouTube URL", async () => {
+    const cancel = vi.fn();
+    const chunk = new Uint8Array(1024 * 1024);
+    let reads = 0;
+    const body = new ReadableStream({
+      pull(controller) {
+        reads++;
+        if (reads <= 65) controller.enqueue(chunk);
+        else controller.close();
+      },
+      cancel,
+    }, { highWaterMark: 0 });
+    const fetch = vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response(body));
+    const cache = await ThumbnailCache.open();
+    const put = vi.spyOn(cache, "put");
+    const queue = new ThumbnailQueue({ cache });
+    const item = makeItem({ type: "youtube", url: "https://youtu.be/oversized" });
+
+    await expect(queue.request(item, 0)).resolves.toBeNull();
+    expect(reads).toBe(65);
+    expect(cancel).toHaveBeenCalledOnce();
+    expect(put).not.toHaveBeenCalled();
+    await expect(queue.request(item, 0)).resolves.toBeNull();
+    expect(fetch).toHaveBeenCalledOnce();
+  });
+
   test("rejects a 3D thumbnail when a required texture failed to load", async () => {
     vi.resetModules();
     const capture = vi.fn().mockResolvedValue(new Blob(["gray"]));

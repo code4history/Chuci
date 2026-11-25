@@ -1,49 +1,20 @@
 import { BackSide, Mesh, MeshBasicMaterial, SphereGeometry, SRGBColorSpace, Texture } from "three";
 import { GestureInterpreter } from "@/core/gesture";
+import { loadImage } from "@/utils/load-image";
 import type { MediaItem } from "@/core/media-item";
 import { LookRig, PANORAMA_INITIAL, resetPanoramaCamera } from "./look-rig";
 import { ThreeStage } from "./three-stage";
 import type { DebugEntry, MediaRenderer, RendererContext } from "./types";
 
-function loadPanoramaImage(
-  document: Document,
-  url: string,
-  signal: AbortSignal,
-): Promise<HTMLImageElement> {
-  const image = document.createElement("img");
-  image.crossOrigin = "anonymous";
-  return new Promise((resolve, reject) => {
-    const cleanup = () => {
-      signal.removeEventListener("abort", abort);
-      image.onload = null;
-      image.onerror = null;
-    };
-    const abort = () => {
-      cleanup();
-      image.removeAttribute("src");
-      reject(signal.reason);
-    };
-    image.onload = () => {
-      cleanup();
-      resolve(image);
-    };
-    image.onerror = () => {
-      cleanup();
-      reject(new Error(`Failed to load panorama: ${url}`));
-    };
-    signal.addEventListener("abort", abort, { once: true });
-    image.setAttribute("src", url);
-  });
-}
-
 export async function preparePanoramaScene(
   stage: ThreeStage,
   item: MediaItem,
   signal: AbortSignal,
+  thumbnailImage?: HTMLImageElement,
 ): Promise<void> {
   signal.throwIfAborted();
   if (!item.url) throw new Error("No panorama URL provided");
-  const image = await loadPanoramaImage(stage.renderer.domElement.ownerDocument, item.url, signal);
+  const image = thumbnailImage ?? await loadImage(stage.renderer.domElement.ownerDocument, item.url, signal, "panorama");
   signal.throwIfAborted();
 
   const texture = new Texture(image);

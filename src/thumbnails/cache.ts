@@ -1,5 +1,6 @@
 import type { MediaItem } from "@/core/media-item";
 import { THUMBNAIL_GENERATOR_VERSION } from "./generate";
+import { resolveThumbnailItem } from "./urls";
 
 const DATABASE_NAME = "chuci-thumbnails";
 const STORE_NAME = "thumbnails";
@@ -13,13 +14,14 @@ interface ThumbnailRecord {
 }
 
 /** Stable key for every input that can change the generated picture. */
-export function thumbnailCacheKey(item: MediaItem, maxSize: number): string {
+export function thumbnailCacheKey(item: MediaItem, maxSize: number, baseURI?: string): string {
+  const { url, materialUrl } = resolveThumbnailItem(item, baseURI);
   return JSON.stringify([
-    item.url,
+    url,
     item.type,
     item.cameraPosition,
     item.cameraTarget,
-    item.materialUrl,
+    materialUrl,
     item.showTexture,
     item.fitToContainer,
     maxSize,

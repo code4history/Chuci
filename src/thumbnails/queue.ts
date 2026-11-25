@@ -1,5 +1,7 @@
 import type { MediaItem } from "@/core/media-item";
 import { ThumbnailCache, thumbnailCacheKey } from "./cache";
+import { ThumbnailSourceTooLargeError } from "./source";
+import { resolveThumbnailItem } from "./urls";
 import {
   DEFAULT_THUMBNAIL_SIZE,
   generateThumbnail,
@@ -35,7 +37,7 @@ export class ThumbnailQueue {
   private readonly tasks: Task[] = [];
   private readonly byKey = new Map<string, Task>();
   private readonly blobs = new Map<string, Blob>();
-  private readonly failedKeys = new Set<string>();
+  private readonly failures = new Map<string, string | null>();
   private draining = false;
 
   constructor(options: ThumbnailQueueOptions = {}) {
@@ -50,10 +52,14 @@ export class ThumbnailQueue {
 
   request(item: MediaItem, priority: number, signal?: AbortSignal): Promise<string | null> {
     if (signal?.aborted) return Promise.resolve(null);
-    const key = thumbnailCacheKey(item, this.maxSize);
-    if (this.failedKeys.has(key)) return Promise.resolve(this.failureFallback(item));
+    const source = resolveThumbnailItem(item);
+    const key = thumbnailCacheKey(source, this.maxSize);
+    const failedUrl = this.failures.get(key);
+    if (failedUrl !== undefined) return Promise.resolve(failedUrl);
     const existing = this.byKey.get(key);
-    const task = existing ?? { item, key, priority, controller: new AbortController(), waiters: new Set<Waiter>() };
+    const task = existing ?? {
+      item: source, key, priority, controller: new AbortController(), waiters: new Set<Waiter>()
+    };
     task.priority = Math.min(task.priority, priority);
     if (!existing) {
       this.byKey.set(key, task);
@@ -109,6 +115,21 @@ export class ThumbnailQueue {
     }
   }
 
+  /** Restore persistent results without waiting for or starting background generation. */
+  async getCachedUrl(item: MediaItem, signal: AbortSignal): Promise<string | null> {
+    const key = thumbnailCacheKey(item, this.maxSize);
+    try {
+      const cache = await this.cache;
+      if (signal.aborted) return null;
+      const blob = await cache?.get(key);
+      if (!blob || signal.aborted) return null;
+      this.storeMemoryBlob(key, blob);
+      return URL.createObjectURL(blob);
+    } catch {
+      return null;
+    }
+  }
+
   updatePriority(item: MediaItem, priority: number): void {
     const task = this.byKey.get(thumbnailCacheKey(item, this.maxSize));
     if (task && this.tasks.includes(task)) task.priority = priority;
@@ -138,15 +159,17 @@ export class ThumbnailQueue {
       signal.addEventListener("abort", onAbort, { once: true });
     });
     let blob: Blob | undefined;
+    let fallback: string | null = null;
     try {
       blob = await Promise.race([this.load(task, signal), aborted]);
       signal.throwIfAborted();
       this.storeMemoryBlob(task.key, blob);
-    } catch {
+    } catch (error) {
       blob = undefined;
+      if (!(error instanceof ThumbnailSourceTooLargeError)) fallback = this.failureFallback(task.item);
       // A real generation failure is remembered for the page. Abandonment
       // and timeouts may succeed when a later consumer requests the same key.
-      if (!signal.aborted) this.failedKeys.add(task.key);
+      if (!signal.aborted) this.failures.set(task.key, fallback);
     } finally {
       clearTimeout(deadline);
       signal.removeEventListener("abort", onAbort);
@@ -154,7 +177,7 @@ export class ThumbnailQueue {
     }
     for (const finish of task.waiters) {
       try {
-        finish(blob ? URL.createObjectURL(blob) : this.failureFallback(task.item));
+        finish(blob ? URL.createObjectURL(blob) : fallback);
       } catch {
         finish(null);
       }

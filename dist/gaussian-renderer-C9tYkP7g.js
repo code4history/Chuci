@@ -1,4 +1,4 @@
-import { M as Qg, O as BQ, B as ZQ, F as lg, S as mQ, D as WQ, G as CQ, V as iI, a as Y, T as XQ, W as pg, b as ZI, U as aI, R as hI, c as SI, Q as JA, d as CA, e as JI, C as VQ, f as KA, g as f, h as d, P as vQ, i as jQ, L as zQ, j as fg, k as _Q, l as $Q, m as AB, n as IB, o as bg, p as mA, q as gB, I as QB, r as Pg, s as $, t as Fg, N as WA, u as pI, v as wI, w as EQ, x as DQ, y as BB, z as CB, A as EB, E as DB, H as iB, J as wB, K as oB, X as GB, Y as sB, Z as Tg } from "./index-C7LKAS8G.js";
+import { M as Qg, O as BQ, B as ZQ, F as lg, S as mQ, D as WQ, G as CQ, V as iI, a as Y, T as XQ, W as pg, b as ZI, U as aI, R as hI, c as SI, Q as JA, d as CA, e as JI, C as VQ, f as KA, g as f, h as d, P as vQ, i as jQ, L as zQ, j as fg, k as _Q, l as $Q, m as AB, n as IB, o as bg, p as mA, q as gB, I as QB, r as Pg, s as $, t as Fg, N as WA, u as pI, v as wI, w as EQ, x as DQ, y as BB, z as CB, A as EB, E as DB, H as iB, J as wB, K as oB, X as GB, Y as sB, Z as Tg } from "./index-Dln-FXEJ.js";
 const kB = new BQ(-1, 1, 1, -1, 0, 1);
 class yB extends ZQ {
   constructor() {
@@ -8950,36 +8950,36 @@ async function QQ(g, A) {
     );
   });
 }
-async function $E(g, A, I, Q) {
+async function $E(g, A, I, Q, B) {
   if (I.throwIfAborted(), !A.url) throw new Error("No Gaussian splat URL provided");
-  const B = await _E(A.url, I);
+  const C = B ? new Uint8Array(await (await B(A.url, I)).arrayBuffer()) : await _E(A.url, I);
   I.throwIfAborted();
-  const C = !bQ(B) && !zE(A.url) ? AA.SPLAT : void 0, E = new WE({ renderer: g.renderer }), D = new cA({
-    fileBytes: B,
+  const E = !bQ(C) && !zE(A.url) ? AA.SPLAT : void 0, D = new WE({ renderer: g.renderer }), i = new cA({
+    fileBytes: C,
     fileName: A.url,
-    ...C ? { fileType: C } : {}
+    ...E ? { fileType: E } : {}
   });
-  D.quaternion.set(1, 0, 0, 0), D.initialized.catch(() => {
+  i.quaternion.set(1, 0, 0, 0), i.initialized.catch(() => {
   });
-  let i = !1;
-  const w = () => {
-    i || (i = !0, D.dispose(), E.dispose());
+  let w = !1;
+  const o = () => {
+    w || (w = !0, i.dispose(), D.dispose());
   };
-  E.material.addEventListener("dispose", w);
-  let o;
+  D.material.addEventListener("dispose", o);
+  let s;
   try {
-    await QQ(D.initialized, I), I.throwIfAborted();
-    const s = (h, J) => {
-      J <= 0 || (g.camera.fov = vE(J), g.camera.updateProjectionMatrix());
-    }, { width: G, height: k } = g.size;
-    s(G, Q ?? k), Q === void 0 && (o = g.onResize(s));
-    const a = Tg(A.cameraPosition) ?? new Y(...gQ.position), y = Tg(A.cameraTarget) ?? new Y(...gQ.target), S = { position: a, target: y };
-    return g.camera.position.copy(S.position), g.camera.lookAt(S.target), g.camera.updateMatrixWorld(), g.scene.add(E, D), g.renderer.getDrawingBufferSize(E.renderSize), await QQ(
-      E.update({ scene: g.scene, camera: g.camera }),
+    await QQ(i.initialized, I), I.throwIfAborted();
+    const G = (J, R) => {
+      R <= 0 || (g.camera.fov = vE(R), g.camera.updateProjectionMatrix());
+    }, { width: k, height: a } = g.size;
+    G(k, Q ?? a), Q === void 0 && (s = g.onResize(G));
+    const y = Tg(A.cameraPosition) ?? new Y(...gQ.position), S = Tg(A.cameraTarget) ?? new Y(...gQ.target), h = { position: y, target: S };
+    return g.camera.position.copy(h.position), g.camera.lookAt(h.target), g.camera.updateMatrixWorld(), g.scene.add(D, i), g.renderer.getDrawingBufferSize(D.renderSize), await QQ(
+      D.update({ scene: g.scene, camera: g.camera }),
       I
-    ), I.throwIfAborted(), { home: S };
-  } catch (s) {
-    throw o?.(), g.scene.remove(E, D), w(), s;
+    ), I.throwIfAborted(), { home: h };
+  } catch (G) {
+    throw s?.(), g.scene.remove(D, i), o(), G;
   }
 }
 class ID {
