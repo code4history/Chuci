@@ -23486,7 +23486,7 @@ async function kg(i, e, t) {
       if (i.showTexture !== !1 && c.textureLoadFailed)
         throw new Error("Failed to load a required model texture");
     } else {
-      const { prepareGaussianScene: c } = await import("./gaussian-renderer-DdKDnBY2.js");
+      const { prepareGaussianScene: c } = await import("./gaussian-renderer-Cpu22uOV.js");
       await c(o, i, t);
     }
     return t.throwIfAborted(), await o.capture(e);
@@ -23713,6 +23713,7 @@ class mn extends va {
   slidesObserver;
   observedSlides = [];
   viewerOpen = !1;
+  viewerIndex = 0;
   thumbnailQueue = Zg;
   thumbnailSources = /* @__PURE__ */ new Map();
   pendingThumbnails = /* @__PURE__ */ new Map();
@@ -23910,10 +23911,10 @@ class mn extends va {
     e.key === "ArrowRight" ? (e.preventDefault(), this.goTo(Vn(this.index, 1, this.items.length, this.loop))) : e.key === "ArrowLeft" && (e.preventDefault(), this.goTo(Vn(this.index, -1, this.items.length, this.loop)));
   };
   onViewerIndexChange = (e) => {
-    mn.activeViewerOwner === this && this.goTo(e.detail.index, { animate: !1 });
+    mn.activeViewerOwner === this && (this.viewerIndex = e.detail.index, this.goTo(this.viewerIndex, { animate: !1 }));
   };
   onViewerClose = () => {
-    mn.activeViewerOwner === this && (mn.activeViewerOwner = void 0, this.viewerOpen = !1, this.resumeAutoplay());
+    mn.activeViewerOwner === this && (this.goTo(this.viewerIndex, { animate: !1 }), mn.activeViewerOwner = void 0, this.viewerOpen = !1, this.resumeAutoplay());
   };
   onPointerDown(e) {
     if (e.target.closest("button") || e.button !== 0 && e.pointerType !== "touch") return;
@@ -24043,7 +24044,7 @@ class mn extends va {
   }
   async openViewer(e) {
     const t = mn.activeViewerOwner;
-    t && t !== this && (t.viewerOpen = !1, t.resumeAutoplay()), mn.activeViewerOwner = this, this.viewerOpen = !0, this.pauseAutoplay();
+    t && t !== this && (t.viewerOpen = !1, t.resumeAutoplay()), mn.activeViewerOwner = this, this.viewerOpen = !0, this.viewerIndex = e, this.pauseAutoplay();
     const n = this.viewerTagName();
     let r = document.querySelector(n);
     r || (r = document.createElement(n), document.body.append(r)), await customElements.whenDefined(n), r.open(this.items, e, { loop: this.loop });
@@ -24292,7 +24293,7 @@ async function s_(i) {
     case "3dmodel":
       return new Tg();
     case "gaussian": {
-      const { GaussianRenderer: e } = await import("./gaussian-renderer-DdKDnBY2.js");
+      const { GaussianRenderer: e } = await import("./gaussian-renderer-Cpu22uOV.js");
       return new e();
     }
     default:

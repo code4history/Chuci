@@ -9,4 +9,4 @@ Web Components, supported media types, styling, and usage examples.
 
 ## Related
 
-- [Main README](../README.md) — install / quick start / ecosystem
+- [Main README](../../README.md) — install / quick start / ecosystem

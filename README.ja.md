@@ -122,20 +122,21 @@ pnpm test
 
 > ランタイム要件（特定のリリースに紐づく値）。
 
-- Node.js: `20` 以上
-- pnpm: `9.0.0` 以上（推奨）
-- ブラウザ: Web Components をサポートするモダンブラウザ
-  - Chrome / Edge 79+
-  - Firefox 63+
-  - Safari 12.1+
+- 開発時: Node.js `20` 以上と pnpm `9.0.0` 以上（推奨）。
+- 全コンポーネント: Web Components（Custom Elements・Shadow DOM）をサポートするブラウザ。
+- パノラマ・3D モデル・Gaussian の表示とサムネイル生成: WebGL 2。
+- 画像・動画のサムネイル生成: `OffscreenCanvas`。画像では `createImageBitmap` も使用。
+- YouTube のサムネイル取得: `fetch`。`OffscreenCanvas`・WebGL は不要。
+- サムネイルの永続キャッシュ: IndexedDB。利用できない場合も、閲覧とメモリ内サムネイルは動作。
 
 <!-- SECTION 7: Dependencies -->
 ## 同梱する依存ライブラリ
 
 Chuci はカルーセルとビューアを自前で実装し、three.js と Spark を同梱します。
-Swiper.js・viewer.js・gsplat・A-Frame は使用しません。Spark は別チャンクとして
-同梱され、Gaussian の表示またはサムネイル生成で初めて必要になったときに
-読み込まれます。配布時は `dist/` 内のすべてのファイルを一緒に配置してください。
+Swiper.js・viewer.js・gsplat・A-Frame は使用しません。ESM ビルドでは Spark が
+別チャンクとなり、Gaussian の表示またはサムネイル生成で必要になったときに
+読み込まれるため、配布時は `dist/` 内のすべてのファイルを一緒に配置してください。
+UMD・CDN ビルドでは別チャンクを読み込まず、Spark を内包しています。
 
 <!-- SECTION 8: Ecosystem / Related Repositories -->
 ## エコシステム

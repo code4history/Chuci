@@ -164,7 +164,7 @@ describe("CcSwiper", () => {
     const el = makeSwiper(3, { autoplay: "" });
     vi.advanceTimersByTime(5000);
     expect(el.index).toBe(1);
-    await el.openViewer(0);
+    await el.openViewer(1);
     vi.advanceTimersByTime(5000);
     expect(el.index).toBe(1);
     el.setAttribute("has-thumb", "");
@@ -233,6 +233,15 @@ describe("CcSwiper", () => {
     expect(el.shadowRoot!.querySelector<HTMLImageElement>('[data-thumb-index="1"]')!.getAttribute("src"))
       .toBe("https://example.com/generated.jpg");
     expect((panel as HTMLElement).style.transition).toContain("250ms");
+  });
+
+  test("closing without viewer navigation still selects the initially opened item", async () => {
+    const el = makeSwiper(3);
+    stubViewerOpen();
+    await el.openViewer(1);
+    expect(el.index).toBe(0);
+    document.dispatchEvent(new CustomEvent("cc-viewer-close"));
+    expect(el.index).toBe(1);
   });
 
   test("viewer index notifications only update the owning swiper", async () => {

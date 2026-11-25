@@ -41,6 +41,7 @@ export class CcSwiper extends ChuciElement {
   private slidesObserver?: MutationObserver;
   private observedSlides: Element[] = [];
   private viewerOpen = false;
+  private viewerIndex = 0;
   private readonly thumbnailQueue = sharedThumbnailQueue;
   private readonly thumbnailSources = new Map<Element, string>();
   private readonly pendingThumbnails = new Map<Element, string>();
@@ -343,11 +344,14 @@ export class CcSwiper extends ChuciElement {
     }
   };
   private onViewerIndexChange = (event: CustomEvent<{ index: number }>) => {
-    if (CcSwiper.activeViewerOwner === this)
-      this.goTo(event.detail.index, { animate: false });
+    if (CcSwiper.activeViewerOwner === this) {
+      this.viewerIndex = event.detail.index;
+      this.goTo(this.viewerIndex, { animate: false });
+    }
   };
   private onViewerClose = () => {
     if (CcSwiper.activeViewerOwner !== this) return;
+    this.goTo(this.viewerIndex, { animate: false });
     CcSwiper.activeViewerOwner = undefined;
     this.viewerOpen = false;
     this.resumeAutoplay();
@@ -574,6 +578,7 @@ export class CcSwiper extends ChuciElement {
     }
     CcSwiper.activeViewerOwner = this;
     this.viewerOpen = true;
+    this.viewerIndex = index;
     this.pauseAutoplay();
     const tag = this.viewerTagName();
     let viewer = document.querySelector(tag) as (Element & ViewerLike) | null;

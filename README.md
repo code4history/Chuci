@@ -125,20 +125,21 @@ pnpm test
 
 > Runtime requirements (release-dependent).
 
-- Node.js: `20` or higher
-- pnpm: `9.0.0` or higher (recommended)
-- Browser: any modern browser supporting Web Components
-  - Chrome / Edge 79+
-  - Firefox 63+
-  - Safari 12.1+
+- Development: Node.js `20` or higher and pnpm `9.0.0` or higher (recommended).
+- All components: a browser with Web Components support (Custom Elements and Shadow DOM).
+- Panorama, 3D model, and Gaussian viewing/thumbnails: WebGL 2.
+- Image and video thumbnail generation: `OffscreenCanvas`; image generation also uses `createImageBitmap`.
+- YouTube thumbnail retrieval: `fetch`; neither `OffscreenCanvas` nor WebGL is required.
+- Persistent thumbnail caching: IndexedDB. If unavailable, browsing and in-memory thumbnails still work.
 
 <!-- SECTION 7: Dependencies -->
 ## Bundled dependencies
 
 Chuci implements the carousel and viewers itself and bundles three.js and Spark.
-It does not use Swiper.js, viewer.js, gsplat, or A-Frame. Spark is in a separate
-chunk that is loaded only when Gaussian rendering or thumbnail generation needs
-it. Keep all files from `dist/` together when deploying the package.
+It does not use Swiper.js, viewer.js, gsplat, or A-Frame. In the ESM build, Spark
+is in a separate chunk that is loaded only when Gaussian rendering or thumbnail
+generation needs it; keep all files from `dist/` together when deploying. The
+UMD/CDN build contains Spark rather than loading a separate chunk.
 
 <!-- SECTION 8: Ecosystem / Related Repositories -->
 ## Ecosystem

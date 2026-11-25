@@ -97,6 +97,59 @@ Gaussian の `camera-position`・`camera-target` と、3D モデルの
 `cc-viewer.open` と `generateThumbnail` が使うオブジェクトへ変換します。
 TypeScript の `MediaItem`・`MediaType` 型も `@c4h/chuci` から公開しています。
 
+## 2.0 への移行
+
+### HTML の要素だけを使う場合
+
+既存の `cc-swiper`・`cc-swiper-slide` のマークアップに API の変更はありません。
+共通の見た目に変わることと、依存・配置の変化を確認してください。Swiper.js・
+viewer.js・gsplat・A-Frame の CDN はなくなり、three.js は同梱です。ESM ビルドでは
+別チャンクの Spark を必要時に読み込めるよう、`dist/` の全ファイルを一緒に配置
+してください。UMD・CDN ビルドは別チャンクを読み込まず、Spark を内包しています。
+
+また、以前は表示に効かなかった属性を見直してください。Gaussian の
+`camera-position`・`camera-target` と、3D モデルの `show-texture`・
+`fit-to-container` が実際に効くようになりました。特に `fit-to-container` は真偽
+属性なので、`fit-to-container="false"` と書いても属性が存在するため有効です。
+無効にするには属性自体を外してください。
+
+### JavaScript で直接ビューアを操作する場合
+
+旧来の URL・種類・属性を渡す呼び出しを `MediaItem[]` に変え、最初の番号を別の
+引数として渡します。
+
+```javascript
+// 旧
+const swiper = document.querySelector('cc-swiper');
+const viewer = document.querySelector('cc-viewer');
+viewer.setSwiper(swiper);
+viewer.open('photo.jpg', 'image', { caption: '写真' });
+viewer.setCurrentSlideIndex(0);
+
+// 新
+const items = [
+  { url: 'photo.jpg', type: 'image', caption: '写真' },
+  { url: 'next.jpg', type: 'image', caption: '次の写真' }
+];
+viewer.open(items, 0, { loop: true });
+```
+
+`setSwiper`・`setCurrentSlideIndex` は削除されました。カルーセルと連携する場合は
+`swiper.openViewer(index)` を呼び、`setSwiper` は不要です。直接操作するビューアの
+番号は、`setCurrentSlideIndex` の代わりに `cc-viewer-index-change` の
+`detail.index` で追跡します。
+
+```javascript
+await swiper.openViewer(1);
+
+document.addEventListener('cc-viewer-index-change', (event) => {
+  console.log(event.detail.index);
+});
+```
+
+以前のメディア別 `cc-viewer-*` 要素はありません。直接操作にも単一の `cc-viewer`
+を使います。
+
 ## 使用例
 
 ### プログラムからカルーセルとビューアを操作
@@ -191,30 +244,32 @@ Blob を保存して、その画像の URL を返します。
 ```javascript
 import { generateThumbnail, readMediaItem } from '@c4h/chuci';
 
-async function createAndStoreThumbnail(slide, storeBlob) {
-  const controller = new AbortController();
+async function appendSlideWithThumbnail(swiper, slide, storeBlob, signal) {
   const blob = await generateThumbnail(readMediaItem(slide), {
     maxSize: 256,
-    signal: controller.signal
+    signal
   });
   const storedUrl = await storeBlob(blob);
   slide.setAttribute('thumbnail-url', storedUrl);
-
-  // 未完了の処理を中断する場合:
-  // controller.abort();
+  swiper.append(slide); // スライドを挿入する前に URL を設定する。
 }
+
+const controller = new AbortController();
+await appendSlideWithThumbnail(swiper, slide, storeBlob, controller.signal);
+// 未完了の処理を中断する場合: controller.abort();
 ```
 
-- `image`・`video` は WebP、`panorama`・`3dmodel`・`gaussian` は PNG を出力します。`youtube` は公開サムネイルの Blob を返します。
+- `image`・`video` は WebP、`panorama`・`3dmodel`・`gaussian` は PNG を出力します。`youtube` は公開サムネイルを取得したままの Blob で返し、`maxSize` への縮小はしません。YouTube の動画 ID を抽出できない URL では失敗します。
 - 動画は 0.5 秒の位置を使い、短い動画ではその直前の利用可能なコマを使います。
-- Node だけの環境ではなくブラウザ用 API です。パノラマ・3D モデル・Gaussian は WebGL が必要で、画像はブラウザの bitmap・canvas API が必要です。
+- Node だけの環境ではなくブラウザ用 API です。画像・動画の生成には `OffscreenCanvas` が必要で、画像には `createImageBitmap` も必要です。パノラマ・3D モデル・Gaussian の生成には WebGL 2 が必要です。YouTube のサムネイル取得には `OffscreenCanvas`・WebGL のどちらも不要です。
 - メディアのピクセルを fetch または canvas へ取り出す場合は、配信元の CORS 許可が必要です。別サイトの画像・動画フレーム・テクスチャ・モデル・スプラットが対象です。YouTube の公開サムネイルもページから取得できる必要があります。
 - Gaussian の生成でも、表示と同じく必要時に Spark を読み込みます。
 
 `thumbnail-url` がない場合、カルーセルは IndexedDB（`chuci-thumbnails`）を調べ、
 必要に応じて一時的に種類のアイコンを表示し、不足分を裏で生成します。現在の
-スライドを優先し、1 件ずつ生成します。失敗時はアイコンのままとし、失敗は
-ページの寿命の間だけ記憶します。
+スライドを優先し、1 件ずつ生成します。YouTube の取得に失敗した場合は、動画 ID が
+あれば公開サムネイルの URL を直接画像に使います。その他の失敗時は種類のアイコンの
+ままとし、失敗はページの寿命の間だけ記憶します。
 
 ## カルーセルとビューアの操作
 
@@ -262,4 +317,4 @@ cc-viewer {
 ## 関連
 
 - [API インデックス](README.ja.md) — インストール / クイックスタート / エコシステム
-- [メイン README](../README.ja.md) — インストール / クイックスタート / エコシステム
+- [メイン README](../../README.ja.md) — インストール / クイックスタート / エコシステム
