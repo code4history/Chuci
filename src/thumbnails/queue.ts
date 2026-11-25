@@ -1,6 +1,6 @@
 import type { MediaItem } from "@/core/media-item";
 import { ThumbnailCache, thumbnailCacheKey } from "./cache";
-import { ThumbnailSourceTooLargeError } from "./source";
+import { onThumbnailProgress, ThumbnailSourceTooLargeError } from "./source";
 import { resolveThumbnailItem } from "./urls";
 import {
   DEFAULT_THUMBNAIL_SIZE,
@@ -9,7 +9,10 @@ import {
 } from "./generate";
 
 export const THUMBNAIL_MEMORY_CACHE_ENTRIES = 50;
-export const THUMBNAIL_TASK_TIMEOUT_MS = 30_000;
+/** A task is abandoned when no source data arrives for this long. */
+export const THUMBNAIL_IDLE_TIMEOUT_MS = 30_000;
+/** A task is abandoned after this long even while data keeps arriving. */
+export const THUMBNAIL_TASK_TIMEOUT_MS = 180_000;
 
 type Generator = typeof generateThumbnail;
 type Waiter = (value: string | null) => void;
@@ -152,7 +155,15 @@ export class ThumbnailQueue {
 
   private async run(task: Task): Promise<void> {
     const { signal } = task.controller;
-    const deadline = setTimeout(() => task.controller.abort(), THUMBNAIL_TASK_TIMEOUT_MS);
+    const abortTask = () => task.controller.abort();
+    const deadline = setTimeout(abortTask, THUMBNAIL_TASK_TIMEOUT_MS);
+    let idle = setTimeout(abortTask, THUMBNAIL_IDLE_TIMEOUT_MS);
+    let settled = false;
+    onThumbnailProgress(signal, () => {
+      if (settled) return;
+      clearTimeout(idle);
+      idle = setTimeout(abortTask, THUMBNAIL_IDLE_TIMEOUT_MS);
+    });
     let onAbort!: () => void;
     const aborted = new Promise<never>((_resolve, reject) => {
       onAbort = () => reject(signal.reason);
@@ -171,7 +182,9 @@ export class ThumbnailQueue {
       // and timeouts may succeed when a later consumer requests the same key.
       if (!signal.aborted) this.failures.set(task.key, fallback);
     } finally {
+      settled = true;
       clearTimeout(deadline);
+      clearTimeout(idle);
       signal.removeEventListener("abort", onAbort);
       if (this.byKey.get(task.key) === task) this.byKey.delete(task.key);
     }

@@ -3,7 +3,7 @@ import { prepareModelScene } from "@/components/viewer/renderers/model-renderer"
 import { preparePanoramaScene } from "@/components/viewer/renderers/panorama-renderer";
 import { ThreeStage } from "@/components/viewer/renderers/three-stage";
 import { extractVideoId } from "@/utils/youtube-embed";
-import { fetchThumbnailSource, loadThumbnailImage } from "./source";
+import { fetchThumbnailSource, forwardThumbnailProgress, loadThumbnailImage } from "./source";
 import { resolveThumbnailItem } from "./urls";
 
 export const THUMBNAIL_GENERATOR_VERSION = 4;
@@ -186,6 +186,7 @@ export async function generateThumbnail(item: MediaItem, opts: GenerateOptions =
   const source = resolveThumbnailItem(item);
   const controller = new AbortController();
   const { signal } = controller;
+  forwardThumbnailProgress(opts.signal, signal);
   const abort = () => controller.abort(opts.signal?.reason);
   opts.signal?.throwIfAborted();
   opts.signal?.addEventListener("abort", abort, { once: true });

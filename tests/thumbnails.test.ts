@@ -7,7 +7,12 @@ import {
   generateThumbnail
 } from "../src/thumbnails/generate";
 import { ThumbnailCache, thumbnailCacheKey } from "../src/thumbnails/cache";
-import { ThumbnailQueue, THUMBNAIL_TASK_TIMEOUT_MS, sharedThumbnailQueue } from "../src/thumbnails/queue";
+import {
+  ThumbnailQueue,
+  THUMBNAIL_IDLE_TIMEOUT_MS,
+  THUMBNAIL_TASK_TIMEOUT_MS,
+  sharedThumbnailQueue
+} from "../src/thumbnails/queue";
 import "../src/index";
 import type { CcSwiper } from "../src/components/swiper/cc-swiper";
 
@@ -39,6 +44,12 @@ function makeSwiper(input: MediaItem | MediaItem[]): CcSwiper {
   }
   document.body.append(el);
   return el;
+}
+
+function queueResult(promise: Promise<string | null>) {
+  const state: { settled: boolean; value: string | null } = { settled: false, value: null };
+  void promise.then((value) => { state.settled = true; state.value = value; });
+  return state;
 }
 
 function flush(): Promise<void> {
@@ -285,7 +296,7 @@ describe("ThumbnailQueue", () => {
       await vi.advanceTimersByTimeAsync(0);
       expect(generate).toHaveBeenCalledOnce();
 
-      await vi.advanceTimersByTimeAsync(THUMBNAIL_TASK_TIMEOUT_MS);
+      await vi.advanceTimersByTimeAsync(THUMBNAIL_IDLE_TIMEOUT_MS);
       await expect(first).resolves.toBeNull();
       await expect(next).resolves.toMatch(/^blob:/);
       expect(generate.mock.calls[0][1]!.signal!.aborted).toBe(true);
@@ -295,6 +306,64 @@ describe("ThumbnailQueue", () => {
     } finally {
       vi.useRealTimers();
     }
+  });
+
+  describe("deadlines while reading the source", () => {
+    // A YouTube thumbnail is fetched through the same capped source reader as
+    // OBJ, MTL and splat data, so it exercises the real progress path.
+    function streamingSource() {
+      let stream!: ReadableStreamDefaultController<Uint8Array>;
+      const body = new ReadableStream<Uint8Array>({ start(c) { stream = c; } });
+      const fetch = vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response(body));
+      return { fetch, send: () => stream.enqueue(new Uint8Array(1024)), close: () => stream.close() };
+    }
+    const item = () => makeItem({ type: "youtube", url: "https://youtu.be/slow" });
+
+    beforeEach(() => {
+      vi.stubGlobal("indexedDB", undefined);
+      vi.useFakeTimers();
+    });
+    afterEach(() => vi.useRealTimers());
+
+    test("keeps a slow download alive while data keeps arriving", async () => {
+      const source = streamingSource();
+      const result = queueResult(new ThumbnailQueue().request(item(), 0));
+      for (let i = 0; i < 5; i++) {
+        await vi.advanceTimersByTimeAsync(THUMBNAIL_IDLE_TIMEOUT_MS - 1_000);
+        source.send();
+      }
+      source.close();
+      await vi.advanceTimersByTimeAsync(0);
+      expect(result.value).toMatch(/^blob:/);
+    });
+
+    test("abandons a download that stops sending data", async () => {
+      const source = streamingSource();
+      const result = queueResult(new ThumbnailQueue().request(item(), 0));
+      await vi.advanceTimersByTimeAsync(0);
+      source.send();
+      await vi.advanceTimersByTimeAsync(THUMBNAIL_IDLE_TIMEOUT_MS - 1);
+      expect(result.settled).toBe(false);
+      await vi.advanceTimersByTimeAsync(1);
+      expect(result.settled).toBe(true);
+      expect(result.value ?? "").not.toMatch(/^blob:/);
+      expect(source.fetch.mock.calls[0][1]!.signal!.aborted).toBe(true);
+    });
+
+    test("abandons a download that never ends at the total limit", async () => {
+      const source = streamingSource();
+      const result = queueResult(new ThumbnailQueue().request(item(), 0));
+      const step = 10_000;
+      for (let t = step; t < THUMBNAIL_TASK_TIMEOUT_MS; t += step) {
+        await vi.advanceTimersByTimeAsync(step);
+        source.send();
+      }
+      expect(result.settled).toBe(false);
+      await vi.advanceTimersByTimeAsync(step);
+      expect(result.settled).toBe(true);
+      expect(result.value ?? "").not.toMatch(/^blob:/);
+      expect(source.fetch.mock.calls[0][1]!.signal!.aborted).toBe(true);
+    });
   });
 
   test("keeps icon and records failure on CORS error", async () => {
