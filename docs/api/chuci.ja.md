@@ -280,7 +280,7 @@ YouTube の公開サムネイルを CORS などで取得できない場合は、
 ホストページに CSP を設定する場合は、使う機能に応じて次の許可を追加してください。
 
 - Gaussian（Spark）には `script-src` の `'wasm-unsafe-eval'` と `worker-src` の `blob:` が必要です。Blob の Worker 作成時に例外が起きると、Spark は `data:` の Worker を試します。このフォールバックを使う場合は `worker-src` に `data:` も許可してください。
-- サムネイルの自動生成では、`img-src` の `blob:` を生成した画像に、`data:` を種類のアイコンに使います。パノラマやモデルのテクスチャを読み込む際にも Blob 画像を使います。動画サムネイルの生成には `media-src` の `blob:` が必要です。
+- サムネイルの自動生成では、`img-src` の `blob:` を生成した画像に、`data:` を種類のアイコンに使います。パノラマやモデルのテクスチャを読み込む際にも Blob 画像を使います。動画サムネイルの生成には `media-src` の `blob:` が必要です。 カルーセルの前後ボタンも `img-src` の `data:` を使います。
 - YouTube の再生には `frame-src https://www.youtube.com https://www.youtube-nocookie.com` が必要です。YouTube の公開サムネイルを取得するため `connect-src` に、画像として直接表示するフォールバックのため `img-src` に `https://i.ytimg.com` を許可してください。
 - パッケージと遅延読み込みチャンクの配信元は `script-src`、fetch するメディアの配信元は `connect-src` に許可してください。直接表示する画像・動画の配信元はそれぞれ `img-src`・`media-src` に許可してください。`blob:` や `data:` のメディアを指定する場合も、実際に使うスキームを許可してください。
 - コンポーネントは Shadow DOM にインラインの `<style>` を挿入します。`style-src-elem`（指定しない場合は `style-src`）で、配布物中のスタイル本文に対応するハッシュを指定するなどして、このスタイルを許可してください。
