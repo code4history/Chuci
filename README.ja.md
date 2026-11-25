@@ -23,11 +23,12 @@ Chuci は MIT License のオープンソースソフトウェアです。
 ## 主な特徴
 
 - フレームワーク非依存: 純粋な Web Components・任意のフレームワークやバニラ JS で動作
-- Swiper.js ベースのタッチ対応カルーセル
+- 自前実装のタッチ対応カルーセル（ループ・自動送り・キーボード・ポインター操作）
 - 複数メディアタイプ: 画像・パノラマ・動画・YouTube・3Dモデル・Gaussian スプラット
+- 統一した全画面ビューア（画像・動画の自前表示、three.js による描画、Gaussian には Spark を使用）
 - 元メディアから自動生成し、IndexedDB に保存するサムネイル
-- ゼロ依存関係: すべての依存関係がバンドル済み（Lit 依存なし）
-- 軽量・tree-shaking サポート・完全な TypeScript 型定義
+- three.js と Spark を同梱（フレームワークや Lit のランタイムは不要）
+- 完全な TypeScript 型定義
 
 <!-- SECTION 5: Quick Start -->
 ## クイックスタート
@@ -128,8 +129,13 @@ pnpm test
   - Firefox 63+
   - Safari 12.1+
 
-<!-- SECTION 7: Peer Dependencies -->
-<!-- Chuci は依存関係ゼロ（すべてバンドル済み）のため、本節は省略します。 -->
+<!-- SECTION 7: Dependencies -->
+## 同梱する依存ライブラリ
+
+Chuci はカルーセルとビューアを自前で実装し、three.js と Spark を同梱します。
+Swiper.js・viewer.js・gsplat・A-Frame は使用しません。Spark は別チャンクとして
+同梱され、Gaussian の表示またはサムネイル生成で初めて必要になったときに
+読み込まれます。配布時は `dist/` 内のすべてのファイルを一緒に配置してください。
 
 <!-- SECTION 8: Ecosystem / Related Repositories -->
 ## エコシステム

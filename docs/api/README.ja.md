@@ -5,7 +5,7 @@ Web Components・対応メディアタイプ・スタイリング・使用例。
 
 ## リファレンス
 
-- [Components & 使用例](chuci.ja.md) — `cc-swiper` / `cc-swiper-slide` / ビューアコンポーネント・属性・メソッド・イベント・メディアタイプ・スタイリング・使用例
+- [Components & 使用例](chuci.ja.md) — `cc-swiper` / `cc-swiper-slide` / `cc-viewer`・属性・メソッド・イベント・サムネイル生成・操作・スタイリング・使用例
 
 ## 関連
 

@@ -5,7 +5,7 @@ Web Components, supported media types, styling, and usage examples.
 
 ## Reference
 
-- [Components & Usage](chuci.md) — `cc-swiper` / `cc-swiper-slide` / viewer components, attributes, methods, events, media types, styling, and examples
+- [Components & Usage](chuci.md) — `cc-swiper` / `cc-swiper-slide` / `cc-viewer`, attributes, methods, events, thumbnail generation, controls, styling, and examples
 
 ## Related
 

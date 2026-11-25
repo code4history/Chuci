@@ -5,7 +5,7 @@ import {
 } from "three";
 import type { MediaItem } from "../src/core/media-item";
 import {
-  GSPLAT_DEFAULT_VIEW, GaussianRenderer, prepareGaussianScene,
+  LEGACY_GAUSSIAN_DEFAULT_VIEW, GaussianRenderer, prepareGaussianScene,
 } from "../src/components/viewer/renderers/gaussian-renderer";
 import { ThreeStage } from "../src/components/viewer/renderers/three-stage";
 
@@ -155,21 +155,21 @@ function stubSplatFetch(bytes = new Uint8Array(32)) {
   return fetchMock;
 }
 
-test("no camera attrs uses GSPLAT_DEFAULT_VIEW", async () => {
+test("no camera attrs uses LEGACY_GAUSSIAN_DEFAULT_VIEW", async () => {
   stubSplatFetch();
   const { stage } = setup();
   const { home } = await prepareGaussianScene(stage, item, new AbortController().signal);
 
-  expect(GSPLAT_DEFAULT_VIEW.position).toEqual([
+  expect(LEGACY_GAUSSIAN_DEFAULT_VIEW.position).toEqual([
     2.1036774620197414,
     2.397127693021015,
     3.8507557646703496,
   ]);
-  expect(GSPLAT_DEFAULT_VIEW.target).toEqual([0, 0, 0]);
+  expect(LEGACY_GAUSSIAN_DEFAULT_VIEW.target).toEqual([0, 0, 0]);
 
-  expect(home.position.toArray()).toEqual(GSPLAT_DEFAULT_VIEW.position);
-  expect(home.target.toArray()).toEqual(GSPLAT_DEFAULT_VIEW.target);
-  expect(stage.camera.position.toArray()).toEqual(GSPLAT_DEFAULT_VIEW.position);
+  expect(home.position.toArray()).toEqual(LEGACY_GAUSSIAN_DEFAULT_VIEW.position);
+  expect(home.target.toArray()).toEqual(LEGACY_GAUSSIAN_DEFAULT_VIEW.target);
+  expect(stage.camera.position.toArray()).toEqual(LEGACY_GAUSSIAN_DEFAULT_VIEW.position);
   expect(
     stage.camera.getWorldDirection(new Vector3()).distanceTo(
       home.target.clone().sub(home.position).normalize(),
@@ -201,7 +201,7 @@ test("camera-position and camera-target are applied", async () => {
   ).toBeLessThan(1e-10);
 });
 
-test("partial or invalid camera attrs fall back to GSPLAT_DEFAULT_VIEW", async () => {
+test("partial or invalid camera attrs fall back to LEGACY_GAUSSIAN_DEFAULT_VIEW", async () => {
   stubSplatFetch();
   const { stage } = setup();
   const { home } = await prepareGaussianScene(
@@ -210,7 +210,7 @@ test("partial or invalid camera attrs fall back to GSPLAT_DEFAULT_VIEW", async (
     new AbortController().signal,
   );
   expect(home.position.toArray()).toEqual([1, 2, 3]);
-  expect(home.target.toArray()).toEqual(GSPLAT_DEFAULT_VIEW.target);
+  expect(home.target.toArray()).toEqual(LEGACY_GAUSSIAN_DEFAULT_VIEW.target);
 });
 
 test("registry loads gaussian renderer lazily", async () => {

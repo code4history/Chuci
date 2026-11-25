@@ -7,17 +7,35 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### 追加
-- 元メディアからサムネイルを生成する `generateThumbnail` API を追加。`thumbnail-url` がないスライドでは IndexedDB の保存済みサムネイルを使い、なければ裏で 1 件ずつ生成する。
+### 日本語
 
-### Added
-- Added the `generateThumbnail` API for creating thumbnails from source media. Slides without `thumbnail-url` use cached thumbnails from IndexedDB or generate them sequentially in the background.
+#### 2.0 の破壊的変更
+- メディア別の `cc-viewer-base`・`cc-viewer-image`・`cc-viewer-panorama`・`cc-viewer-youtube`・`cc-viewer-video`・`cc-viewer-3dmodel`・`cc-viewer-gaussian` 要素を削除し、全メディアで `cc-viewer` に統一した。
+- `cc-viewer.open(url, type, attributes)` を `open(items, index, { loop })` に変更した。`setSwiper`・`setCurrentSlideIndex` と、基盤の Swiper を返す `cc-swiper.slider` を削除した。`cc-swiper.openViewer` は `openViewer(index)` となり、スライド変更イベントは `slidechange` から `cc-swiper-index-change`（`detail.index`）へ変わった。ビューアの連携には `cc-viewer-index-change`・`cc-viewer-close` を使う。
+- カルーセルと画像・360 度ビューアを自前の実装へ替え、Gaussian の描画を Spark へ移した。これに伴い Swiper・viewer.js・gsplat と A-Frame の CDN 読み込みをなくし、`@sparkjsdev/spark` を追加した。three.js は引き続き使う。
 
-### 修正
-- 1.0.2 の「既知の問題」で告知し、次の月次で直すと約束していた不具合を修正（#28）。`cc-swiper` を「前へ」で 1 回戻したあと `cc-viewer` で画像を送ると裏の `realIndex` が 1 つずれ、閉じたときに別の画像が表示される問題で、ループ中は `slideToLoop` を使うようになり、サムネイルクリックで起きる余分な移動もなくなった。
+#### 2.0 の追加
+- 元メディアからサムネイルを生成する `generateThumbnail` API を追加。`thumbnail-url` がないスライドでは IndexedDB の保存済みサムネイルを使い、なければ裏で 1 件ずつ生成する。ブラウザ上の作成ツールからも同じ API を呼べる。
 
-### Fixed
-- Fixed the bug announced under "Known issues" in 1.0.2 and promised for the next monthly release (#28). After going back once with "previous" in `cc-swiper` and then navigating in `cc-viewer`, the underlying `realIndex` drifted by one and a different image was shown on close. Loop mode now uses `slideToLoop`, and the extra move on thumbnail click is gone.
+#### 2.0 の修正
+- Gaussian で `camera-position`・`camera-target` を読むだけでカメラへ適用していなかった問題を修正。
+- 3D メッシュで `show-texture` が開くたびに初期値へ戻っていた問題と、`fit-to-container` が表示へ反映されなかった問題を修正。
+- 1.0.2 の「既知の問題」で告知し、次の月次で直すと約束していた不具合を修正（#28）。`cc-swiper` を「前へ」で 1 回戻したあと `cc-viewer` で画像を送ると裏の `realIndex` が 1 つずれ、閉じたときに別の画像が表示される問題で、ループ中は `slideToLoop` を使うようになり、サムネイルクリックで起きる余分な移動もなくなった。なお、この修正は Swiper 前提のもので、2.0 では Swiper を外したため修正対象だった `realIndex`・`slideToLoop` の仕組み自体がなくなる。
+
+### English
+
+#### 2.0 breaking changes
+- Removed the media-specific `cc-viewer-base`, `cc-viewer-image`, `cc-viewer-panorama`, `cc-viewer-youtube`, `cc-viewer-video`, `cc-viewer-3dmodel`, and `cc-viewer-gaussian` elements. All media now use `cc-viewer`.
+- Replaced `cc-viewer.open(url, type, attributes)` with `open(items, index, { loop })`. Removed `setSwiper`, `setCurrentSlideIndex`, and `cc-swiper.slider`, which exposed the underlying Swiper instance. `cc-swiper.openViewer` is now `openViewer(index)`, and the slide-change event is `cc-swiper-index-change` (`detail.index`) instead of `slidechange`. Use `cc-viewer-index-change` and `cc-viewer-close` for viewer integration.
+- Replaced the carousel and image/panorama viewers with Chuci's own implementations and moved Gaussian rendering to Spark. Removed Swiper, viewer.js, gsplat, and the A-Frame CDN dependency; added `@sparkjsdev/spark`. three.js remains in use.
+
+#### 2.0 added
+- Added the `generateThumbnail` API for creating thumbnails from source media. Slides without `thumbnail-url` use cached thumbnails from IndexedDB or generate them sequentially in the background. Browser-based authoring tools can call the same API.
+
+#### 2.0 fixed
+- Applied Gaussian `camera-position` and `camera-target` to the camera instead of merely reading them.
+- Honored 3D model `show-texture` when reopening the viewer and made `fit-to-container` affect the rendered view.
+- Fixed the bug announced under "Known issues" in 1.0.2 and promised for the next monthly release (#28). After going back once with "previous" in `cc-swiper` and then navigating in `cc-viewer`, the underlying `realIndex` drifted by one and a different image was shown on close. Loop mode now uses `slideToLoop`, and the extra move on thumbnail click is gone. This fix applied to the Swiper-based implementation; in 2.0, removing Swiper also removes the `realIndex` / `slideToLoop` mechanism that contained the bug.
 
 ## [1.0.2] - 2026-11-02
 

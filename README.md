@@ -26,11 +26,12 @@ Chuci is open-source under the MIT License.
 ## Key Features
 
 - Framework-agnostic: pure Web Components, works with any framework or vanilla JS
-- Touch-enabled carousel built on Swiper.js
+- Self-contained, touch-enabled carousel with looping, autoplay, keyboard, and pointer controls
 - Multiple media types: images, panoramas, videos, YouTube, 3D models, Gaussian splats
+- Consistent fullscreen viewing with native image/video handling, three.js rendering, and Spark for Gaussian splats
 - Automatic thumbnails generated from the original media and cached in IndexedDB
-- Zero dependencies: all dependencies bundled (no Lit dependency)
-- Lightweight with tree-shaking support and full TypeScript definitions
+- Bundled three.js and Spark dependencies, with no framework or Lit runtime required
+- Full TypeScript definitions
 
 <!-- SECTION 5: Quick Start -->
 ## Quick Start
@@ -131,8 +132,13 @@ pnpm test
   - Firefox 63+
   - Safari 12.1+
 
-<!-- SECTION 7: Peer Dependencies -->
-<!-- Chuci has zero dependencies (all bundled). This section is omitted. -->
+<!-- SECTION 7: Dependencies -->
+## Bundled dependencies
+
+Chuci implements the carousel and viewers itself and bundles three.js and Spark.
+It does not use Swiper.js, viewer.js, gsplat, or A-Frame. Spark is in a separate
+chunk that is loaded only when Gaussian rendering or thumbnail generation needs
+it. Keep all files from `dist/` together when deploying the package.
 
 <!-- SECTION 8: Ecosystem / Related Repositories -->
 ## Ecosystem

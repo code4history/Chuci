@@ -10,19 +10,19 @@ type HomeView = { position: Vector3; target: Vector3 };
 type GaussianScene = { home: HomeView };
 
 /**
- * gsplat 1.2.9 OrbitControls defaults (`alpha = 0.5`, `beta = 0.5`, `radius = 5`,
+ * Legacy Gaussian OrbitControls defaults (`alpha = 0.5`, `beta = 0.5`, `radius = 5`,
  * `target = (0, 0, 0)`) converted from OpenCV (+X right, +Y down, +Z forward)
  * to Three.js (+X right, +Y up, -Z forward).
  */
-/** gsplat 1.2.9 default CameraData pixel focal length (fx = fy = 1132). */
-export const GSPLAT_FOCAL_LENGTH_PX = 1132;
+/** Legacy Gaussian default CameraData pixel focal length (fx = fy = 1132). */
+export const LEGACY_GAUSSIAN_FOCAL_LENGTH_PX = 1132;
 
-/** Convert gsplat fixed pixel focal length to Three.js vertical FOV in degrees for CSS height. */
-export function gsplatVerticalFov(heightCssPx: number): number {
-  return MathUtils.radToDeg(2 * Math.atan(heightCssPx / (2 * GSPLAT_FOCAL_LENGTH_PX)));
+/** Convert the legacy fixed pixel focal length to Three.js vertical FOV in degrees for CSS height. */
+export function legacyGaussianVerticalFov(heightCssPx: number): number {
+  return MathUtils.radToDeg(2 * Math.atan(heightCssPx / (2 * LEGACY_GAUSSIAN_FOCAL_LENGTH_PX)));
 }
 
-export const GSPLAT_DEFAULT_VIEW: {
+export const LEGACY_GAUSSIAN_DEFAULT_VIEW: {
   position: [number, number, number];
   target: [number, number, number];
 } = {
@@ -89,7 +89,7 @@ export async function prepareGaussianScene(
     fileName: item.url,
     ...(fileType ? { fileType } : {}),
   });
-  // Rotate 180° around X to map gsplat/OpenCV (+Y down, +Z forward) to Three.js (+Y up, -Z forward).
+  // Rotate 180° around X to map OpenCV (+Y down, +Z forward) to Three.js (+Y up, -Z forward).
   splat.quaternion.set(1, 0, 0, 0);
 
   // Prevent unhandled rejections if initialization fails after abort.
@@ -111,15 +111,15 @@ export async function prepareGaussianScene(
 
     const applyFov = (_width: number, height: number): void => {
       if (height <= 0) return;
-      stage.camera.fov = gsplatVerticalFov(height);
+      stage.camera.fov = legacyGaussianVerticalFov(height);
       stage.camera.updateProjectionMatrix();
     };
     const { width, height } = stage.size;
     applyFov(width, height);
     stopResize = stage.onResize(applyFov);
 
-    const position = parseVec3(item.cameraPosition) ?? new Vector3(...GSPLAT_DEFAULT_VIEW.position);
-    const target = parseVec3(item.cameraTarget) ?? new Vector3(...GSPLAT_DEFAULT_VIEW.target);
+    const position = parseVec3(item.cameraPosition) ?? new Vector3(...LEGACY_GAUSSIAN_DEFAULT_VIEW.position);
+    const target = parseVec3(item.cameraTarget) ?? new Vector3(...LEGACY_GAUSSIAN_DEFAULT_VIEW.target);
     const home = { position, target };
 
     stage.camera.position.copy(home.position);

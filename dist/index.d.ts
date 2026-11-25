@@ -1,37 +1,62 @@
 export declare class CcSwiper extends ChuciElement {
-    private slider?;
-    private thumbsSlider?;
-    private divContainer?;
-    private divSlides?;
-    private divGallery?;
-    private divPagination?;
-    private divPrevious?;
-    private divNext?;
-    private isDragging;
+    private static activeViewerOwner;
+    private currentIndex;
+    private timer?;
+    private observer?;
+    private drag?;
+    private dragFrame?;
+    private readonly panelPositions;
+    private width;
+    private pointerHandlers?;
+    private slidesObserver?;
+    private observedSlides;
+    private viewerOpen;
+    private readonly thumbnailQueue;
+    private readonly thumbnailSources;
+    private readonly pendingThumbnails;
+    private readonly thumbnailTargets;
+    private stopHostPropagation;
     static get observedAttributes(): string[];
     get hasThumb(): boolean;
     get autoplay(): boolean;
-    get slides(): CcSwiperSlide[];
-    openViewer(imageUrl: string, imageType: string, slideIndex?: number): Promise<void>;
-    protected firstUpdated(): void;
-    /**
-     * スライド要素を DOM API で組み立てる。
-     *
-     * 外部由来値（thumbnail-url / image-url / image-type / caption）は
-     * すべて setAttribute と textContent で入れる。文字列補間を経由させない。
-     */
-    private buildSlideElements;
-    /**
-     * ギャラリーのサムネイルを DOM API で組み立てる。
-     *
-     * background-image は **CSS コンテキスト**であり HTML エスケープでは守れない。
-     * `escapeCssUrl` で `"` と `\` のみをエスケープして url("…") へ入れる。
-     * `CSS.escape` は使わない — CSS 識別子用であり URL に適用すると `/` `:` `.` まで
-     * エスケープされて URL が壊れる。
-     */
-    private buildGalleryElements;
+    get items(): MediaItem[];
+    get slides(): Element[];
+    get index(): number;
+    get loop(): boolean;
+    protected viewerTagName(): string;
+    protected setThumbnailSource(index: number, src: string, slide?: Element, key?: string): void;
     protected render(): void;
-    private initializeSwiper;
+    private cleanup;
+    disconnectedCallback(): void;
+    private buildSlides;
+    private resetThumbnailSources;
+    private releaseThumbnailSources;
+    private revokeThumbnailUrl;
+    private requestThumbnails;
+    private updateThumbnailPriorities;
+    private bindEvents;
+    private onKeyDown;
+    private onViewerIndexChange;
+    private onViewerClose;
+    private onPointerDown;
+    private onPointerMove;
+    private cancelDragFrame;
+    private onPointerUp;
+    private displayDragPx;
+    private observeSlides;
+    private observeSize;
+    private updateLayout;
+    private setPanelPosition;
+    private updateChrome;
+    private finishSwipeTransition;
+    private commitSwipe;
+    goTo(index: number, opts?: {
+        animate?: boolean;
+    }): void;
+    pauseAutoplay(): void;
+    resumeAutoplay(): void;
+    private startAutoplay;
+    openViewer(index: number): Promise<void>;
 }
 
 export declare class CcSwiperSlide extends ChuciElement {
@@ -44,189 +69,31 @@ export declare class CcSwiperSlide extends ChuciElement {
 }
 
 export declare class CcViewer extends ChuciElement {
-    private swiper;
-    private currentSlideIndex;
-    private currentType;
-    private boundHandleNavigatePrev?;
-    private boundHandleNavigateNext?;
-    open(imgUrl: string, type: string, attributes?: Record<string, any>): void;
-    protected firstUpdated(): void;
-    private handleNavigatePrev;
-    private handleNavigateNext;
-    private navigateToSlide;
-    private updateNavigationButtons;
-    private setNavigationVisibility;
-    setSwiper(swiper: any): void;
-    setCurrentSlideIndex(index: number): void;
-    protected render(): void;
-}
-
-export declare class CcViewer3DModel extends CcViewerBase {
-    private modelUrl;
-    private materialUrl;
-    private debugMode;
-    private cameraPosition;
-    private cameraTarget;
-    private showTexture;
-    private scene?;
-    private camera?;
-    private renderer?;
-    private controls?;
-    private animationId?;
-    private container?;
-    private currentModel?;
-    private originalMaterials;
-    private resizeObserver?;
-    private externalCanvas?;
-    static get observedAttributes(): string[];
-    attributeChangedCallback(name: string, oldValue: string | null, newValue: string | null): void;
-    protected doOpen(url: string): Promise<void>;
-    protected doClose(): void;
-    protected getViewerContent(): string;
-    protected getCustomStyles(): string;
-    protected onAfterRender(): void;
-    private cleanup;
-    private storeOriginalMaterials;
-    private toggleTexture;
-    private getCameraDebugInfo;
-    private getTargetDebugInfo;
-    private updateDebugInfo;
-    private initializeViewer;
-    private loadModel;
-    private animateLoop;
-    private handleResize;
-}
-
-export declare abstract class CcViewerBase extends ChuciElement {
-    private _showPrevButton;
-    private _showNextButton;
-    protected isShow: boolean;
-    protected isLoading: boolean;
-    get showPrevButton(): boolean;
-    set showPrevButton(value: boolean);
-    get showNextButton(): boolean;
-    set showNextButton(value: boolean);
-    protected abstract doOpen(url: string): void | Promise<void>;
-    protected abstract doClose(): void;
-    protected abstract getViewerContent(): string;
-    open(url: string): void;
+    private items;
+    private currentIndex;
+    private loop;
+    private activeMount?;
+    private barVisibility?;
+    private gestures?;
+    private debugTimer?;
+    private previousFocus?;
+    get index(): number;
+    open(items: MediaItem[], index: number, opts?: {
+        loop?: boolean;
+    }): void;
     close(): void;
-    protected cleanupNavigationListeners(): void;
+    disconnectedCallback(): void;
+    protected firstUpdated(): void;
     protected render(): void;
-    /**
-     * 外部由来値（POI の URL 等）を描画後の DOM へ setAttribute で入れるフック。
-     *
-     * getViewerContent() が返すテンプレートには **外部由来値を含めない**。
-     * 文字列補間すると属性ブレイクアウトが成立するためである。
-     */
-    protected applyExternalValues(): void;
-    protected shouldUseCustomRender(): boolean;
-    protected customRender(): void;
-    protected getCustomStyles(): string;
-    protected onAfterRender(): void;
-    protected navigatePrev(): void;
-    protected navigateNext(): void;
-    protected getNavigationButtons(): string;
-    protected getNavigationStyles(): string;
-    protected addNavigationListeners(): void;
-    protected updateNavigationVisibility(): void;
-}
-
-export declare class CcViewerGaussian extends CcViewerBase {
-    private splatUrl;
-    private debugMode;
-    private cameraPosition;
-    private _cameraTarget;
-    private scene?;
-    private camera?;
-    private renderer?;
-    private controls?;
-    private animationId?;
-    private canvas?;
-    private swiper?;
-    static get observedAttributes(): string[];
-    attributeChangedCallback(name: string, oldValue: string | null, newValue: string | null): void;
-    protected doOpen(url: string): Promise<void>;
-    protected doClose(): void;
-    protected getViewerContent(): string;
-    protected shouldUseCustomRender(): boolean;
-    protected customRender(): void;
-    private cleanup;
-    private getCameraDebugInfo;
-    private getTargetDebugInfo;
-    private updateDebugInfo;
-    private initializeViewer;
-    private handleResize;
-}
-
-export declare class CcViewerImage extends CcViewerBase {
-    private viewer?;
-    private container?;
-    private imageUrl;
-    protected doOpen(url: string): void;
-    protected doClose(): void;
-    protected getViewerContent(): string;
-    protected getCustomStyles(): string;
-    protected onAfterRender(): void;
-}
-
-export declare class CcViewerPanorama extends CcViewerBase {
-    private imgUrl;
-    /**
-     * aframe CDN の Subresource Integrity。
-     *
-     * 実際に取得して算出した（2026-08-01）:
-     *   curl -sSL https://aframe.io/releases/1.4.0/aframe.min.js  → 1,325,299 bytes
-     *   openssl dgst -sha384 -binary | openssl base64 -A
-     *
-     * SRI が無いと CDN 侵害時に viewer 文脈で任意コードが走る。
-     * **URL の版を上げるときは必ずこのハッシュも取り直すこと**（不一致だと読み込まれない）。
-     */
-    private static readonly AFRAME_SRI;
-    static get observedAttributes(): string[];
-    attributeChangedCallback(name: string, oldValue: string | null, newValue: string | null): void;
-    protected doOpen(imgUrl: string): void;
-    protected doClose(): void;
-    protected getViewerContent(): string;
-    protected getCustomStyles(): string;
-    /**
-     * srcdoc は **外部由来値を一切含まない固定文字列** である。
-     *
-     * 画像 URL は postMessage で iframe へ渡し、iframe 内で setAttribute する。
-     * `contentDocument` を使わないのは、`sandbox="allow-scripts"` を採ると
-     * iframe が opaque origin になり親からのアクセスが遮断されるためである。
-     * postMessage なら sandbox の有無にかかわらず成立する。
-     *
-     * 競合を避けるため、iframe 側から `cc-panorama-ready` を受け取ってから URL を送る。
-     */
-    private static readonly IFRAME_HTML;
-    private onIframeReady?;
-    protected onAfterRender(): void;
-}
-
-export declare class CcViewerVideo extends CcViewerBase {
-    private videoUrl;
-    private fitToContainer;
-    static get observedAttributes(): string[];
-    attributeChangedCallback(name: string, oldValue: string | null, newValue: string | null): void;
-    protected doOpen(url: string): void;
-    protected doClose(): void;
-    protected getViewerContent(): string;
-    protected getCustomStyles(): string;
-    protected onAfterRender(): void;
-    protected applyExternalValues(): void;
-    private handleVideoError;
-}
-
-export declare class CcViewerYoutube extends CcViewerBase {
-    private videoUrl;
-    static get observedAttributes(): string[];
-    attributeChangedCallback(name: string, oldValue: string | null, newValue: string | null): void;
-    protected doOpen(videoUrl: string): void;
-    protected doClose(): void;
-    protected getViewerContent(): string;
-    protected applyExternalValues(): void;
-    protected getCustomStyles(): string;
+    private readonly onKeyDown;
+    private step;
+    private goTo;
+    private readonly setBarVisible;
+    private showItem;
+    private mountRenderer;
+    private reportRendererError;
+    private refreshDebug;
+    private clearRenderer;
 }
 
 /**
@@ -249,28 +116,63 @@ export declare abstract class ChuciElement extends HTMLElement {
     protected dispatch(eventName: string, detail?: any): void;
 }
 
-/**
- * CSS の `url("…")` へ値を入れるためのエスケープ。
- *
- * 二重引用符で囲む前提で、`"` と `\` のみをバックスラッシュでエスケープする。
- * URL に現れ得る `/` `:` `.` `?` `&` `%` は**触らない** — 触ると正系の URL が壊れる。
- * `CSS.escape` は CSS 識別子用のため、この用途では使ってはならない。
- */
 export declare function escapeCssUrl(value: string): string;
+
+declare interface GenerateOptions {
+    maxSize?: number;
+    signal?: AbortSignal;
+}
+
+/** Generate a thumbnail with the same initial scene setup used by the viewer. */
+export declare function generateThumbnail(item: MediaItem, opts?: GenerateOptions): Promise<Blob>;
+
+export declare interface MediaItem {
+    url: string;
+    type: MediaType;
+    thumbnailUrl: string;
+    caption: string;
+    materialUrl?: string;
+    cameraPosition?: string;
+    cameraTarget?: string;
+    showTexture?: boolean;
+    fitToContainer: boolean;
+    debugMode: boolean;
+}
+
+/**
+ * メディア項目の型と、スライド要素からの読み取り。
+ *
+ * 読む属性は既存のスライドのものだけ（global-constraints）：
+ * image-url / image-type / thumbnail-url / caption / material-url /
+ * camera-position / camera-target / show-texture / fit-to-container / debug-mode
+ */
+export declare type MediaType = 'image' | 'panorama' | 'youtube' | 'video' | '3dmodel' | 'gaussian';
+
+/**
+ * スライド要素からメディア項目を読み取る。
+ *
+ * - `image-type` は既知の 6 種類以外を `image` に落とす（今と同じ）。
+ * - `fit-to-container` と `debug-mode` は属性の有無で判定する（値が空文字でも true）。
+ * - `show-texture` は属性がなければ undefined、値が 'false' のときだけ false、それ以外は true。
+ * - 任意項目（material-url / camera-position / camera-target）は属性がなければ undefined。
+ */
+export declare function readMediaItem(el: Element): MediaItem;
+
+export declare const THUMBNAIL_GENERATOR_VERSION = 2;
 
 export { }
 
 
 declare global {
     interface HTMLElementTagNameMap {
-        'cc-viewer': CcViewer;
+        "cc-swiper": CcSwiper;
     }
 }
 
 
 declare global {
     interface HTMLElementTagNameMap {
-        'cc-swiper': CcSwiper;
+        "cc-viewer": CcViewer;
     }
 }
 
@@ -279,56 +181,4 @@ declare global {
     interface HTMLElementTagNameMap {
         'cc-swiper-slide': CcSwiperSlide;
     }
-}
-
-
-declare global {
-    interface HTMLElementTagNameMap {
-        'cc-viewer-video': CcViewerVideo;
-    }
-}
-
-
-declare global {
-    interface HTMLElementTagNameMap {
-        'cc-viewer-image': CcViewerImage;
-    }
-}
-
-
-declare global {
-    interface HTMLElementTagNameMap {
-        'cc-viewer-3dmodel': CcViewer3DModel;
-    }
-}
-
-
-declare global {
-    interface HTMLElementTagNameMap {
-        'cc-viewer-panorama': CcViewerPanorama;
-    }
-}
-
-
-declare global {
-    interface HTMLElementTagNameMap {
-        'cc-viewer-gaussian': CcViewerGaussian;
-    }
-}
-
-
-declare global {
-    interface HTMLElementTagNameMap {
-        'cc-viewer-youtube': CcViewerYoutube;
-    }
-}
-
-// Global type declarations for Chuci
-
-declare global {
-  interface Window {
-    // gsplat.js library global - external library without TypeScript types
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    gsplat?: any;
-  }
 }
