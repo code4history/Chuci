@@ -167,7 +167,7 @@ export { }
 
 declare global {
     interface HTMLElementTagNameMap {
-        "cc-viewer": CcViewer;
+        'cc-swiper-slide': CcSwiperSlide;
     }
 }
 
@@ -181,6 +181,6 @@ declare global {
 
 declare global {
     interface HTMLElementTagNameMap {
-        'cc-swiper-slide': CcSwiperSlide;
+        "cc-viewer": CcViewer;
     }
 }

@@ -578,11 +578,6 @@ export class CcSwiper extends ChuciElement {
   }
 
   async openViewer(index: number): Promise<void> {
-    const normalizedIndex = normalizeIndex(
-      Number.isFinite(index) ? Math.trunc(index) : 0,
-      this.items.length,
-      this.loop
-    );
     const previousOwner = CcSwiper.activeViewerOwner;
     if (previousOwner && previousOwner !== this) {
       previousOwner.viewerOpen = false;
@@ -590,7 +585,6 @@ export class CcSwiper extends ChuciElement {
     }
     CcSwiper.activeViewerOwner = this;
     this.viewerOpen = true;
-    this.viewerIndex = normalizedIndex;
     this.pauseAutoplay();
     const tag = this.viewerTagName();
     let viewer = document.querySelector(tag) as (Element & ViewerLike) | null;
@@ -599,7 +593,14 @@ export class CcSwiper extends ChuciElement {
       document.body.append(viewer);
     }
     await customElements.whenDefined(tag);
-    (viewer as ViewerLike).open(this.items, normalizedIndex, { loop: this.loop });
+    const items = this.items;
+    const normalizedIndex = normalizeIndex(
+      Number.isFinite(index) ? Math.trunc(index) : 0,
+      items.length,
+      this.loop
+    );
+    this.viewerIndex = normalizedIndex;
+    (viewer as ViewerLike).open(items, normalizedIndex, { loop: this.loop });
   }
 }
 

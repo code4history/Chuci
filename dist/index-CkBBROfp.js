@@ -23486,7 +23486,7 @@ async function kg(i, e, t) {
       if (i.showTexture !== !1 && c.textureLoadFailed)
         throw new Error("Failed to load a required model texture");
     } else {
-      const { prepareGaussianScene: c } = await import("./gaussian-renderer-CLFOCG_z.js");
+      const { prepareGaussianScene: c } = await import("./gaussian-renderer-MvZGJW38.js");
       await c(o, i, t);
     }
     return t.throwIfAborted(), await o.capture(e);
@@ -24044,15 +24044,17 @@ class Yt extends va {
     ));
   }
   async openViewer(e) {
-    const t = fi(
+    const t = Yt.activeViewerOwner;
+    t && t !== this && (t.viewerOpen = !1, t.resumeAutoplay()), Yt.activeViewerOwner = this, this.viewerOpen = !0, this.pauseAutoplay();
+    const n = this.viewerTagName();
+    let r = document.querySelector(n);
+    r || (r = document.createElement(n), document.body.append(r)), await customElements.whenDefined(n);
+    const s = this.items, a = fi(
       Number.isFinite(e) ? Math.trunc(e) : 0,
-      this.items.length,
+      s.length,
       this.loop
-    ), n = Yt.activeViewerOwner;
-    n && n !== this && (n.viewerOpen = !1, n.resumeAutoplay()), Yt.activeViewerOwner = this, this.viewerOpen = !0, this.viewerIndex = t, this.pauseAutoplay();
-    const r = this.viewerTagName();
-    let s = document.querySelector(r);
-    s || (s = document.createElement(r), document.body.append(s)), await customElements.whenDefined(r), s.open(this.items, t, { loop: this.loop });
+    );
+    this.viewerIndex = a, r.open(s, a, { loop: this.loop });
   }
 }
 customElements.get("cc-swiper") || customElements.define("cc-swiper", Yt);
@@ -24298,7 +24300,7 @@ async function s_(i) {
     case "3dmodel":
       return new Tg();
     case "gaussian": {
-      const { GaussianRenderer: e } = await import("./gaussian-renderer-CLFOCG_z.js");
+      const { GaussianRenderer: e } = await import("./gaussian-renderer-MvZGJW38.js");
       return new e();
     }
     default:

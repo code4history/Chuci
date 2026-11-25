@@ -25,7 +25,7 @@ function stubViewerOpen() {
     viewer = document.createElement("cc-viewer") as Element & { open: (...args: unknown[]) => void };
     document.body.append(viewer);
   }
-  vi.spyOn(viewer, "open").mockImplementation(() => {});
+  return vi.spyOn(viewer, "open").mockImplementation(() => {});
 }
 
 function translatedX(transform: string): number {
@@ -254,6 +254,28 @@ describe("CcSwiper", () => {
     await el.openViewer(index);
     document.dispatchEvent(new CustomEvent("cc-viewer-close"));
     expect(el.index).toBe(0);
+  });
+
+  test("opening normalizes against slides added before the viewer is defined", async () => {
+    const el = makeSwiper(3);
+    const open = stubViewerOpen();
+    let defineViewer!: (ctor: CustomElementConstructor) => void;
+    const whenDefined = vi.spyOn(customElements, "whenDefined").mockReturnValue(
+      new Promise((resolve) => {
+        defineViewer = resolve;
+      })
+    );
+    try {
+      const opening = el.openViewer(3);
+      const slide = document.createElement("cc-swiper-slide");
+      slide.setAttribute("image-url", "https://example.com/3.jpg");
+      el.append(slide);
+      defineViewer(customElements.get("cc-viewer")!);
+      await opening;
+      expect(open).toHaveBeenCalledWith(el.items, 3, { loop: true });
+    } finally {
+      whenDefined.mockRestore();
+    }
   });
 
   test("closing preserves ownership when an index listener opens another swiper", async () => {
