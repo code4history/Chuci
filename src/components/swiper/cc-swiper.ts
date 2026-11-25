@@ -26,6 +26,7 @@ interface DragState {
   startedAt: number;
   moved: boolean;
   index: number;
+  positions?: number[];
 }
 
 export class CcSwiper extends ChuciElement {
@@ -37,6 +38,7 @@ export class CcSwiper extends ChuciElement {
   private drag?: DragState;
   private dragFrame?: number;
   private readonly panelPositions = new WeakMap<HTMLElement, number>();
+  private transitionEnd?: AbortController;
   private width = 0;
   private pointerHandlers?: AbortController;
   private slidesObserver?: MutationObserver;
@@ -45,7 +47,7 @@ export class CcSwiper extends ChuciElement {
   private viewerIndex = 0;
   private readonly thumbnailQueue = sharedThumbnailQueue;
   private readonly thumbnailSources = new Map<Element, string>();
-  private readonly pendingThumbnails = new Map<Element, string>();
+  private readonly pendingThumbnails = new Map<Element, { key: string; controller: AbortController }>();
   private readonly thumbnailTargets = new WeakMap<HTMLImageElement, { slide: Element; key: string }>();
   private stopHostPropagation = (event: Event) => event.stopPropagation();
 
@@ -89,6 +91,7 @@ export class CcSwiper extends ChuciElement {
   }
 
   protected render() {
+    if (!this.isConnected) return;
     this.cleanup();
     this.tabIndex = 0;
     const style = this.css`
@@ -104,7 +107,8 @@ export class CcSwiper extends ChuciElement {
       #caption { flex:0 0 auto; min-height:0; box-sizing:border-box; padding:5px; color:white; background:#000; font-size:.6rem; font-weight:700; }
       ${captionBarStyles}
       .cc-bar--slider { min-height:1.5rem; }
-      .cc-bar-dot { color:var(--cc-slider-theme-color,#007aff); }
+      .cc-bar-dot { color:white; }
+      .cc-bar-dot[aria-current="true"] { color:var(--cc-slider-theme-color,#007aff); }
       #gallery { flex:0 0 90px; display:flex; gap:10px; overflow-x:auto; padding:5px; box-sizing:border-box; }
       #gallery[hidden], #caption[hidden] { display:none; }
       .gallery-thumb { flex:0 0 min(22%,100px);height:100%;object-fit:cover;opacity:.35;cursor:pointer; }
@@ -118,12 +122,13 @@ export class CcSwiper extends ChuciElement {
     this.observeSlides();
     this.observeSize();
     if (!this.viewerOpen) this.startAutoplay();
-    this.updateLayout(false);
+    this.updateLayout();
   }
 
   private cleanup() {
     this.cancelDragFrame();
     this.drag = undefined;
+    this.cancelTransitionEnd();
     this.pointerHandlers?.abort();
     this.pointerHandlers = undefined;
     this.observer?.disconnect();
@@ -139,6 +144,8 @@ export class CcSwiper extends ChuciElement {
   }
 
   disconnectedCallback() {
+    for (const { controller } of this.pendingThumbnails.values()) controller.abort();
+    this.pendingThumbnails.clear();
     this.releaseThumbnailSources();
     this.cleanup();
     if (CcSwiper.activeViewerOwner === this) {
@@ -214,21 +221,26 @@ export class CcSwiper extends ChuciElement {
   private requestThumbnails(): void {
     const slides = this.slides;
     const count = slides.length;
+    const first = this.index;
     const requests = slides
-      .map((slide, index) => ({ slide, index, item: readMediaItem(slide) }))
+      .map((slide, index) => ({
+        slide,
+        item: readMediaItem(slide),
+        priority: (index - first + count) % count
+      }))
       .filter(({ slide, item }) => !item.thumbnailUrl && !this.thumbnailSources.has(slide))
-      .sort((a, b) => {
-        const aPriority = (a.index - this.index + count) % count;
-        const bPriority = (b.index - this.index + count) % count;
-        return aPriority - bPriority;
-      });
-    for (const { slide, item } of requests) {
+      .sort((a, b) => a.priority - b.priority);
+    const stale = new Map(this.pendingThumbnails);
+    for (const { slide, item, priority } of requests) {
       const key = thumbnailCacheKey(item, DEFAULT_THUMBNAIL_SIZE);
-      if (this.pendingThumbnails.get(slide) === key) continue;
-      this.pendingThumbnails.set(slide, key);
-      const priority = (slides.indexOf(slide) - this.index + count) % count;
-      void this.thumbnailQueue.request(item, priority).then((src) => {
-        if (this.pendingThumbnails.get(slide) !== key) {
+      if (this.pendingThumbnails.get(slide)?.key === key) {
+        stale.delete(slide);
+        continue;
+      }
+      const pending = { key, controller: new AbortController() };
+      this.pendingThumbnails.set(slide, pending);
+      void this.thumbnailQueue.request(item, priority, pending.controller.signal).then((src) => {
+        if (this.pendingThumbnails.get(slide) !== pending) {
           this.revokeThumbnailUrl(src);
           return;
         }
@@ -249,6 +261,10 @@ export class CcSwiper extends ChuciElement {
         this.thumbnailSources.set(slide, src);
         this.setThumbnailSource(index, src, slide, key);
       });
+    }
+    for (const [slide, pending] of stale) {
+      if (this.pendingThumbnails.get(slide) === pending) this.pendingThumbnails.delete(slide);
+      pending.controller.abort();
     }
   }
 
@@ -307,19 +323,19 @@ export class CcSwiper extends ChuciElement {
       "pointercancel",
       () => {
         this.drag = undefined;
-        this.updateLayout(true);
+        this.moveTo(this.index, true);
       },
       opts
     );
     viewport.addEventListener("wheel", () => {}, opts);
     prev?.addEventListener(
       "click",
-      () => this.goTo(stepIndex(this.index, -1, this.items.length, this.loop)),
+      () => this.step(-1),
       opts
     );
     next?.addEventListener(
       "click",
-      () => this.goTo(stepIndex(this.index, 1, this.items.length, this.loop)),
+      () => this.step(1),
       opts
     );
     this.addEventListener("keydown", this.onKeyDown, opts);
@@ -338,10 +354,10 @@ export class CcSwiper extends ChuciElement {
   private onKeyDown = (event: KeyboardEvent) => {
     if (event.key === "ArrowRight") {
       event.preventDefault();
-      this.goTo(stepIndex(this.index, 1, this.items.length, this.loop));
+      this.step(1);
     } else if (event.key === "ArrowLeft") {
       event.preventDefault();
-      this.goTo(stepIndex(this.index, -1, this.items.length, this.loop));
+      this.step(-1);
     }
   };
   private onViewerIndexChange = (event: CustomEvent<{ index: number }>) => {
@@ -368,6 +384,7 @@ export class CcSwiper extends ChuciElement {
     if ((event.target as HTMLElement).closest("button")) return;
     if (event.button !== 0 && event.pointerType !== "touch") return;
     this.cancelDragFrame();
+    this.cancelTransitionEnd();
     const viewport = this.query<HTMLElement>("#viewport");
     try {
       viewport?.setPointerCapture(event.pointerId);
@@ -396,7 +413,7 @@ export class CcSwiper extends ChuciElement {
     if (this.dragFrame !== undefined) return;
     this.dragFrame = requestAnimationFrame(() => {
       this.dragFrame = undefined;
-      this.updateLayout(false, drag.displayPx);
+      this.drawDrag(drag);
     });
   }
   private cancelDragFrame() {
@@ -412,15 +429,14 @@ export class CcSwiper extends ChuciElement {
     this.cancelDragFrame();
     this.drag = undefined;
     if (!moved) {
-      this.updateLayout(true);
+      this.moveTo(this.index, true);
       void this.openViewer(drag.index);
-    }
-    else {
+    } else {
       const elapsed = Math.max(1, performance.now() - drag.startedAt);
       const fast = Math.abs(dx) / elapsed > FEEL.swipeVelocityPxPerMs;
-      if (Math.abs(dx) >= this.width * FEEL.swipeCommitRatio || fast)
-        this.commitSwipe(dx < 0 ? -1 : 1);
-      else this.updateLayout(true);
+      if (dx !== 0 && (Math.abs(dx) >= this.width * FEEL.swipeCommitRatio || fast))
+        this.step(dx < 0 ? 1 : -1);
+      else this.moveTo(this.index, true);
     }
   }
 
@@ -443,9 +459,10 @@ export class CcSwiper extends ChuciElement {
       )
         return;
       this.observedSlides = slides;
+      this.drag = undefined;
       this.currentIndex = normalizeIndex(this.currentIndex, this.items.length, this.loop);
       this.buildSlides();
-      this.updateLayout(false);
+      this.updateLayout();
       if (!this.viewerOpen) this.startAutoplay();
     });
     this.slidesObserver.observe(this, { childList: true, subtree: true });
@@ -459,7 +476,8 @@ export class CcSwiper extends ChuciElement {
         entries[0]?.contentRect.width ?? viewport.getBoundingClientRect().width;
       if (width > 0 && width !== this.width) {
         this.width = width;
-        this.updateLayout(false);
+        if (this.drag) this.drag.positions = undefined;
+        this.updateLayout();
       }
     });
     this.observer.observe(viewport);
@@ -467,29 +485,63 @@ export class CcSwiper extends ChuciElement {
     if (initialWidth > 0) this.width = initialWidth;
   }
 
-  private updateLayout(animate: boolean, dragPx = 0) {
+  private updateLayout() {
     this.cancelDragFrame();
-    const panels = Array.from(this.queryAll<HTMLElement>(".cc-slide"));
+    this.cancelTransitionEnd();
+    const panels = this.queryAll<HTMLElement>(".cc-slide");
     const offsets = slideOffsets(this.index, panels.length, this.loop);
-    if (this.width > 0)
+    if (this.width > 0) {
       panels.forEach((panel, i) => {
-        let offset = offsets[i];
-        if (this.loop && panels.length === 2 && dragPx > 0 && i !== this.index)
-          offset = -1;
-        panel.style.transition = animate
-          ? `transform ${FEEL.slideTransitionMs}ms ease`
-          : "none";
-        this.setPanelPosition(panel, offset, dragPx);
+        panel.style.transition = "none";
+        this.setPanelPosition(panel, offsets[i]);
       });
+    }
     this.updateChrome();
   }
 
-  private setPanelPosition(panel: HTMLElement, offset: number, dragPx: number) {
+  private readPanelPositions(panels: HTMLElement[], offsets: number[]): number[] {
+    return panels.map((panel, i) => {
+      const transform = getComputedStyle(panel).transform;
+      if (typeof DOMMatrixReadOnly === "function" && transform && transform !== "none")
+        return new DOMMatrixReadOnly(transform).m41;
+      // DOM shims don't resolve a calc transform into a matrix.
+      return this.panelPositions.get(panel) ?? offsets[i] * this.width;
+    });
+  }
+
+  private drawDrag(drag: DragState) {
+    const { width } = this;
+    if (width <= 0) return;
+    const index = this.index;
+    const panels = Array.from(this.queryAll<HTMLElement>(".cc-slide"));
+    const offsets = slideOffsets(index, panels.length, this.loop);
+    const positions = drag.positions ??= this.readPanelPositions(panels, offsets);
+    const source = positions[index] ?? 0;
+    const dx = this.loop
+      ? Math.max(-width - source, Math.min(width - source, drag.displayPx))
+      : drag.displayPx;
+    const cycle = panels.length * width;
+    panels.forEach((panel, i) => {
+      let offset = positions[i] / width;
+      const x = offset * width + dx;
+      // The same panel can come in from the other edge once it is outside.
+      if (this.loop && x > width && x - cycle >= -width) offset -= panels.length;
+      else if (this.loop && x < -width && x + cycle <= width) offset += panels.length;
+      panel.style.transition = "none";
+      this.setPanelPosition(panel, offset, dx);
+    });
+  }
+
+  private setPanelPosition(panel: HTMLElement, offset: number, dragPx = 0) {
     panel.style.transform = `translateX(calc(${offset * 100}% + ${dragPx}px))`;
     this.panelPositions.set(panel, offset * this.width + dragPx);
   }
 
   private updateChrome() {
+    const count = this.slides.length;
+    this.queryAll<HTMLButtonElement>(".nav").forEach((button) => {
+      button.hidden = count < 2;
+    });
     const caption = this.query<HTMLDivElement>("#caption");
     if (caption) {
       const model = captionBarModel(
@@ -513,53 +565,81 @@ export class CcSwiper extends ChuciElement {
     });
   }
 
-  private finishSwipeTransition = (event: TransitionEvent) => {
-    if (event.propertyName !== "transform") return;
-    this.queryAll<HTMLElement>(".cc-slide").forEach((panel) =>
-      panel.removeEventListener("transitionend", this.finishSwipeTransition)
-    );
-    this.updateLayout(false);
-  };
+  private cancelTransitionEnd() {
+    this.transitionEnd?.abort();
+    this.transitionEnd = undefined;
+  }
 
-  private commitSwipe(direction: -1 | 1) {
-    const previousIndex = this.index;
-    this.currentIndex = stepIndex(
-      this.index,
-      direction === -1 ? 1 : -1,
-      this.items.length,
-      this.loop
-    );
+  private moveTo(index: number, animate: boolean, step?: -1 | 1) {
+    this.cancelDragFrame();
+    this.drag = undefined;
+    this.cancelTransitionEnd();
+    const previous = this.index;
     const panels = Array.from(this.queryAll<HTMLElement>(".cc-slide"));
-    const nextOffsets = slideOffsets(this.index, panels.length, this.loop);
-    // Resolve the last written transforms before replacing them with the transition targets.
-    panels[0]?.getBoundingClientRect();
-    panels.forEach((panel, index) => {
-      const fromX = this.panelPositions.get(panel);
-      const targetOffset = panels.length === 2 && index === previousIndex
-        ? direction
-        : nextOffsets[index];
-      const toX = targetOffset * this.width;
-      const wasVisible = fromX !== undefined && Math.abs(fromX) < this.width;
-      const shouldTransition = wasVisible || Math.abs(toX) < this.width;
-      panel.removeEventListener("transitionend", this.finishSwipeTransition);
-      if (shouldTransition) {
-        panel.addEventListener("transitionend", this.finishSwipeTransition);
-        panel.style.transition = `transform ${FEEL.slideTransitionMs}ms ease`;
-      } else {
-        panel.style.transition = "none";
-      }
-      this.setPanelPosition(panel, targetOffset, 0);
+    const { width } = this;
+    const oldOffsets = slideOffsets(previous, panels.length, this.loop);
+    const positions = animate && width > 0 ? this.readPanelPositions(panels, oldOffsets) : [];
+    this.currentIndex = index;
+    if (!positions.length || !panels[index]) {
+      this.updateLayout();
+      return;
+    }
+
+    const offsets = slideOffsets(index, panels.length, this.loop);
+    const visible = (x: number) => Math.abs(x) < width - 0.01;
+    if (previous !== index && !visible(positions[index])) {
+      const entry = step ?? Math.sign(oldOffsets[index]);
+      // A hidden incoming panel can wrap. Align it beside the outgoing
+      // panel if that keeps it offscreen, including on consecutive swipes.
+      positions[index] = entry * Math.max(width, width + entry * positions[previous]);
+    }
+    const incoming = positions[index];
+    const targets = positions.map((x, i) => {
+      if (i === index || !visible(x)) return offsets[i];
+      const distance = (x - incoming) / width;
+      // Keep each visible panel on its side of the incoming one until it
+      // is out of view. The canonical offsets can then be restored safely.
+      return Math.sign(distance || offsets[i]) * Math.max(1, Math.round(Math.abs(distance)));
     });
+
+    const viewport = this.query<HTMLElement>("#viewport");
+    let lastMoving: HTMLElement | undefined;
+    panels.forEach((panel, i) => {
+      panel.style.transition = "none";
+      if (this.panelPositions.get(panel) !== positions[i])
+        this.setPanelPosition(panel, 0, positions[i]);
+    });
+    viewport?.getBoundingClientRect(); // Commit the start positions before setting targets.
+    panels.forEach((panel, i) => {
+      const to = targets[i] * width;
+      if (visible(positions[i]) || visible(to)) {
+        panel.style.transition = `transform ${FEEL.slideTransitionMs}ms ease`;
+        if (Math.abs(positions[i] - to) > 0.01) lastMoving = panel;
+      }
+      this.setPanelPosition(panel, targets[i]);
+    });
+    if (lastMoving) {
+      const controller = new AbortController();
+      this.transitionEnd = controller;
+      lastMoving.addEventListener("transitionend", (event) => {
+        if (event.propertyName === "transform") this.updateLayout();
+      }, { signal: controller.signal });
+    }
     this.updateChrome();
+  }
+
+  private step(delta: -1 | 1) {
+    this.selectSlide(stepIndex(this.index, delta, this.items.length, this.loop), true, delta);
+  }
+
+  private selectSlide(index: number, animate: boolean, step?: -1 | 1) {
+    this.moveTo(index, animate, step);
     this.updateThumbnailPriorities();
     this.dispatch("cc-swiper-index-change", { index: this.index });
   }
 
   goTo(index: number, opts: { animate?: boolean } = {}) {
-    this.currentIndex = normalizeIndex(index, this.items.length, this.loop);
-    this.updateLayout(opts.animate ?? true);
-    this.updateThumbnailPriorities();
-    this.dispatch("cc-swiper-index-change", { index: this.index });
+    this.selectSlide(normalizeIndex(index, this.items.length, this.loop), opts.animate ?? true);
   }
   pauseAutoplay() {
     if (this.timer !== undefined) clearInterval(this.timer);
@@ -570,14 +650,12 @@ export class CcSwiper extends ChuciElement {
   }
   private startAutoplay() {
     this.pauseAutoplay();
-    if (!this.viewerOpen && this.autoplay && this.items.length > 1)
-      this.timer = setInterval(
-        () => this.goTo(stepIndex(this.index, 1, this.items.length, this.loop)),
-        5000
-      );
+    if (this.isConnected && !this.viewerOpen && this.autoplay && this.items.length > 1)
+      this.timer = setInterval(() => this.step(1), FEEL.slideAutoplayMs);
   }
 
   async openViewer(index: number): Promise<void> {
+    if (!this.isConnected || this.slides.length === 0) return;
     const previousOwner = CcSwiper.activeViewerOwner;
     if (previousOwner && previousOwner !== this) {
       previousOwner.viewerOpen = false;
@@ -593,7 +671,14 @@ export class CcSwiper extends ChuciElement {
       document.body.append(viewer);
     }
     await customElements.whenDefined(tag);
+    if (!this.isConnected || CcSwiper.activeViewerOwner !== this) return;
     const items = this.items;
+    if (items.length === 0) {
+      CcSwiper.activeViewerOwner = undefined;
+      this.viewerOpen = false;
+      this.resumeAutoplay();
+      return;
+    }
     const normalizedIndex = normalizeIndex(
       Number.isFinite(index) ? Math.trunc(index) : 0,
       items.length,

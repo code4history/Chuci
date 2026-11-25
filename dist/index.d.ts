@@ -7,6 +7,7 @@ export declare class CcSwiper extends ChuciElement {
     private drag?;
     private dragFrame?;
     private readonly panelPositions;
+    private transitionEnd?;
     private width;
     private pointerHandlers?;
     private slidesObserver?;
@@ -48,10 +49,14 @@ export declare class CcSwiper extends ChuciElement {
     private observeSlides;
     private observeSize;
     private updateLayout;
+    private readPanelPositions;
+    private drawDrag;
     private setPanelPosition;
     private updateChrome;
-    private finishSwipeTransition;
-    private commitSwipe;
+    private cancelTransitionEnd;
+    private moveTo;
+    private step;
+    private selectSlide;
     goTo(index: number, opts?: {
         animate?: boolean;
     }): void;
@@ -160,7 +165,7 @@ export declare type MediaType = 'image' | 'panorama' | 'youtube' | 'video' | '3d
  */
 export declare function readMediaItem(el: Element): MediaItem;
 
-export declare const THUMBNAIL_GENERATOR_VERSION = 2;
+export declare const THUMBNAIL_GENERATOR_VERSION = 3;
 
 export { }
 

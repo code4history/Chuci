@@ -7,7 +7,7 @@ import {
   generateThumbnail
 } from "../src/thumbnails/generate";
 import { ThumbnailCache, thumbnailCacheKey } from "../src/thumbnails/cache";
-import { ThumbnailQueue, sharedThumbnailQueue } from "../src/thumbnails/queue";
+import { ThumbnailQueue, THUMBNAIL_TASK_TIMEOUT_MS, sharedThumbnailQueue } from "../src/thumbnails/queue";
 import "../src/index";
 import type { CcSwiper } from "../src/components/swiper/cc-swiper";
 
@@ -71,7 +71,7 @@ afterEach(() => {
 
 describe("thumbnailCacheKey", () => {
   test("thumbnailCacheKey changes when camera-position changes and when version changes", async () => {
-    expect(THUMBNAIL_GENERATOR_VERSION).toBe(2);
+    expect(THUMBNAIL_GENERATOR_VERSION).toBe(3);
     const item = makeItem({ cameraPosition: "1,2,3" });
     const original = thumbnailCacheKey(item, 256);
     expect(thumbnailCacheKey({ ...item, cameraPosition: "4,5,6" }, 256)).not.toBe(original);
@@ -232,6 +232,57 @@ describe("ThumbnailQueue", () => {
     await vi.waitFor(() => expect(starts).toEqual([a.url, c.url, b.url]));
     resolvers.get(b.url)!();
     await Promise.all([first, second, third]);
+  });
+
+  test("cancels only the requesting waiter and abandons generation after the last one leaves", async () => {
+    vi.stubGlobal("indexedDB", undefined);
+    const generate = vi.fn<typeof generateThumbnail>()
+      .mockImplementationOnce(() => new Promise(() => {}))
+      .mockResolvedValue(new Blob(["generated"]));
+    const queue = new ThumbnailQueue({ generate });
+    const item = makeItem();
+    const first = new AbortController();
+    const second = new AbortController();
+    const a = queue.request(item, 0, first.signal);
+    const b = queue.request(item, 1, second.signal);
+    await vi.waitFor(() => expect(generate).toHaveBeenCalledOnce());
+
+    first.abort();
+    await expect(a).resolves.toBeNull();
+    expect(generate.mock.calls[0][1]!.signal!.aborted).toBe(false);
+
+    second.abort();
+    await expect(b).resolves.toBeNull();
+    expect(generate.mock.calls[0][1]!.signal!.aborted).toBe(true);
+    await expect(queue.request(item, 0)).resolves.toMatch(/^blob:/);
+    expect(generate).toHaveBeenCalledTimes(2);
+  });
+
+  test("advances the queue when generation ignores the deadline and ignores its late result", async () => {
+    vi.stubGlobal("indexedDB", undefined);
+    vi.useFakeTimers();
+    try {
+      let finish!: (blob: Blob) => void;
+      const generate = vi.fn<typeof generateThumbnail>()
+        .mockImplementationOnce(() => new Promise((resolve) => { finish = resolve; }))
+        .mockResolvedValue(new Blob(["next"]));
+      const queue = new ThumbnailQueue({ generate });
+      const slow = makeItem({ url: "/slow" });
+      const first = queue.request(slow, 0);
+      const next = queue.request(makeItem({ url: "/next" }), 1);
+      await vi.advanceTimersByTimeAsync(0);
+      expect(generate).toHaveBeenCalledOnce();
+
+      await vi.advanceTimersByTimeAsync(THUMBNAIL_TASK_TIMEOUT_MS);
+      await expect(first).resolves.toBeNull();
+      await expect(next).resolves.toMatch(/^blob:/);
+      expect(generate.mock.calls[0][1]!.signal!.aborted).toBe(true);
+      finish(new Blob(["late"]));
+      await Promise.resolve();
+      expect(queue.getMemoryUrl(slow)).toBeNull();
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   test("keeps icon and records failure on CORS error", async () => {
@@ -486,6 +537,20 @@ describe("thumbnail slider integration", () => {
     expect(revokedUrls).toContain("blob:old-result");
   });
 
+  test("disconnect aborts thumbnail demand and reconnect starts a fresh request", async () => {
+    const request = vi.spyOn(ThumbnailQueue.prototype, "request")
+      .mockImplementationOnce(() => new Promise(() => {}))
+      .mockResolvedValueOnce("blob:reconnected");
+    const el = makeSwiper(makeItem());
+    const signal = request.mock.calls[0][2];
+    expect(signal?.aborted).toBe(false);
+    el.remove();
+    expect(signal?.aborted).toBe(true);
+    document.body.append(el);
+    await vi.waitFor(() => expect(el.shadowRoot!.querySelector(".viewer")!.getAttribute("src"))
+      .toBe("blob:reconnected"));
+  });
+
   test("revokes generated object URLs when disconnected", async () => {
     vi.spyOn(ThumbnailQueue.prototype, "request").mockResolvedValue("blob:generated");
     const el = makeSwiper(makeItem());
@@ -517,6 +582,30 @@ describe("generateThumbnail", () => {
       materialUrl: "https://example.com/model.mtl"
     }))).rejects.toThrow("texture");
     expect(capture).not.toHaveBeenCalled();
+  });
+
+  test("disposes the 3D stage as soon as a capture is abandoned", async () => {
+    let completeCapture!: (blob: Blob) => void;
+    const capture = vi.fn(() => new Promise<Blob>((resolve) => { completeCapture = resolve; }));
+    const dispose = vi.fn();
+    vi.doMock("../src/components/viewer/renderers/model-renderer", () => ({
+      prepareModelScene: vi.fn().mockResolvedValue({ textureLoadFailed: false })
+    }));
+    vi.doMock("../src/components/viewer/renderers/three-stage", () => ({
+      ThreeStage: class { capture = capture; dispose = dispose; }
+    }));
+    const { generateThumbnail: generate } = await import("../src/thumbnails/generate");
+    const controller = new AbortController();
+    const result = generate(makeItem({ type: "3dmodel" }), { signal: controller.signal });
+    await vi.waitFor(() => expect(capture).toHaveBeenCalledOnce());
+
+    controller.abort();
+
+    expect(dispose).toHaveBeenCalledOnce();
+    expect(document.querySelector('[aria-hidden="true"]')).toBeNull();
+    completeCapture(new Blob(["late"]));
+    await expect(result).rejects.toMatchObject({ name: "AbortError" });
+    expect(dispose).toHaveBeenCalledOnce();
   });
 
   test("closes an ImageBitmap when aborted while createImageBitmap is pending", async () => {

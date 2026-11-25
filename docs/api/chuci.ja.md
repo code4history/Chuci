@@ -260,6 +260,7 @@ await appendSlideWithThumbnail(swiper, slide, storeBlob, controller.signal);
 ```
 
 - `image`・`video` は WebP、`panorama`・`3dmodel`・`gaussian` は PNG を出力します。`youtube` は公開サムネイルを取得したままの Blob で返し、`maxSize` への縮小はしません。YouTube の動画 ID を抽出できない URL では失敗します。
+- Gaussian のサムネイルは CSS 高さ 720px を基準に画角を決め、同じ縦横比では `maxSize` を変えても構図が変わりません。
 - 動画は 0.5 秒の位置を使い、短い動画ではその直前の利用可能なコマを使います。
 - Node だけの環境ではなくブラウザ用 API です。画像・動画の生成には `OffscreenCanvas` が必要で、画像には `createImageBitmap` も必要です。パノラマ・3D モデル・Gaussian の生成には WebGL 2 が必要です。YouTube のサムネイル取得には `OffscreenCanvas`・WebGL のどちらも不要です。
 - メディアのピクセルを fetch または canvas へ取り出す場合は、配信元の CORS 許可が必要です。別サイトの画像・動画フレーム・テクスチャ・モデル・スプラットが対象です。YouTube の公開サムネイルもページから取得できる必要があります。

@@ -72,6 +72,7 @@ export async function prepareGaussianScene(
   stage: ThreeStage,
   item: MediaItem,
   signal: AbortSignal,
+  referenceHeightCssPx?: number,
 ): Promise<GaussianScene> {
   signal.throwIfAborted();
   if (!item.url) throw new Error("No Gaussian splat URL provided");
@@ -115,8 +116,8 @@ export async function prepareGaussianScene(
       stage.camera.updateProjectionMatrix();
     };
     const { width, height } = stage.size;
-    applyFov(width, height);
-    stopResize = stage.onResize(applyFov);
+    applyFov(width, referenceHeightCssPx ?? height);
+    if (referenceHeightCssPx === undefined) stopResize = stage.onResize(applyFov);
 
     const position = parseVec3(item.cameraPosition) ?? new Vector3(...LEGACY_GAUSSIAN_DEFAULT_VIEW.position);
     const target = parseVec3(item.cameraTarget) ?? new Vector3(...LEGACY_GAUSSIAN_DEFAULT_VIEW.target);

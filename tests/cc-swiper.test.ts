@@ -50,6 +50,21 @@ describe("CcSwiper", () => {
     expect(fixed.loop).toBe(false);
   });
 
+  test("shows navigation only with at least two slides and never opens an empty viewer", async () => {
+    const swiper = makeSwiper(0);
+    const nav = () => Array.from(swiper.shadowRoot!.querySelectorAll<HTMLButtonElement>(".nav"));
+    expect(nav().every((button) => button.hidden)).toBe(true);
+    await swiper.openViewer(0);
+    expect(document.querySelector("cc-viewer")).toBeNull();
+
+    swiper.append(document.createElement("cc-swiper-slide"));
+    await Promise.resolve();
+    expect(nav().every((button) => button.hidden)).toBe(true);
+    swiper.append(document.createElement("cc-swiper-slide"));
+    await Promise.resolve();
+    expect(nav().every((button) => !button.hidden)).toBe(true);
+  });
+
   test("click without movement opens viewer at that index", () => {
     const el = makeSwiper(2);
     const open = vi.spyOn(el, "openViewer").mockResolvedValue();

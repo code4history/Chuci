@@ -362,6 +362,30 @@ test("Gaussian scene computes vertical fov from CSS pixel height (578px -> ~28.6
   expect(Math.abs(stage.camera.fov - 33.44)).toBeLessThan(0.01);
 });
 
+test("Gaussian thumbnails use a fixed CSS height at different output resolutions", async () => {
+  stubSplatFetch();
+  const { generateThumbnail } = await import("../src/thumbnails/generate");
+  vi.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockImplementation(function (this: HTMLElement) {
+    return new DOMRect(0, 0, parseFloat(this.style.width), parseFloat(this.style.height));
+  });
+  const projectedViews: Array<{ fov: number; aspect: number; maxSize: number }> = [];
+  const { ThreeStage: ThumbnailStage } = await import("../src/components/viewer/renderers/three-stage");
+  vi.spyOn(ThumbnailStage.prototype, "capture").mockImplementation(function (this: ThreeStage, maxSize) {
+    const { fov, aspect } = this.camera;
+    projectedViews.push({ fov, aspect, maxSize });
+    return Promise.resolve(new Blob());
+  });
+
+  await generateThumbnail(item, { maxSize: 128 });
+  await generateThumbnail(item, { maxSize: 256 });
+
+  const fov = 2 * Math.atan(720 / (2 * 1132)) * (180 / Math.PI);
+  expect(projectedViews).toEqual([
+    { fov: expect.closeTo(fov, 6), aspect: 1, maxSize: 128 },
+    { fov: expect.closeTo(fov, 6), aspect: 1, maxSize: 256 },
+  ]);
+});
+
 test("GaussianRenderer refreshes debug Field of View on viewport height resize", async () => {
   stubSplatFetch();
   let resizeCallback: ResizeObserverCallback | undefined;

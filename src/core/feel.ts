@@ -4,6 +4,7 @@ export const FEEL = {
   swipeCommitRatio: 0.2,
   swipeVelocityPxPerMs: 0.35,
   slideTransitionMs: 250,
+  slideAutoplayMs: 5000,
   dampingFactor: 0.9,
   dampingReferenceHz: 60,
   rotateSpeed: 1,
@@ -11,6 +12,9 @@ export const FEEL = {
   wheelZoomStep: 0.0015,
   imageMinZoom: 0.25,
   imageMaxZoom: 8,
+  panoramaMaxPitchDeg: 85,
+  panoramaMinFovDeg: 30,
+  panoramaMaxFovDeg: 100,
   doubleTapMs: 300,
   doubleTapSlopPx: 24,
   barHideDelayMs: 3000

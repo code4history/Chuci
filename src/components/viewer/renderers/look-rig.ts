@@ -5,9 +5,7 @@ import type { GestureEvent, GestureInterpreter } from "@/core/gesture";
 // Looking 90° left reproduces the legacy initial view with its sky rotation of −90°.
 export const PANORAMA_INITIAL = { yawDeg: -90, pitchDeg: 0, fovDeg: 80 } as const;
 
-const maxPitch = MathUtils.degToRad(85);
-const minFov = 30;
-const maxFov = 100;
+const maxPitch = MathUtils.degToRad(FEEL.panoramaMaxPitchDeg);
 
 export function resetPanoramaCamera(camera: PerspectiveCamera): void {
   camera.position.set(0, 0, 0);
@@ -78,7 +76,7 @@ export class LookRig {
     } else if (event.kind === "zoom") {
       const { factor } = event;
       if (!Number.isFinite(factor) || factor <= 0 || factor === 1) return;
-      this.camera.fov = MathUtils.clamp(this.fovDeg / factor, minFov, maxFov);
+      this.camera.fov = MathUtils.clamp(this.fovDeg / factor, FEEL.panoramaMinFovDeg, FEEL.panoramaMaxFovDeg);
       this.camera.updateProjectionMatrix();
     } else if (event.kind === "rotate") {
       const height = this.gestures.viewportHeight;

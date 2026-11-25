@@ -262,6 +262,7 @@ await appendSlideWithThumbnail(swiper, slide, storeBlob, controller.signal);
 ```
 
 - `image` and `video` produce WebP. `panorama`, `3dmodel`, and `gaussian` produce PNG. `youtube` returns the public YouTube thumbnail Blob as fetched, without resizing it to `maxSize`; a URL without an extractable YouTube video ID rejects.
+- Gaussian thumbnails use a 720 CSS-pixel reference height for the field of view, keeping the same framing at a given aspect ratio across `maxSize` values.
 - Video thumbnails use the frame at 0.5 seconds, or the nearest available earlier frame for shorter videos.
 - This is a browser API, not a Node-only API. Image and video generation requires `OffscreenCanvas` (images also require `createImageBitmap`). Panorama, 3D model, and Gaussian generation requires WebGL 2. YouTube thumbnail retrieval requires neither `OffscreenCanvas` nor WebGL.
 - The media server must permit CORS whenever media pixels are fetched or copied to a canvas. This includes cross-origin images, video frames, textures, models, and splats. YouTube's public thumbnail must also be fetchable from the page.

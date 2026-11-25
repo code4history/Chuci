@@ -7,14 +7,16 @@ import {
 } from "./generate";
 
 export const THUMBNAIL_MEMORY_CACHE_ENTRIES = 50;
+export const THUMBNAIL_TASK_TIMEOUT_MS = 30_000;
 
 type Generator = typeof generateThumbnail;
-type Waiter = { resolve: (value: string | null) => void };
+type Waiter = (value: string | null) => void;
 type Task = {
   item: MediaItem;
   key: string;
   priority: number;
-  waiters: Waiter[];
+  controller: AbortController;
+  waiters: Set<Waiter>;
 };
 
 export interface ThumbnailQueueOptions {
@@ -46,21 +48,33 @@ export class ThumbnailQueue {
     );
   }
 
-  request(item: MediaItem, priority: number): Promise<string | null> {
+  request(item: MediaItem, priority: number, signal?: AbortSignal): Promise<string | null> {
+    if (signal?.aborted) return Promise.resolve(null);
     const key = thumbnailCacheKey(item, this.maxSize);
     if (this.failedKeys.has(key)) return Promise.resolve(this.failureFallback(item));
     const existing = this.byKey.get(key);
-    if (existing) {
-      existing.priority = Math.min(existing.priority, priority);
-      return new Promise((resolve) => {
-        existing.waiters.push({ resolve });
-      });
+    const task = existing ?? { item, key, priority, controller: new AbortController(), waiters: new Set<Waiter>() };
+    task.priority = Math.min(task.priority, priority);
+    if (!existing) {
+      this.byKey.set(key, task);
+      this.tasks.push(task);
     }
-    const task: Task = { item, key, priority, waiters: [] };
-    this.byKey.set(key, task);
-    this.tasks.push(task);
     const result = new Promise<string | null>((resolve) => {
-      task.waiters.push({ resolve });
+      const finish: Waiter = (value) => {
+        signal?.removeEventListener("abort", cancel);
+        task.waiters.delete(finish);
+        resolve(value);
+      };
+      const cancel = () => {
+        finish(null);
+        if (task.waiters.size !== 0) return;
+        this.byKey.delete(key);
+        const pending = this.tasks.indexOf(task);
+        if (pending !== -1) this.tasks.splice(pending, 1);
+        task.controller.abort();
+      };
+      task.waiters.add(finish);
+      signal?.addEventListener("abort", cancel, { once: true });
     });
     this.startDrain();
     return result;
@@ -116,38 +130,58 @@ export class ThumbnailQueue {
   }
 
   private async run(task: Task): Promise<void> {
+    const { signal } = task.controller;
+    const deadline = setTimeout(() => task.controller.abort(), THUMBNAIL_TASK_TIMEOUT_MS);
+    let onAbort!: () => void;
+    const aborted = new Promise<never>((_resolve, reject) => {
+      onAbort = () => reject(signal.reason);
+      signal.addEventListener("abort", onAbort, { once: true });
+    });
+    let blob: Blob | undefined;
+    try {
+      blob = await Promise.race([this.load(task, signal), aborted]);
+      signal.throwIfAborted();
+      this.storeMemoryBlob(task.key, blob);
+    } catch {
+      blob = undefined;
+      // A real generation failure is remembered for the page. Abandonment
+      // and timeouts may succeed when a later consumer requests the same key.
+      if (!signal.aborted) this.failedKeys.add(task.key);
+    } finally {
+      clearTimeout(deadline);
+      signal.removeEventListener("abort", onAbort);
+      if (this.byKey.get(task.key) === task) this.byKey.delete(task.key);
+    }
+    for (const finish of task.waiters) {
+      try {
+        finish(blob ? URL.createObjectURL(blob) : this.failureFallback(task.item));
+      } catch {
+        finish(null);
+      }
+    }
+  }
+
+  private async load(task: Task, signal: AbortSignal): Promise<Blob> {
     const cache = await this.cache;
+    signal.throwIfAborted();
     let blob: Blob | undefined;
     try {
       blob = await cache?.get(task.key);
     } catch {
-      blob = undefined;
+      // Persistent storage can fail independently of thumbnail generation.
     }
+    signal.throwIfAborted();
     blob ??= this.readMemoryBlob(task.key);
-    if (!blob) {
-      try {
-        blob = await this.generate(task.item, { maxSize: this.maxSize });
-        try {
-          await cache?.put(task.key, blob);
-        } catch {
-          // A generated picture remains usable when persistent storage fails.
-        }
-      } catch {
-        this.failedKeys.add(task.key);
-        this.byKey.delete(task.key);
-        for (const waiter of task.waiters) waiter.resolve(this.failureFallback(task.item));
-        return;
-      }
+    if (blob) return blob;
+
+    blob = await this.generate(task.item, { maxSize: this.maxSize, signal });
+    signal.throwIfAborted();
+    try {
+      await cache?.put(task.key, blob);
+    } catch {
+      // A generated picture remains usable when persistent storage fails.
     }
-    this.storeMemoryBlob(task.key, blob);
-    this.byKey.delete(task.key);
-    for (const waiter of task.waiters) {
-      try {
-        waiter.resolve(URL.createObjectURL(blob));
-      } catch {
-        waiter.resolve(null);
-      }
-    }
+    return blob;
   }
 
   private failureFallback(item: MediaItem): string | null {

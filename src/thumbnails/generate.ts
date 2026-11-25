@@ -4,8 +4,9 @@ import { preparePanoramaScene } from "@/components/viewer/renderers/panorama-ren
 import { ThreeStage } from "@/components/viewer/renderers/three-stage";
 import { extractVideoId } from "@/utils/youtube-embed";
 
-export const THUMBNAIL_GENERATOR_VERSION = 2;
+export const THUMBNAIL_GENERATOR_VERSION = 3;
 export const DEFAULT_THUMBNAIL_SIZE = 256;
+const GAUSSIAN_THUMBNAIL_CSS_HEIGHT = 720;
 
 interface GenerateOptions {
   maxSize?: number;
@@ -141,6 +142,7 @@ function loadPanoramaAspect(url: string, signal: AbortSignal): Promise<number> {
     };
     const aborted = () => {
       cleanup();
+      image.removeAttribute("src");
       reject(signal.reason);
     };
     image.onload = () => {
@@ -172,24 +174,37 @@ async function generateThreeThumbnail(item: MediaItem, maxSize: number, signal: 
   host.setAttribute("aria-hidden", "true");
   document.body.append(host);
   let stage: ThreeStage | undefined;
+  const dispose = () => {
+    try {
+      stage?.dispose();
+    } finally {
+      stage = undefined;
+      host.remove();
+    }
+  };
+  signal.addEventListener("abort", dispose, { once: true });
   try {
-    stage = new ThreeStage(host);
+    const captureStage = new ThreeStage(host);
+    stage = captureStage;
     if (item.type === "panorama") {
-      await preparePanoramaScene(stage, item, signal);
+      await preparePanoramaScene(captureStage, item, signal);
     } else if (item.type === "3dmodel") {
-      const scene = await prepareModelScene(stage, item, signal);
+      const scene = await prepareModelScene(captureStage, item, signal);
       if (item.showTexture !== false && scene.textureLoadFailed) {
         throw new Error("Failed to load a required model texture");
       }
     } else {
       const { prepareGaussianScene } = await import("@/components/viewer/renderers/gaussian-renderer");
-      await prepareGaussianScene(stage, item, signal);
+      signal.throwIfAborted();
+      await prepareGaussianScene(captureStage, item, signal, GAUSSIAN_THUMBNAIL_CSS_HEIGHT);
     }
     signal.throwIfAborted();
-    return await stage.capture(maxSize);
+    const blob = await captureStage.capture(maxSize);
+    signal.throwIfAborted();
+    return blob;
   } finally {
-    stage?.dispose();
-    host.remove();
+    signal.removeEventListener("abort", dispose);
+    dispose();
   }
 }
 
