@@ -30,6 +30,7 @@ interface DragState {
 
 export class CcSwiper extends ChuciElement {
   private static activeViewerOwner: CcSwiper | undefined;
+  private static readonly handledViewerCloseEvents = new WeakSet<Event>();
   private currentIndex = 0;
   private timer?: ReturnType<typeof setInterval>;
   private observer?: ResizeObserver;
@@ -349,11 +350,17 @@ export class CcSwiper extends ChuciElement {
       this.goTo(this.viewerIndex, { animate: false });
     }
   };
-  private onViewerClose = () => {
-    if (CcSwiper.activeViewerOwner !== this) return;
-    this.goTo(this.viewerIndex, { animate: false });
+  private onViewerClose = (event: Event) => {
+    if (
+      CcSwiper.activeViewerOwner !== this ||
+      CcSwiper.handledViewerCloseEvents.has(event)
+    )
+      return;
+    CcSwiper.handledViewerCloseEvents.add(event);
     CcSwiper.activeViewerOwner = undefined;
     this.viewerOpen = false;
+    if (this.index !== this.viewerIndex)
+      this.goTo(this.viewerIndex, { animate: false });
     this.resumeAutoplay();
   };
 
@@ -571,6 +578,11 @@ export class CcSwiper extends ChuciElement {
   }
 
   async openViewer(index: number): Promise<void> {
+    const normalizedIndex = normalizeIndex(
+      Number.isFinite(index) ? Math.trunc(index) : 0,
+      this.items.length,
+      this.loop
+    );
     const previousOwner = CcSwiper.activeViewerOwner;
     if (previousOwner && previousOwner !== this) {
       previousOwner.viewerOpen = false;
@@ -578,7 +590,7 @@ export class CcSwiper extends ChuciElement {
     }
     CcSwiper.activeViewerOwner = this;
     this.viewerOpen = true;
-    this.viewerIndex = index;
+    this.viewerIndex = normalizedIndex;
     this.pauseAutoplay();
     const tag = this.viewerTagName();
     let viewer = document.querySelector(tag) as (Element & ViewerLike) | null;
@@ -587,7 +599,7 @@ export class CcSwiper extends ChuciElement {
       document.body.append(viewer);
     }
     await customElements.whenDefined(tag);
-    (viewer as ViewerLike).open(this.items, index, { loop: this.loop });
+    (viewer as ViewerLike).open(this.items, normalizedIndex, { loop: this.loop });
   }
 }
 

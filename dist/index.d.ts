@@ -1,5 +1,6 @@
 export declare class CcSwiper extends ChuciElement {
     private static activeViewerOwner;
+    private static readonly handledViewerCloseEvents;
     private currentIndex;
     private timer?;
     private observer?;
@@ -166,13 +167,6 @@ export { }
 
 declare global {
     interface HTMLElementTagNameMap {
-        'cc-swiper-slide': CcSwiperSlide;
-    }
-}
-
-
-declare global {
-    interface HTMLElementTagNameMap {
         "cc-viewer": CcViewer;
     }
 }
@@ -181,5 +175,12 @@ declare global {
 declare global {
     interface HTMLElementTagNameMap {
         "cc-swiper": CcSwiper;
+    }
+}
+
+
+declare global {
+    interface HTMLElementTagNameMap {
+        'cc-swiper-slide': CcSwiperSlide;
     }
 }

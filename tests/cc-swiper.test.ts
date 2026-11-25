@@ -244,6 +244,52 @@ describe("CcSwiper", () => {
     expect(el.index).toBe(1);
   });
 
+  test.each([
+    ["NaN", Number.NaN],
+    ["Infinity", Number.POSITIVE_INFINITY],
+    ["a fractional index", 0.5]
+  ])("closing after opening with %s selects the viewer's normalized index", async (_label, index) => {
+    const el = makeSwiper(3);
+    stubViewerOpen();
+    await el.openViewer(index);
+    document.dispatchEvent(new CustomEvent("cc-viewer-close"));
+    expect(el.index).toBe(0);
+  });
+
+  test("closing preserves ownership when an index listener opens another swiper", async () => {
+    const first = makeSwiper(3);
+    const second = makeSwiper(3);
+    stubViewerOpen();
+    await first.openViewer(1);
+    first.addEventListener(
+      "cc-swiper-index-change",
+      () => void second.openViewer(0),
+      { once: true }
+    );
+    document.dispatchEvent(new CustomEvent("cc-viewer-close"));
+    document.dispatchEvent(
+      new CustomEvent("cc-viewer-index-change", { detail: { index: 2 } })
+    );
+    expect(first.index).toBe(1);
+    expect(second.index).toBe(2);
+    document.dispatchEvent(new CustomEvent("cc-viewer-close"));
+  });
+
+  test("closing does not notify an index that is already synchronized", async () => {
+    const el = makeSwiper(3);
+    stubViewerOpen();
+    const indices: number[] = [];
+    el.addEventListener("cc-swiper-index-change", (event) => {
+      indices.push((event as CustomEvent<{ index: number }>).detail.index);
+    });
+    await el.openViewer(0);
+    document.dispatchEvent(
+      new CustomEvent("cc-viewer-index-change", { detail: { index: 1 } })
+    );
+    document.dispatchEvent(new CustomEvent("cc-viewer-close"));
+    expect(indices).toEqual([1]);
+  });
+
   test("viewer index notifications only update the owning swiper", async () => {
     const first = makeSwiper(3, { autoplay: "" });
     const second = makeSwiper(3, { autoplay: "" });
