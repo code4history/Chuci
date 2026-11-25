@@ -157,6 +157,8 @@ export class CcSwiper extends ChuciElement {
       const item = readMediaItem(slide);
       const key = thumbnailCacheKey(item, DEFAULT_THUMBNAIL_SIZE);
       const target = { slide, key };
+      const memorySrc = item.thumbnailUrl ? null : this.thumbnailQueue.getMemoryUrl(item);
+      if (memorySrc) this.thumbnailSources.set(slide, memorySrc);
       const src = item.thumbnailUrl || this.thumbnailSources.get(slide) || mediaTypeIcon(item.type);
       const panel = document.createElement("div");
       panel.className = "cc-slide";
@@ -252,11 +254,19 @@ export class CcSwiper extends ChuciElement {
     const slides = this.slides;
     const count = slides.length;
     if (!count) return;
+    const priorities = new Map<string, { item: MediaItem; priority: number }>();
     slides.forEach((slide, index) => {
       if (!this.pendingThumbnails.has(slide)) return;
+      const item = readMediaItem(slide);
+      const key = thumbnailCacheKey(item, DEFAULT_THUMBNAIL_SIZE);
       const priority = (index - this.index + count) % count;
-      this.thumbnailQueue.updatePriority(readMediaItem(slide), priority);
+      const current = priorities.get(key);
+      if (current) current.priority = Math.min(current.priority, priority);
+      else priorities.set(key, { item, priority });
     });
+    for (const { item, priority } of priorities.values()) {
+      this.thumbnailQueue.updatePriority(item, priority);
+    }
   }
 
   private bindEvents() {

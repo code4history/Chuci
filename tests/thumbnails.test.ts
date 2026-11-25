@@ -71,6 +71,7 @@ afterEach(() => {
 
 describe("thumbnailCacheKey", () => {
   test("thumbnailCacheKey changes when camera-position changes and when version changes", async () => {
+    expect(THUMBNAIL_GENERATOR_VERSION).toBe(2);
     const item = makeItem({ cameraPosition: "1,2,3" });
     const original = thumbnailCacheKey(item, 256);
     expect(thumbnailCacheKey({ ...item, cameraPosition: "4,5,6" }, 256)).not.toBe(original);
@@ -185,6 +186,27 @@ describe("ThumbnailQueue", () => {
     expect(generate).toHaveBeenCalledOnce();
   });
 
+  test("evicts least recently used memory Blobs without revoking live object URLs", async () => {
+    vi.stubGlobal("indexedDB", undefined);
+    const cache = await ThumbnailCache.open();
+    const generate = vi.fn((item: MediaItem) => Promise.resolve(new Blob([item.url])));
+    const queue = new ThumbnailQueue({ generate, cache, memoryCacheEntries: 2 });
+    const a = makeItem({ url: "https://example.com/memory-a.jpg" });
+    const b = makeItem({ url: "https://example.com/memory-b.jpg" });
+    const c = makeItem({ url: "https://example.com/memory-c.jpg" });
+    const aUrl = await queue.request(a, 0);
+    const bUrl = await queue.request(b, 0);
+    await queue.request(a, 0);
+    await queue.request(c, 0);
+
+    await queue.request(a, 0);
+    expect(generate).toHaveBeenCalledTimes(3);
+    await queue.request(b, 0);
+    expect(generate).toHaveBeenCalledTimes(4);
+    expect(revokedUrls).not.toContain(aUrl);
+    expect(revokedUrls).not.toContain(bUrl);
+  });
+
   test("reorders requests that have not started when their priority changes", async () => {
     const starts: string[] = [];
     const resolvers = new Map<string, () => void>();
@@ -255,6 +277,44 @@ describe("thumbnail slider integration", () => {
     expect(updatePriority).toHaveBeenCalledWith(items[2], 0);
     expect(updatePriority).toHaveBeenCalledWith(items[0], 1);
     expect(updatePriority).toHaveBeenCalledWith(items[1], 2);
+  });
+
+  test("duplicate slides keep their highest priority for a shared thumbnail key", async () => {
+    vi.stubGlobal("indexedDB", undefined);
+    const originalGenerate = Reflect.get(sharedThumbnailQueue, "generate");
+    const originalCache = Reflect.get(sharedThumbnailQueue, "cache");
+    const starts: string[] = [];
+    const resolvers = new Map<string, () => void>();
+    const generate = vi.fn((item: MediaItem) => {
+      starts.push(item.url);
+      return new Promise<Blob>((resolve) => {
+        resolvers.set(item.url, () => resolve(new Blob([item.url])));
+      });
+    });
+    Reflect.set(sharedThumbnailQueue, "generate", generate);
+    Reflect.set(sharedThumbnailQueue, "cache", ThumbnailCache.open());
+    const items = ["a", "b", "c", "d", "c"].map((name) =>
+      makeItem({ url: `https://example.com/duplicate-${name}.jpg` })
+    );
+    try {
+      const el = makeSwiper(items);
+      await vi.waitFor(() => expect(starts).toEqual([items[0].url]));
+      el.goTo(2);
+      resolvers.get(items[0].url)!();
+      await vi.waitFor(() => expect(starts).toHaveLength(2));
+
+      expect(starts[1]).toBe(items[2].url);
+      for (const index of [2, 3, 1]) {
+        await vi.waitFor(() => expect(starts).toContain(items[index].url));
+        resolvers.get(items[index].url)!();
+      }
+      await flush();
+    } finally {
+      for (const resolve of resolvers.values()) resolve();
+      await flush();
+      Reflect.set(sharedThumbnailQueue, "generate", originalGenerate);
+      Reflect.set(sharedThumbnailQueue, "cache", originalCache);
+    }
   });
 
   test("slider uses thumbnail-url when present and never calls generator", async () => {
@@ -360,6 +420,46 @@ describe("thumbnail slider integration", () => {
       expect(generate).toHaveBeenCalledOnce();
       expect(revokedUrls).toContain(firstSource);
     } finally {
+      Reflect.set(sharedThumbnailQueue, "generate", originalGenerate);
+      Reflect.set(sharedThumbnailQueue, "cache", originalCache);
+    }
+  });
+
+  test("rebuild restores memory thumbnails synchronously while another generation is pending", async () => {
+    vi.stubGlobal("indexedDB", undefined);
+    const originalGenerate = Reflect.get(sharedThumbnailQueue, "generate");
+    const originalCache = Reflect.get(sharedThumbnailQueue, "cache");
+    let finishPending!: (blob: Blob) => void;
+    const pending = new Promise<Blob>((resolve) => { finishPending = resolve; });
+    const generate = vi.fn((item: MediaItem) =>
+      item.url.includes("pending") ? pending : Promise.resolve(new Blob(["generated"]))
+    );
+    Reflect.set(sharedThumbnailQueue, "generate", generate);
+    Reflect.set(sharedThumbnailQueue, "cache", ThumbnailCache.open());
+    try {
+      const el = makeSwiper(makeItem({ url: "https://example.com/sync-rebuild.jpg" }));
+      const oldImage = el.shadowRoot!.querySelector<HTMLImageElement>(".viewer")!;
+      await vi.waitFor(() => expect(oldImage.getAttribute("src")).toMatch(/^blob:/));
+      const firstSource = oldImage.getAttribute("src")!;
+
+      makeSwiper(makeItem({ url: "https://example.com/pending.jpg" }));
+      await vi.waitFor(() => expect(generate).toHaveBeenCalledWith(
+        expect.objectContaining({ url: "https://example.com/pending.jpg" }),
+        expect.anything()
+      ));
+      const second = document.createElement("cc-swiper-slide");
+      second.setAttribute("image-url", "https://example.com/sync-other.jpg");
+      second.setAttribute("thumbnail-url", "https://example.com/sync-other-thumb.jpg");
+      el.append(second);
+      await vi.waitFor(() => expect(oldImage.isConnected).toBe(false));
+
+      const current = el.shadowRoot!.querySelector<HTMLImageElement>(".viewer")!;
+      expect(current.getAttribute("src")).toMatch(/^blob:/);
+      expect(current.getAttribute("src")).not.toBe(firstSource);
+      expect(revokedUrls).toContain(firstSource);
+    } finally {
+      finishPending(new Blob(["pending"]));
+      await flush();
       Reflect.set(sharedThumbnailQueue, "generate", originalGenerate);
       Reflect.set(sharedThumbnailQueue, "cache", originalCache);
     }

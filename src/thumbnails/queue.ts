@@ -6,6 +6,8 @@ import {
   youtubeThumbnailUrl,
 } from "./generate";
 
+export const THUMBNAIL_MEMORY_CACHE_ENTRIES = 50;
+
 type Generator = typeof generateThumbnail;
 type Waiter = { resolve: (value: string | null) => void };
 type Task = {
@@ -19,6 +21,7 @@ export interface ThumbnailQueueOptions {
   generate?: Generator;
   cache?: ThumbnailCache | Promise<ThumbnailCache>;
   maxSize?: number;
+  memoryCacheEntries?: number;
 }
 
 /** Serial generation queue. Lower priority values run first. */
@@ -26,6 +29,7 @@ export class ThumbnailQueue {
   private readonly generate: Generator;
   private readonly cache: Promise<ThumbnailCache | undefined>;
   private readonly maxSize: number;
+  private readonly memoryCacheEntries: number;
   private readonly tasks: Task[] = [];
   private readonly byKey = new Map<string, Task>();
   private readonly blobs = new Map<string, Blob>();
@@ -36,6 +40,10 @@ export class ThumbnailQueue {
     this.generate = options.generate ?? generateThumbnail;
     this.cache = Promise.resolve(options.cache ?? ThumbnailCache.open()).catch(() => undefined);
     this.maxSize = options.maxSize ?? DEFAULT_THUMBNAIL_SIZE;
+    this.memoryCacheEntries = Math.max(
+      0,
+      Math.floor(options.memoryCacheEntries ?? THUMBNAIL_MEMORY_CACHE_ENTRIES)
+    );
   }
 
   request(item: MediaItem, priority: number): Promise<string | null> {
@@ -56,6 +64,35 @@ export class ThumbnailQueue {
     });
     this.startDrain();
     return result;
+  }
+
+  private readMemoryBlob(key: string): Blob | undefined {
+    const blob = this.blobs.get(key);
+    if (blob) {
+      this.blobs.delete(key);
+      this.blobs.set(key, blob);
+    }
+    return blob;
+  }
+
+  private storeMemoryBlob(key: string, blob: Blob): void {
+    this.blobs.delete(key);
+    this.blobs.set(key, blob);
+    while (this.blobs.size > this.memoryCacheEntries) {
+      const oldest = this.blobs.keys().next().value;
+      if (oldest === undefined) break;
+      this.blobs.delete(oldest);
+    }
+  }
+
+  getMemoryUrl(item: MediaItem): string | null {
+    const blob = this.readMemoryBlob(thumbnailCacheKey(item, this.maxSize));
+    if (!blob) return null;
+    try {
+      return URL.createObjectURL(blob);
+    } catch {
+      return null;
+    }
   }
 
   updatePriority(item: MediaItem, priority: number): void {
@@ -86,7 +123,7 @@ export class ThumbnailQueue {
     } catch {
       blob = undefined;
     }
-    blob ??= this.blobs.get(task.key);
+    blob ??= this.readMemoryBlob(task.key);
     if (!blob) {
       try {
         blob = await this.generate(task.item, { maxSize: this.maxSize });
@@ -102,7 +139,7 @@ export class ThumbnailQueue {
         return;
       }
     }
-    this.blobs.set(task.key, blob);
+    this.storeMemoryBlob(task.key, blob);
     this.byKey.delete(task.key);
     for (const waiter of task.waiters) {
       try {

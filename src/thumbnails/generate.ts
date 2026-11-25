@@ -4,7 +4,7 @@ import { preparePanoramaScene } from "@/components/viewer/renderers/panorama-ren
 import { ThreeStage } from "@/components/viewer/renderers/three-stage";
 import { extractVideoId } from "@/utils/youtube-embed";
 
-export const THUMBNAIL_GENERATOR_VERSION = 1;
+export const THUMBNAIL_GENERATOR_VERSION = 2;
 export const DEFAULT_THUMBNAIL_SIZE = 256;
 
 interface GenerateOptions {
