@@ -146,6 +146,23 @@ describe("CcSwiper", () => {
     expect(open).not.toHaveBeenCalled();
   });
 
+  test("autoplay does not interrupt a drag in progress", () => {
+    vi.useFakeTimers();
+    const el = makeSwiper(3, { autoplay: "" });
+    const viewport = el.shadowRoot!.querySelector<HTMLElement>("#viewport")!;
+    Object.defineProperty(viewport, "getBoundingClientRect", {
+      value: () => ({ width: 100, height: 100, x: 0, y: 0, top: 0, left: 0, right: 100, bottom: 100, toJSON() {} })
+    });
+    Reflect.set(el, "width", 100);
+    const slide = el.shadowRoot!.querySelector<HTMLElement>('[data-index="0"]')!;
+    slide.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true, pointerId: 1, clientX: 90 }));
+    slide.dispatchEvent(new PointerEvent("pointermove", { bubbles: true, pointerId: 1, clientX: 40 }));
+    vi.advanceTimersByTime(5000);
+    expect(el.index).toBe(0);
+    slide.dispatchEvent(new PointerEvent("pointerup", { bubbles: true, pointerId: 1, clientX: 40 }));
+    expect(el.index).toBe(1);
+  });
+
   test("pointer events do not propagate to the map container", () => {
     const outer = document.createElement("div");
     const listener = vi.fn();

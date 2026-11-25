@@ -680,7 +680,8 @@ export class CcSwiper extends ChuciElement {
   private startAutoplay() {
     this.pauseAutoplay();
     if (this.isConnected && !this.viewerOpen && this.autoplay && this.items.length > 1)
-      this.timer = setInterval(() => this.step(1), FEEL.slideAutoplayMs);
+      // ドラッグ中は自動送りを見送る（操作中のスワイプを打ち消さない）
+      this.timer = setInterval(() => { if (!this.drag) this.step(1); }, FEEL.slideAutoplayMs);
   }
 
   async openViewer(index: number): Promise<void> {
